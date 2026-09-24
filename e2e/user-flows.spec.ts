@@ -89,12 +89,13 @@ test("persist — change housing number, save (handle ad), reload keeps value", 
   await expect(page.getByTestId("housing-market-value")).toContainText("NT$19,000,000");
 });
 
-test("demo rhythm — ?demo=1 adds demo-rhythm class or metronome", async ({ page }) => {
+test("demo rhythm — ?demo=1 adds demo-rhythm class and hero rhythm", async ({ page }) => {
   await page.goto("/?demo=1");
   await page.getByTestId("app-title").waitFor();
   const body = page.locator("body");
   await expect(body).toHaveClass(/demo-rhythm/);
-  // Metronome visible when honesty is pace (default seed)
+  // Paper default → bars metronome; hero rhythm block present
+  await expect(page.getByTestId("rhythm-hero")).toBeVisible();
   await expect(page.getByTestId("rhythm-metro").first()).toBeVisible();
 });
 
@@ -109,9 +110,31 @@ test("widget template — Settings → select noir → preview has data-template
 
   await page.getByRole("button", { name: "Lock small (preview)" }).click();
   await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-template", "noir");
-  await expect(page.getByTestId("rhythm-metro").first()).toBeVisible();
+  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-rhythm", "dots");
+  await expect(page.getByTestId("rhythm-dots").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Back" }).click();
   await page.getByRole("button", { name: "Home medium (preview)" }).click();
   await expect(page.getByTestId("home-widget")).toHaveAttribute("data-template", "noir");
+  await expect(page.getByTestId("home-widget")).toHaveAttribute("data-rhythm", "dots");
+  await expect(page.getByTestId("rhythm-dots").first()).toBeVisible();
+});
+
+test("widget template — swiss has accent rule structure; sumi asymmetric lock", async ({ page }) => {
+  await gotoHome(page);
+  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
+
+  await page.getByTestId("template-swiss").click();
+  await page.getByRole("button", { name: "Lock small (preview)" }).click();
+  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-template", "swiss");
+  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-rhythm", "bars");
+  await expect(page.getByTestId("rhythm-metro").first()).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+
+  await page.getByTestId("template-sumi").click();
+  await page.getByRole("button", { name: "Lock small (preview)" }).click();
+  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-template", "sumi");
+  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-rhythm", "ink");
+  await expect(page.locator(".lw-asymmetric")).toBeVisible();
+  await expect(page.getByTestId("rhythm-dots").first()).toBeVisible();
 });

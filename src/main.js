@@ -90,13 +90,80 @@ function sparkPath(quietDay) {
   return { w, h, d, fill, coords: pts, last: pts[pts.length - 1] };
 }
 
-function metroHTML() {
-  return `<span class="rhythm-metro pace-only" data-testid="rhythm-metro" aria-hidden="true">
-    <span class="rhythm-beat"></span>
-    <span class="rhythm-beat"></span>
-    <span class="rhythm-beat"></span>
-    <span class="rhythm-beat"></span>
-  </span>`;
+/* Template → rhythm craft (structural, not only color) */
+const TEMPLATE_RHYTHM = {
+  paper: "bars",
+  swiss: "bars",
+  sumi: "ink",
+  glass: "dots",
+  noir: "dots",
+};
+
+function rhythmVariant() {
+  return TEMPLATE_RHYTHM[currentTemplate()] || "dots";
+}
+
+/** Rounded/sharp bar metronome — paper & swiss */
+function metroHTML(size = "inline") {
+  const n = size === "full" ? 16 : size === "strip" ? 8 : 4;
+  const beats = Array.from({ length: n }, (_, i) =>
+    `<span class="rhythm-beat" style="--i:${i}"></span>`
+  ).join("");
+  return `<span class="rhythm-metro pace-only" data-rhythm="bars" data-size="${size}" data-testid="rhythm-metro" aria-hidden="true">${beats}</span>`;
+}
+
+/** LED / phosphor dot-matrix — glass & noir (and hero signature) */
+function dotsHTML(size = "full") {
+  const specs = {
+    full: { rows: 7, cols: 20 },
+    compact: { rows: 4, cols: 16 },
+    strip: { rows: 3, cols: 12 },
+    inline: { rows: 5, cols: 8 },
+  };
+  const { rows, cols } = specs[size] || specs.full;
+  const colsHtml = [];
+  for (let c = 0; c < cols; c++) {
+    const level = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin((c / Math.max(cols - 1, 1)) * Math.PI * 2.2));
+    let dots = "";
+    for (let r = 0; r < rows; r++) {
+      const fromBottom = rows - 1 - r;
+      const on = fromBottom / Math.max(rows - 1, 1) <= level;
+      dots += `<span class="led-dot${on ? " is-on" : ""}" style="--r:${r}"></span>`;
+    }
+    colsHtml.push(`<span class="led-col" style="--i:${c}">${dots}</span>`);
+  }
+  return `<div class="rhythm-matrix pace-only" data-rhythm="dots" data-size="${size}" data-rows="${rows}" data-cols="${cols}" data-testid="rhythm-dots" aria-hidden="true">${colsHtml.join("")}</div>`;
+}
+
+/** Soft circular ink dots — sumi */
+function inkHTML(size = "full") {
+  const specs = {
+    full: { rows: 5, cols: 12 },
+    compact: { rows: 3, cols: 10 },
+    strip: { rows: 2, cols: 8 },
+    inline: { rows: 3, cols: 6 },
+  };
+  const { rows, cols } = specs[size] || specs.full;
+  const colsHtml = [];
+  for (let c = 0; c < cols; c++) {
+    const level = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin((c / Math.max(cols - 1, 1)) * Math.PI * 1.8 + 0.4));
+    let dots = "";
+    for (let r = 0; r < rows; r++) {
+      const fromBottom = rows - 1 - r;
+      const on = fromBottom / Math.max(rows - 1, 1) <= level;
+      dots += `<span class="led-dot${on ? " is-on" : ""}" style="--r:${r}"></span>`;
+    }
+    colsHtml.push(`<span class="led-col" style="--i:${c}">${dots}</span>`);
+  }
+  return `<div class="rhythm-matrix pace-only" data-rhythm="ink" data-size="${size}" data-rows="${rows}" data-cols="${cols}" data-testid="rhythm-dots" aria-hidden="true">${colsHtml.join("")}</div>`;
+}
+
+/** Pick bars | dots | ink for current template */
+function rhythmHTML(size = "full") {
+  const v = rhythmVariant();
+  if (v === "bars") return metroHTML(size);
+  if (v === "ink") return inkHTML(size);
+  return dotsHTML(size);
 }
 
 function prefersReducedMotion() {
@@ -341,18 +408,22 @@ function screenHome(d) {
         <div class="meta-row">
           <span class="pill ${delta >= 0 ? "up" : "down"}">${pl} ${fmtDelta(delta)}</span>
           <button type="button" class="pill accent ${state.settings.honesty === "pace" ? "pace-breathe" : ""}" id="honesty-toggle" aria-pressed="${state.settings.honesty === "pace"}">${honesty}</button>
-          ${state.settings.honesty === "pace" ? metroHTML() : ""}
+          ${state.settings.honesty === "pace" ? rhythmHTML("inline") : ""}
         </div>
       </div>
       <p class="quiet-line">${t("quiet.line", { amount: `<strong>${fmtNT(Math.round(d.quietDay))}</strong>` })}</p>
       ${
         state.settings.honesty === "pace"
-          ? `<p class="rhythm-live-line" id="rhythmLiveLine">${t("rhythm.paceRunning")} <span id="rhythmLive">${fmtNT(Math.round(d.quietDay * 0.55))}</span></p>`
+          ? `<p class="rhythm-live-line" id="rhythmLiveLine">${t("rhythm.paceRunning")} <span id="rhythmLive">${fmtNT(Math.round(d.quietDay * 0.55))}</span></p>
+      <div class="rhythm-hero" data-testid="rhythm-hero">
+        <div class="cap">${t("rhythm.matrixCap")}</div>
+        ${rhythmHTML("full")}
+      </div>`
           : state.settings.honesty === "actual"
           ? `<p class="quiet-line" style="color:${state.assets.equities.dayPnL < 0 ? "var(--down)" : "var(--accent)"}">${t("twse.today", { delta: fmtDelta(state.assets.equities.dayPnL) })}</p>`
           : ""
       }
-      <div class="spark-wrap">
+      <div class="spark-wrap spark-secondary">
         <div class="cap">${t("spark.cap")}</div>
         <svg viewBox="0 0 ${spark.w} ${spark.h}" preserveAspectRatio="none" aria-hidden="true">
           <path class="fill" d="${spark.fill}" />
@@ -552,14 +623,26 @@ function screenWidgetLock(d) {
     <div class="screen active">
       <div class="preview-banner">${t("widget.previewBanner")}</div>
       <div class="widget-stage">
-        <div class="lock-widget" data-template="${currentTemplate()}" data-testid="lock-widget" aria-label="${t("widget.lockAria")}">
-          <div class="brand">${t("brand")}</div>
+        <div class="lock-widget tpl-${currentTemplate()}" data-template="${currentTemplate()}" data-rhythm="${rhythmVariant()}" data-testid="lock-widget" aria-label="${t("widget.lockAria")}">
+          ${
+            currentTemplate() === "sumi"
+              ? `<div class="lw-asymmetric">
+            <div class="lw-value-block"><div class="val">${fmtNT(d.netWorth)}</div></div>
+            <div class="lw-meta-block">
+              <div class="brand">${t("brand")}</div>
+              <div class="lab">${t("netWorth")}</div>
+              <div class="pace pace-breathe">${t("widget.monthPace", { delta: fmtDelta(pace30, true) })}</div>
+            </div>
+          </div>
+          <div class="pace-row">${rhythmHTML("compact")}</div>`
+              : `<div class="brand">${t("brand")}</div>
           <div class="lab">${t("netWorth")}</div>
           <div class="val">${fmtNT(d.netWorth)}</div>
           <div class="pace-row">
             <div class="pace pace-breathe">${t("widget.monthPace", { delta: fmtDelta(pace30, true) })}</div>
-            ${metroHTML()}
-          </div>
+            ${rhythmHTML("compact")}
+          </div>`
+          }
         </div>
       </div>
       <p class="preview-note">${t("widget.previewNoteLock")}</p>
@@ -584,11 +667,12 @@ function screenWidgetHome(d) {
     <div class="screen active">
       <div class="preview-banner">${t("widget.previewBanner")}</div>
       <div class="widget-stage">
-        <div class="medium-widget" data-template="${currentTemplate()}" data-testid="home-widget" aria-label="${t("widget.homeAria")}">
+        <div class="medium-widget tpl-${currentTemplate()}" data-template="${currentTemplate()}" data-rhythm="${rhythmVariant()}" data-testid="home-widget" aria-label="${t("widget.homeAria")}">
           <div class="mw-head">
             <span class="brand">${t("brand")}</span>
             <span class="period">${pl}</span>
           </div>
+          <div class="mw-body">
           <div class="mw-row">
             <span class="tag">${t("widget.housing")}</span>
             <span class="amt">${fmtNT(d.netEquity, true)}</span>
@@ -609,6 +693,8 @@ function screenWidgetHome(d) {
             <span class="amt">${fmtNT(state.assets.passive.monthly, true)}${t("perMo")}</span>
             <span class="d">${t("widget.pace", { amount: fmtNT(Math.round(state.assets.passive.monthly * (days / 30)), true) })}</span>
           </div>
+          </div>
+          <div class="mw-rhythm">${rhythmHTML("strip")}</div>
         </div>
       </div>
       <p class="preview-note">${t("widget.previewNoteHome")}</p>

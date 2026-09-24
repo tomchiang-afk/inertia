@@ -1,7 +1,9 @@
 # Inertia widget visual templates
 
-Design research and token map for selectable lock / home widget materials.
-Brand name **Inertia** is fixed in every locale; templates change surface craft only.
+Design research and **structural** craft map for selectable lock / home widget materials.
+Brand name **Inertia** is fixed in every locale; templates change surface **and layout**, not only color tokens.
+
+> **Honest note:** an earlier revision was too token-only (CSS variables under `data-template`). Templates looked like recolors. This doc describes the structural differences that must read clearly in screenshots.
 
 ## Anti–vibe-coding rules
 
@@ -10,6 +12,7 @@ Brand name **Inertia** is fixed in every locale; templates change surface craft 
 - High information density remains acceptable — clarity over emptiness-as-style.
 - Light-first defaults; **noir** is the single OLED-friendly dark option.
 - Materials should read as honest surfaces (paper, ink, glass, charcoal), not skins.
+- Rhythm craft is part of the template: `data-rhythm="bars|dots|ink"`.
 
 ## Design lineages (cited principles, not quotations)
 
@@ -20,34 +23,40 @@ Brand name **Inertia** is fixed in every locale; templates change surface craft 
 | **Japanese quiet / *ma*** | Negative space as active structure; ink restraint; surfaces that breathe. *Ma* (間) as interval — silence between beats, not emptiness for lack of content. | Overfilled cards, busy separators. |
 | **Apple Human Interface Guidelines — widgets** | Legibility on arbitrary wallpapers; material translucency cues; content-first; system-adjacent craft for Lock Screen / Home Screen. | Heavy chrome that fights the wallpaper; low-contrast ink. |
 | **Soft utilitarian finance** | Clarity over decoration; tabular numbers; calm up/down semantics. Household-ledger tone, not trading-terminal adrenaline. | Neon P&amp;L fireworks, gamified badges. |
+| **LED / phosphor display** | Dot-matrix pace as signature motion language (點陣圖) — equalizer / marching column for Month pace. | Thin 4-bar chrome as the only rhythm. |
 
-## Template catalog
+## Rhythm variants
+
+| `data-rhythm` | Templates | Form |
+| --- | --- | --- |
+| `bars` | paper, swiss | Rounded (paper) or sharp (swiss) bar metronome / equalizer |
+| `dots` | glass, noir | LED grid (home hero ~7×20; lock compact ~4×16; medium strip ~3×12) |
+| `ink` | sumi | Softer circular ink dots, more spacing (*ma*) |
+
+- **App Home:** hero rhythm block above a secondary sparkline (`?demo=1` amplifies motion).
+- **Lock preview / Home medium:** compact / strip sizes.
+- CSS-driven; `prefers-reduced-motion: reduce` → static lit pattern (no animation).
+
+## Template catalog — structural diffs
 
 ### 1. `paper` — Paper (default)
 
 **Lineage:** Rams honesty + soft utilitarian finance.
 
-**When to use:** Everyday household glance; matches the current Inertia app chrome users already trust. Default for first launch.
+**Structure (must differ in screenshots)**
+
+- Soft **16–20px** radius cards; warm paper wash; light soft shadow OK.
+- Classic **stacked** label → value → pace.
+- Rhythm: **`bars`** with rounded bar caps.
 
 **Palette tokens**
 
 | Token | Value | Role |
 | --- | --- | --- |
 | `--bg` | `#F7F6F3` | Warm paper wash |
-| `--bg-page` | `#EDEBE6` | Page behind shell |
 | `--surface` | `#FFFFFF` | Cards / widgets |
 | `--ink` | `#1A1A1A` | Primary type |
-| `--muted` / `--faint` | `#5C5C5C` / `#8A8A8A` | Secondary |
-| `--line` / `--line-soft` | `#E8E8E8` / `#F0EFEC` | Hairlines |
 | `--accent` | `#2F5D4A` | Single sage-green accent |
-| `--accent-soft` | `#E8F0EC` | Accent wash |
-| `--down` | `#8B3A32` | Loss / mortgage semantic |
-
-**Typography:** Regular / medium for labels; semibold (600) for net worth and amounts. No display faces.
-
-**Lock widget:** Warm near-opaque paper tile; brand in accent; metronome beats use `--accent`.
-
-**Home medium:** Same paper surface; row hairlines soft; period label faint; accent only on brand + positive pace deltas.
 
 ---
 
@@ -55,25 +64,20 @@ Brand name **Inertia** is fixed in every locale; templates change surface craft 
 
 **Lineage:** International Typographic Style — grid, hierarchy, one sharp accent.
 
-**When to use:** Users who want cooler, more editorial clarity; strong figure/ground for numbers.
+**Structure**
+
+- **0–2px** radius; hairline border; **left 3px accent rule**.
+- Uppercase micro-labels; tighter tracking; denser row padding.
+- **No soft shadow.**
+- Rhythm: **`bars`** with `border-radius: 0`.
 
 **Palette tokens**
 
 | Token | Value | Role |
 | --- | --- | --- |
 | `--bg` | `#F0F0F2` | Cool gray field |
-| `--bg-page` | `#E4E4E8` | Page |
-| `--surface` | `#FAFAFB` | Cards |
-| `--ink` | `#0A0A0A` | Near-black type |
-| `--muted` / `--faint` | `#4A4A4E` / `#7A7A80` | Secondary |
-| `--line` / `--line-soft` | `#D8D8DE` / `#ECECEF` | Grid lines |
 | `--accent` | `#9B1B2E` | Crimson — used sparingly |
-| `--accent-soft` | `#F5E8EB` | Accent wash |
-| `--down` | `#9B1B2E` | Aligns with accent (honest, not decorative) |
-
-**Typography:** Slightly tighter tracking on labels; bold hierarchy on amounts; accent reserved for brand wordmark and metronome — not full-row fills.
-
-**Lock / home:** Cool gray tile; crimson only on `Inertia` brand + pace beat; hairlines read as grid, not ornament.
+| `--ink` | `#0A0A0A` | Near-black type |
 
 ---
 
@@ -81,25 +85,18 @@ Brand name **Inertia** is fixed in every locale; templates change surface craft 
 
 **Lineage:** Japanese quiet / *ma* — soft ink, warm gray-green wash, interval.
 
-**When to use:** Calm lock-screen presence; users who prefer softer contrast without going dark.
+**Structure**
+
+- **Asymmetric lock layout:** large value left; brand / label / pace quiet on the right.
+- More padding (*ma*); quieter / softer row dividers on medium widget.
+- Rhythm: **`ink`** — circular soft dots.
 
 **Palette tokens**
 
 | Token | Value | Role |
 | --- | --- | --- |
 | `--bg` | `#E6EAE4` | Warm gray-green wash |
-| `--bg-page` | `#D8DED4` | Page |
-| `--surface` | `#F3F5F1` | Soft paper-ink surface |
-| `--ink` | `#1C1C1A` | Soft ink black |
-| `--muted` / `--faint` | `#555850` / `#7E8378` | Secondary |
-| `--line` / `--line-soft` | `#D0D6CC` / `#E4E8E0` | Quiet rules |
 | `--accent` | `#3F4F42` | Restrained ink-green |
-| `--accent-soft` | `#DFE6DF` | Accent wash |
-| `--down` | `#7A453C` | Muted down |
-
-**Typography:** Slightly lighter label weight sensation (color, not thin fonts); more padding air where the grid allows — *ma* as spacing, not missing data.
-
-**Lock / home:** Wash behind stage; widget surface soft; accent ink for brand and metronome only.
 
 ---
 
@@ -107,51 +104,40 @@ Brand name **Inertia** is fixed in every locale; templates change surface craft 
 
 **Lineage:** Apple HIG widget craft — translucency, wallpaper legibility, system material cues.
 
-**When to use:** Previewing how Inertia should sit on Lock / Home wallpapers; when the user wants a more “system widget” feel.
+**Structure**
+
+- Extra translucency + **inner top highlight** (`::before` hairline).
+- Slightly **larger radius** (~22px); thinner type weights on amounts.
+- Rhythm: **`dots`** (frosted LED).
 
 **Palette tokens**
 
 | Token | Value | Role |
 | --- | --- | --- |
-| `--bg` | `#F4F5F7` | Cool light shell |
-| `--bg-page` | `#E8EAEE` | Page |
-| `--surface` | `rgba(255,255,255,0.72)` | Translucent card cue (widgets raise blur) |
-| `--ink` | `#1B1D21` | High-legibility ink |
-| `--muted` / `--faint` | `#5A5E66` / `#8B9099` | Secondary |
-| `--line` / `--line-soft` | `rgba(0,0,0,0.08)` / `rgba(0,0,0,0.04)` | Soft edges |
-| `--accent` | `#2C5F6E` | Single slate-teal accent |
-| `--accent-soft` | `#E2EEF1` | Accent wash |
-| `--down` | `#8B3A32` | Semantic down |
-
-**Typography:** Same weights as paper; contrast prioritized for wallpaper survival.
-
-**Lock / home:** Higher `backdrop-filter` blur; frosted tile; brand accent; metronome remains solid (readable) on frosted glass.
+| `--widget-surface` | `rgba(255,255,255,0.55)` | Frosted tile |
+| `--widget-blur` | `28px` | System blur cue |
+| `--accent` | `#2C5F6E` | Slate-teal |
 
 ---
 
 ### 5. `noir` — Noir
 
-**Lineage:** OLED lock screens + soft utilitarian finance in the dark.
+**Lineage:** OLED lock screens + phosphor pace display.
 
-**When to use:** Dark wallpapers / Always-On displays; users who want charcoal, not pure black marketing “OLED black” gimmicks.
+**Structure**
+
+- Dark OLED charcoal; **minimal chrome**.
+- **Dot-matrix is primary** (bright phosphor-green / sage LEDs on charcoal); sparkline de-emphasized.
+- Monospace / tabular figures on net-worth amounts.
+- Rhythm: **`dots`** (required).
 
 **Palette tokens**
 
 | Token | Value | Role |
 | --- | --- | --- |
 | `--bg` | `#1C1C1E` | Charcoal shell |
-| `--bg-page` | `#0E0E10` | Page |
-| `--surface` | `#2C2C2E` | Raised surface |
-| `--ink` | `#F2F2F0` | Primary type |
-| `--muted` / `--faint` | `#A1A19C` / `#6E6E6A` | Secondary |
-| `--line` / `--line-soft` | `#3A3A3C` / `#323234` | Hairlines |
-| `--accent` | `#8FA896` | Muted sage (single accent) |
-| `--accent-soft` | `#2A332C` | Accent wash |
-| `--down` | `#C48B84` | Soft down on dark |
-
-**Typography:** Semibold amounts stay; avoid pure `#000` fills (OLED smearing / crushing). Sage accent on brand + metronome / playhead only.
-
-**Lock / home:** Charcoal tiles on dark stage; sage pace marks; no neon up-arrows.
+| `--accent` | `#8FA896` | Muted sage |
+| LED on | `#C5E0CC` + glow | Phosphor pace |
 
 ---
 
@@ -160,10 +146,11 @@ Brand name **Inertia** is fixed in every locale; templates change surface craft 
 | Concern | Mechanism |
 | --- | --- |
 | Persistence | `settings.widgetTemplate` in `inertia.v1` (default `paper`) |
-| DOM | `data-template="{id}"` on `#app`, `.shell`, `.lock-widget`, `.medium-widget` |
-| Tokens | CSS variables overridden under `[data-template="…"]` |
+| DOM | `data-template="{id}"` on `#app`, `.shell`, widgets; `data-rhythm` + `tpl-*` class on widgets |
+| Tokens | CSS variables under `[data-template="…"]` |
+| Structure | Template-scoped CSS for radius, border, accent rule, type-transform, padding, shadows, asymmetric lock grid |
+| Rhythm | `rhythmHTML(size)` → bars / dots / ink; hero on App Home; compact/strip on widgets |
 | Settings UI | Swatch picker; instant apply to chrome + widget previews |
-| Rhythm | Metronome / playhead use `var(--accent)` — auto-adapts |
 | Ads / buyout | Unchanged; ads remain edit-only |
 
 ## IDs (stable)
