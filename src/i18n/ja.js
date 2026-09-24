@@ -108,6 +108,8 @@ export default {
   "template.glass.desc": "すりガラス · 内側ハイライト · LED点 · 大きめの角丸。",
   "template.noir": "ノワール",
   "template.noir.desc": "OLEDチャコール · 蛍光ドットマトリクス主 · 等幅数字。",
+  "template.matrix": "Matrix",
+  "template.matrix.desc": "LCD外枠・内側カード · ピクセル書体 · 端末グリーン · 4バー走査。",
   "settings.widgetPreviews": "ウィジェットプレビュー",
   "settings.widgetLock": "ロック小（プレビュー）",
   "settings.widgetHome": "ホーム中（プレビュー）",

@@ -138,3 +138,26 @@ test("widget template — swiss has accent rule structure; sumi asymmetric lock"
   await expect(page.locator(".lw-asymmetric")).toBeVisible();
   await expect(page.getByTestId("rhythm-dots").first()).toBeVisible();
 });
+
+test("widget template — Settings → select matrix → preview has data-template", async ({ page }) => {
+  await gotoHome(page);
+  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByTestId("template-picker")).toBeVisible();
+
+  await page.getByTestId("template-matrix").click();
+  await expect(page.getByTestId("template-matrix")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#app")).toHaveAttribute("data-template", "matrix");
+
+  await page.getByRole("button", { name: "Lock small (preview)" }).click();
+  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-template", "matrix");
+  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-rhythm", "scan");
+  await expect(page.getByTestId("rhythm-scan").first()).toBeVisible();
+  await expect(page.getByTestId("rhythm-scan").first().locator(".rhythm-beat")).toHaveCount(4);
+
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Home medium (preview)" }).click();
+  await expect(page.getByTestId("home-widget")).toHaveAttribute("data-template", "matrix");
+  await expect(page.getByTestId("home-widget")).toHaveAttribute("data-rhythm", "scan");
+  await expect(page.getByTestId("rhythm-scan").first()).toBeVisible();
+});
+

@@ -140,6 +140,33 @@
   --pill-down-border: #4A3836;
 }
 
+[data-template="matrix"] {
+  --bg: #F2F2F2;
+  --bg-page: #E8E8E8;
+  --surface: #FFFFFF;
+  --ink: #111111;
+  --muted: #5A5A5A;
+  --faint: #8A8A8A;
+  --line: #D4D4D4;
+  --line-soft: #E6E6E6;
+  --accent: #0B7A4B;
+  --accent-soft: #D8EDE3;
+  --down: #8B3A32;
+  --down-soft: #F5EBEA;
+  --widget-surface: #FFFFFF;
+  --widget-blur: 0px;
+  --widget-border: #2A2A2A;
+  --stage-bg: #F2F2F2;
+  --btn-primary-hover: #096540;
+  --btn-primary-active: #075236;
+  --pill-up-border: #A8D4BE;
+  --pill-down-border: #e4c9c6;
+  --font: "VT323", "Press Start 2P", "Courier New", monospace;
+  --scan-on: #0B7A4B;
+  --scan-off: #C8C8C8;
+  --matrix-frame: #2A2A2A;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
@@ -1051,8 +1078,13 @@ body.demo-rhythm .rhythm-matrix[data-rhythm="dots"] .led-dot.is-on {
 /* —— Template picker (Settings) —— */
 .template-picker {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
+}
+@media (min-width: 480px) {
+  .template-picker {
+    grid-template-columns: repeat(6, 1fr);
+  }
 }
 .template-swatch {
   display: flex;
@@ -1135,6 +1167,13 @@ body.demo-rhythm .rhythm-matrix[data-rhythm="dots"] .led-dot.is-on {
   .template-picker {
     grid-template-columns: repeat(3, 1fr);
   }
+}
+
+.template-swatch .swatch-face[data-face="matrix"] {
+  background: #FFFFFF;
+  border: 3px solid #2A2A2A;
+  border-radius: 1px;
+  --swatch-accent: #0B7A4B;
 }
 
 /* —— Structural template craft (not only tokens) —— */
@@ -1311,4 +1350,199 @@ body.demo-rhythm .rhythm-matrix[data-rhythm="dots"] .led-dot.is-on {
 [data-template="sumi"] .nav-seg button.active {
   background: var(--ink);
   color: #fff;
+}
+
+/* matrix: LCD frame-in-frame, pixel type, terminal-green, 4-bar scan */
+[data-template="matrix"] .lock-widget,
+[data-template="matrix"] .medium-widget {
+  background: var(--widget-surface);
+  border: 8px solid var(--matrix-frame, #2A2A2A);
+  border-radius: 2px;
+  padding: 12px 14px;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  font-family: "VT323", "Press Start 2P", "Courier New", monospace;
+}
+[data-template="matrix"] .lock-widget .brand,
+[data-template="matrix"] .medium-widget .mw-head .brand {
+  font-family: "Press Start 2P", "VT323", monospace;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  line-height: 1.4;
+}
+[data-template="matrix"] .lock-widget .lab,
+[data-template="matrix"] .medium-widget .mw-head .period,
+[data-template="matrix"] .mw-row .tag {
+  font-family: "Press Start 2P", "VT323", monospace;
+  font-size: 7px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+  line-height: 1.5;
+}
+[data-template="matrix"] .lock-widget .val,
+[data-template="matrix"] .mw-row .amt,
+[data-template="matrix"] .hero .nw {
+  font-family: "VT323", "Courier New", monospace;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  line-height: 1.15;
+  margin-top: 4px;
+}
+[data-template="matrix"] .mw-row .amt {
+  font-size: 18px;
+}
+[data-template="matrix"] .lock-widget .pace,
+[data-template="matrix"] .lock-widget .pace.pace-breathe {
+  font-family: "VT323", "Courier New", monospace;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+[data-template="matrix"] .lock-widget .pace-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+}
+[data-template="matrix"] .mw-row {
+  padding: 4px 0;
+  border-bottom-color: var(--line);
+  font-family: "VT323", monospace;
+}
+[data-template="matrix"] .mw-row .d {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+[data-template="matrix"] .shell,
+[data-template="matrix"] .hero,
+[data-template="matrix"] .asset-list,
+[data-template="matrix"] .settings-block,
+[data-template="matrix"] .spark-wrap,
+[data-template="matrix"] .detail-card,
+[data-template="matrix"] .topbar {
+  border-radius: 2px;
+}
+[data-template="matrix"] .rhythm-hero {
+  border: 6px solid var(--matrix-frame, #2A2A2A);
+  border-radius: 2px;
+  background: #FFFFFF;
+  padding: 12px 14px;
+}
+[data-template="matrix"] .rhythm-hero .cap {
+  font-family: "Press Start 2P", "VT323", monospace;
+  font-size: 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+[data-template="matrix"] .nav-seg button.active {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 2px;
+}
+[data-template="matrix"] .app-chrome h1,
+[data-template="matrix"] .app-chrome h1 em {
+  font-family: "Press Start 2P", "VT323", monospace;
+  font-size: 11px;
+  font-style: normal;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+}
+[data-template="matrix"] .hero .nw {
+  font-size: 36px;
+}
+[data-template="matrix"] .pill.accent {
+  font-family: "VT323", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 2px;
+}
+
+/* Scan rhythm — 4 chunky bars, one active L→R */
+.rhythm-metro[data-rhythm="scan"] {
+  gap: 5px;
+  height: 18px;
+  align-items: flex-end;
+}
+.rhythm-metro[data-rhythm="scan"] .rhythm-beat {
+  width: 8px;
+  height: 16px;
+  border-radius: 1px;
+  background: var(--scan-off, #C8C8C8);
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+.rhythm-metro[data-rhythm="scan"][data-size="full"] {
+  height: 56px;
+  gap: 8px;
+}
+.rhythm-metro[data-rhythm="scan"][data-size="full"] .rhythm-beat {
+  width: auto;
+  flex: 1;
+  min-width: 12px;
+  max-width: 28px;
+  height: 48px;
+  border-radius: 2px;
+}
+.rhythm-metro[data-rhythm="scan"][data-size="compact"] .rhythm-beat {
+  width: 7px;
+  height: 14px;
+}
+.rhythm-metro[data-rhythm="scan"][data-size="strip"] .rhythm-beat {
+  width: 6px;
+  height: 12px;
+}
+.rhythm-metro[data-rhythm="scan"][data-size="inline"] .rhythm-beat {
+  width: 6px;
+  height: 14px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rhythm-metro[data-rhythm="scan"] .rhythm-beat {
+    animation: matrixScan 1.6s infinite;
+    animation-delay: calc(var(--i, 0) * 0.4s);
+  }
+  body.demo-rhythm .rhythm-metro[data-rhythm="scan"] .rhythm-beat {
+    animation-duration: 1s;
+    animation-delay: calc(var(--i, 0) * 0.25s);
+  }
+}
+
+@keyframes matrixScan {
+  0%, 24.9% {
+    background: var(--scan-on, #0B7A4B);
+  }
+  25%, 100% {
+    background: var(--scan-off, #C8C8C8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rhythm-metro[data-rhythm="scan"] .rhythm-beat {
+    animation: none !important;
+    background: var(--scan-off, #C8C8C8);
+    opacity: 1;
+    transform: none;
+  }
+  .rhythm-metro[data-rhythm="scan"] .rhythm-beat:first-child {
+    background: var(--scan-on, #0B7A4B);
+  }
+}
+
+[data-template="matrix"] .lock-widget .rhythm-metro[data-rhythm="scan"] .rhythm-beat,
+body.demo-rhythm[data-template="matrix"] .lock-widget .rhythm-metro[data-rhythm="scan"] .rhythm-beat {
+  width: 8px;
+  height: 16px;
 }

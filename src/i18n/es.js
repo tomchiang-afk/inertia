@@ -108,6 +108,8 @@ export default {
   "template.glass.desc": "Cristal esmerilado · brillo interior · puntos LED · radio mayor.",
   "template.noir": "Noir",
   "template.noir.desc": "OLED carbón · matriz LED primaria · cifras monoespaciadas.",
+  "template.matrix": "Matrix",
+  "template.matrix.desc": "Marco LCD · tipografía píxel · ritmo verde terminal · barrido de 4 barras.",
   "settings.widgetPreviews": "Vistas previas de widgets",
   "settings.widgetLock": "Bloqueo pequeño (vista previa)",
   "settings.widgetHome": "Inicio mediano (vista previa)",

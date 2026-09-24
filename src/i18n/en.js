@@ -108,6 +108,8 @@ export default {
   "template.glass.desc": "Frosted glass · inner highlight · LED dots · larger radius.",
   "template.noir": "Noir",
   "template.noir.desc": "OLED charcoal · phosphor LED matrix primary · monospace figures.",
+  "template.matrix": "Matrix",
+  "template.matrix.desc": "LCD frame-in-frame · pixel type · terminal-green pace · 4-bar scan.",
   "settings.widgetPreviews": "Widget previews",
   "settings.widgetLock": "Lock small (preview)",
   "settings.widgetHome": "Home medium (preview)",

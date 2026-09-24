@@ -32,10 +32,11 @@ Brand name **Inertia** is fixed in every locale; templates change surface **and 
 | `bars` | paper, swiss | Rounded (paper) or sharp (swiss) bar metronome / equalizer |
 | `dots` | glass, noir | LED grid (home hero ~7×20; lock compact ~4×16; medium strip ~3×12) |
 | `ink` | sumi | Softer circular ink dots, more spacing (*ma*) |
+| `scan` | matrix | Exactly **4** chunky vertical bars; one active (terminal green) scanning L→R |
 
 - **App Home:** hero rhythm block above a secondary sparkline (`?demo=1` amplifies motion).
 - **Lock preview / Home medium:** compact / strip sizes.
-- CSS-driven; `prefers-reduced-motion: reduce` → static lit pattern (no animation).
+- CSS-driven; `prefers-reduced-motion: reduce` → static lit pattern (no animation; scan keeps first bar on).
 
 ## Template catalog — structural diffs
 
@@ -141,6 +142,33 @@ Brand name **Inertia** is fixed in every locale; templates change surface **and 
 
 ---
 
+### 6. `matrix` — Matrix
+
+**Lineage:** Retro LCD / dot-matrix terminal — phosphor-green pace on a framed light card.
+
+**Structure (must differ in screenshots)**
+
+- **Frame-in-frame:** thick dark charcoal outer border; white / off-white inner card; near-square corners.
+- **Pixel typography** everywhere on the widget (`Press Start 2P` / `VT323` / monospace); uppercase micro-labels.
+- Brand **INERTIA** + pace line in **terminal green** (`#0B7A4B`); net-worth amount in black pixel figures.
+- Denser / chunky packing; pace stacked above rhythm (not a soft side-by-side chrome row).
+- Rhythm: **`scan`** — fixed **4** bars; one dark-green active beat marches L→R (others light gray).
+- Page / stage wash ~`#F2F2F2` so the charcoal frame reads clearly.
+- Do **not** bake marketing footer copy (“INERTIA RHYTHM DEMO”) into the widget.
+
+**Palette tokens**
+
+| Token | Value | Role |
+| --- | --- | --- |
+| `--bg` / `--stage-bg` | `#F2F2F2` | Off-white field behind framed card |
+| `--widget-surface` | `#FFFFFF` | Inner LCD card |
+| `--matrix-frame` | `#2A2A2A` | Charcoal outer frame |
+| `--accent` / `--scan-on` | `#0B7A4B` | Terminal green — brand, pace, active bar |
+| `--scan-off` | `#C8C8C8` | Inactive scan bars |
+| `--ink` | `#111111` | Primary pixel amount |
+
+---
+
 ## Implementation map
 
 | Concern | Mechanism |
@@ -149,10 +177,10 @@ Brand name **Inertia** is fixed in every locale; templates change surface **and 
 | DOM | `data-template="{id}"` on `#app`, `.shell`, widgets; `data-rhythm` + `tpl-*` class on widgets |
 | Tokens | CSS variables under `[data-template="…"]` |
 | Structure | Template-scoped CSS for radius, border, accent rule, type-transform, padding, shadows, asymmetric lock grid |
-| Rhythm | `rhythmHTML(size)` → bars / dots / ink; hero on App Home; compact/strip on widgets |
+| Rhythm | `rhythmHTML(size)` → bars / dots / ink / scan; hero on App Home; compact/strip on widgets |
 | Settings UI | Swatch picker; instant apply to chrome + widget previews |
 | Ads / buyout | Unchanged; ads remain edit-only |
 
 ## IDs (stable)
 
-`paper` · `swiss` · `sumi` · `glass` · `noir`
+`paper` · `swiss` · `sumi` · `glass` · `noir` · `matrix`

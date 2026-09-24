@@ -108,6 +108,8 @@ export default {
   "template.glass.desc": "서리 유리 · 안쪽 하이라이트 · LED 점 · 더 큰 둥근 모서리.",
   "template.noir": "누아르",
   "template.noir.desc": "OLED 차콜 · 형광 도트 매트릭스 주 · 고정폭 숫자.",
+  "template.matrix": "Matrix",
+  "template.matrix.desc": "LCD 프레임 · 픽셀 서체 · 터미널 그린 페이스 · 4바 스캔.",
   "settings.widgetPreviews": "위젯 미리보기",
   "settings.widgetLock": "잠금 소형（미리보기）",
   "settings.widgetHome": "홈 중형（미리보기）",

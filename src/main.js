@@ -97,6 +97,7 @@ const TEMPLATE_RHYTHM = {
   sumi: "ink",
   glass: "dots",
   noir: "dots",
+  matrix: "scan",
 };
 
 function rhythmVariant() {
@@ -158,11 +159,20 @@ function inkHTML(size = "full") {
   return `<div class="rhythm-matrix pace-only" data-rhythm="ink" data-size="${size}" data-rows="${rows}" data-cols="${cols}" data-testid="rhythm-dots" aria-hidden="true">${colsHtml.join("")}</div>`;
 }
 
-/** Pick bars | dots | ink for current template */
+/** 4-bar L→R scan metronome — matrix LCD */
+function scanHTML(size = "inline") {
+  const beats = Array.from({ length: 4 }, (_, i) =>
+    `<span class="rhythm-beat" style="--i:${i}"></span>`
+  ).join("");
+  return `<span class="rhythm-metro pace-only" data-rhythm="scan" data-size="${size}" data-testid="rhythm-scan" aria-hidden="true">${beats}</span>`;
+}
+
+/** Pick bars | dots | ink | scan for current template */
 function rhythmHTML(size = "full") {
   const v = rhythmVariant();
   if (v === "bars") return metroHTML(size);
   if (v === "ink") return inkHTML(size);
+  if (v === "scan") return scanHTML(size);
   return dotsHTML(size);
 }
 

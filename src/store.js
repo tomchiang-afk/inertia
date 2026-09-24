@@ -3,7 +3,7 @@
 const KEY = "inertia.v1";
 const LEGACY_KEY = "jingchang.v1";
 
-export const WIDGET_TEMPLATES = ["paper", "swiss", "sumi", "glass", "noir"];
+export const WIDGET_TEMPLATES = ["paper", "swiss", "sumi", "glass", "noir", "matrix"];
 
 export const DEFAULT_ASSETS = {
   housing: {
@@ -31,7 +31,7 @@ export const DEFAULT_SETTINGS = {
   honesty: "pace", // pace | actual
   period: "30d", // 7d | 30d | month
   buyout: false,
-  widgetTemplate: "paper", // paper | swiss | sumi | glass | noir
+  widgetTemplate: "paper", // paper | swiss | sumi | glass | noir | matrix
   // locale: set on first launch via i18n.detectLocale()
 };
 

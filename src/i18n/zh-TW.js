@@ -108,6 +108,8 @@ export default {
   "template.glass.desc": "霧面玻璃 · 內側高光 · LED 點陣 · 更大圓角。",
   "template.noir": "夜色",
   "template.noir.desc": "OLED 炭黑 · 螢光點陣為主 · 等寬數字。",
+  "template.matrix": "Matrix",
+  "template.matrix.desc": "LCD 外框內卡 · 點陣字體 · 終端機綠節奏 · 四格掃描。",
   "settings.widgetPreviews": "小工具預覽",
   "settings.widgetLock": "鎖定螢幕小（預覽）",
   "settings.widgetHome": "主畫面中（預覽）",
