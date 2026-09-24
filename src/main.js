@@ -74,7 +74,7 @@ function sparkPath(quietDay) {
 }
 
 function metroHTML() {
-  return `<span class="rhythm-metro pace-only" aria-hidden="true">
+  return `<span class="rhythm-metro pace-only" data-testid="rhythm-metro" aria-hidden="true">
     <span class="rhythm-beat"></span>
     <span class="rhythm-beat"></span>
     <span class="rhythm-beat"></span>
@@ -293,7 +293,7 @@ function editSheetHTML(bucket) {
 
   return `
     <div class="sheet-backdrop" id="edit-backdrop" role="dialog" aria-modal="true" aria-label="${title}">
-      <form class="sheet" id="edit-form">
+      <form class="sheet" id="edit-form" data-testid="edit-form">
         <h2>${title}</h2>
         ${fields}
         <div class="sheet-actions">
@@ -320,7 +320,7 @@ function screenHome(d) {
     <div class="screen active" data-screen="home">
       <div class="hero">
         <div class="label">${t("netWorth")}</div>
-        <div class="nw">${fmtNT(d.netWorth)}</div>
+        <div class="nw" data-testid="net-worth">${fmtNT(d.netWorth)}</div>
         <div class="meta-row">
           <span class="pill ${delta >= 0 ? "up" : "down"}">${pl} ${fmtDelta(delta)}</span>
           <button type="button" class="pill accent ${state.settings.honesty === "pace" ? "pace-breathe" : ""}" id="honesty-toggle" aria-pressed="${state.settings.honesty === "pace"}">${honesty}</button>
@@ -344,7 +344,7 @@ function screenHome(d) {
         </svg>
       </div>
       <div class="asset-list">
-        <button type="button" class="asset-row" data-go="house">
+        <button type="button" class="asset-row" data-go="house" data-testid="bucket-housing">
           <span class="name">${t("asset.housingEquity")}</span>
           <span class="amt">${fmtNT(d.netEquity, true)}</span>
           <span class="delta">${t("delta.principalMo", { amount: fmtNT(state.assets.housing.monthlyPrincipal, true) })}</span>
@@ -385,13 +385,13 @@ function screenBucket(kind, d) {
     body = `
       <div class="detail-card">
         <div class="detail-row"><span class="k">${t("field.netEquity")}</span><span class="v">${fmtNT(d.netEquity)}</span></div>
-        <div class="detail-row"><span class="k">${t("field.marketValue")}</span><span class="v">${fmtNT(h.marketValue)}</span></div>
+        <div class="detail-row"><span class="k">${t("field.marketValue")}</span><span class="v" data-testid="housing-market-value">${fmtNT(h.marketValue)}</span></div>
         <div class="detail-row"><span class="k">${t("field.mortgage")}</span><span class="v">${fmtNT(h.mortgage)}</span></div>
         <div class="detail-row"><span class="k">${t("field.monthlyPrincipal")}</span><span class="v">${fmtNT(h.monthlyPrincipal)}${t("perMo")}</span></div>
         <p class="detail-note">${t("note.housing", { amount: fmtNT(Math.round(d.dailyPrincipal)) })}</p>
       </div>
       <div class="actions">
-        <button type="button" class="btn btn-primary" data-edit="house">${t("edit")}</button>
+        <button type="button" class="btn btn-primary" data-edit="house" data-testid="edit-housing">${t("edit")}</button>
       </div>`;
   } else if (kind === "stock") {
     const e = state.assets.equities;
@@ -455,7 +455,7 @@ function screenSettings() {
     <div class="screen active">
       <div class="settings-block">
         <h3>${t("settings.language")}</h3>
-        <div class="seg" id="locale-seg">
+        <div class="seg" id="locale-seg" data-testid="locale-seg">
           ${langButtons}
         </div>
       </div>
@@ -481,7 +481,7 @@ function screenSettings() {
             <div class="desc">${t("settings.buyoutDesc")}</div>
           </div>
           <label class="switch">
-            <input type="checkbox" id="buyout-toggle" ${s.buyout ? "checked" : ""} />
+            <input type="checkbox" id="buyout-toggle" data-testid="buyout-toggle" ${s.buyout ? "checked" : ""} />
             <span class="slider"></span>
           </label>
         </div>
@@ -602,7 +602,7 @@ function render() {
 
   app.innerHTML = `
     <header class="app-chrome">
-      <h1>${t("brand")}<em>${t("tagline")}</em></h1>
+      <h1 data-testid="app-title">${t("brand")}<em>${t("tagline")}</em></h1>
       <p>${t("chrome.sub")}</p>
     </header>
     <nav class="nav-seg" aria-label="${t("nav.screens")}">

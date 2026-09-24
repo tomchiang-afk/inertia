@@ -31,6 +31,7 @@ function showMockInterstitial(reason, onContinue) {
   const overlay = document.createElement("div");
   overlay.id = "ad-gate-modal";
   overlay.className = "ad-overlay";
+  overlay.setAttribute("data-testid", "ad-overlay");
   overlay.setAttribute("role", "dialog");
   overlay.setAttribute("aria-modal", "true");
   overlay.setAttribute("aria-label", t("ad.aria"));
@@ -49,7 +50,7 @@ function showMockInterstitial(reason, onContinue) {
       <p class="ad-hint">${t("ad.hint")}</p>
       <div class="ad-actions">
         <button type="button" class="btn btn-ghost" id="ad-skip" disabled>${t("ad.skipCountdown", { n: 1 })}</button>
-        <button type="button" class="btn btn-primary" id="ad-skip-now">${t("ad.skip")}</button>
+        <button type="button" class="btn btn-primary" id="ad-skip-now" data-testid="ad-skip">${t("ad.skip")}</button>
       </div>
     </div>
   `;

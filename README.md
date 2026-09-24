@@ -46,6 +46,24 @@ npm run preview  # serve dist/
 
 Browsing Home / buckets / widget previews **never** triggers ads.
 
+
+## E2E tests (Playwright)
+
+Fast Chromium-only regression for core user flows (home, locale, browse vs edit ads, buyout, persist, demo rhythm).
+
+```bash
+# First time only — install browser binary
+npx playwright install chromium
+
+npm run test:e2e          # headless
+npm run test:e2e:headed   # headed Chromium
+npm run test:e2e:ui       # Playwright UI mode
+```
+
+Config: `playwright.config.ts` — `baseURL` `http://127.0.0.1:5173`, `webServer: npm run dev` with `reuseExistingServer`. Tests live in `e2e/`.
+
+**Add Firefox / WebKit:** in `playwright.config.ts` projects, uncomment/add Desktop Firefox and Desktop Safari device entries, then `npx playwright install firefox webkit`.
+
 ## What’s in this build
 
 | Area | Status |
