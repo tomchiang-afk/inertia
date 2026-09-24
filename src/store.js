@@ -3,6 +3,8 @@
 const KEY = "inertia.v1";
 const LEGACY_KEY = "jingchang.v1";
 
+export const WIDGET_TEMPLATES = ["paper", "swiss", "sumi", "glass", "noir"];
+
 export const DEFAULT_ASSETS = {
   housing: {
     marketValue: 18_000_000,
@@ -29,8 +31,13 @@ export const DEFAULT_SETTINGS = {
   honesty: "pace", // pace | actual
   period: "30d", // 7d | 30d | month
   buyout: false,
+  widgetTemplate: "paper", // paper | swiss | sumi | glass | noir
   // locale: set on first launch via i18n.detectLocale()
 };
+
+export function normalizeWidgetTemplate(id) {
+  return WIDGET_TEMPLATES.includes(id) ? id : "paper";
+}
 
 function migrateLegacyKey() {
   try {
@@ -57,6 +64,8 @@ export function loadState() {
       };
     }
     const parsed = JSON.parse(raw);
+    const settings = { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) };
+    settings.widgetTemplate = normalizeWidgetTemplate(settings.widgetTemplate);
     return {
       assets: {
         ...structuredClone(DEFAULT_ASSETS),
@@ -66,7 +75,7 @@ export function loadState() {
         cash: { ...DEFAULT_ASSETS.cash, ...(parsed.assets?.cash || {}) },
         passive: { ...DEFAULT_ASSETS.passive, ...(parsed.assets?.passive || {}) },
       },
-      settings: { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) },
+      settings,
     };
   } catch {
     return {

@@ -41,6 +41,7 @@ export async function seedEnglish(page: Page, overrides: SeedExtra = {}) {
         period: "30d",
         buyout: false,
         locale: "en",
+        widgetTemplate: "paper",
         ...(extra.settings || {}),
       },
     };

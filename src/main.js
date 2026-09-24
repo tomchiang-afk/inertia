@@ -1,5 +1,10 @@
 import "./styles.css";
-import { loadState, saveState } from "./store.js";
+import {
+  loadState,
+  saveState,
+  WIDGET_TEMPLATES,
+  normalizeWidgetTemplate,
+} from "./store.js";
 import {
   derive,
   periodDays,
@@ -25,6 +30,7 @@ if (!state.settings.locale || !SUPPORTED.includes(state.settings.locale)) {
   saveState(state);
 }
 setLocale(state.settings.locale);
+state.settings.widgetTemplate = normalizeWidgetTemplate(state.settings.widgetTemplate);
 
 let route = "home"; // home | house | stock | cash | passive | settings | widget-lock | widget-home
 let editBucket = null; // null | house | stock | cash | passive
@@ -35,6 +41,17 @@ const app = document.getElementById("app");
 
 function persist() {
   saveState(state);
+}
+
+function currentTemplate() {
+  return normalizeWidgetTemplate(state.settings.widgetTemplate);
+}
+
+function applyTemplateAttr(root) {
+  const id = currentTemplate();
+  root.setAttribute("data-template", id);
+  document.documentElement.setAttribute("data-template", id);
+  document.body.setAttribute("data-template", id);
 }
 
 function go(name) {
@@ -491,6 +508,23 @@ function screenSettings() {
         <p class="about">${t("settings.aboutQuotesBody")}</p>
       </div>
       <div class="settings-block">
+        <h3>${t("settings.widgetTemplate")}</h3>
+        <div class="template-picker" id="template-picker" data-testid="template-picker" role="listbox" aria-label="${t("settings.widgetTemplate")}">
+          ${WIDGET_TEMPLATES.map((id) => `
+            <button type="button"
+              class="template-swatch ${s.widgetTemplate === id ? "active" : ""}"
+              data-template-pick="${id}"
+              data-testid="template-${id}"
+              role="option"
+              aria-selected="${s.widgetTemplate === id ? "true" : "false"}"
+              title="${t("template." + id + ".desc")}">
+              <span class="swatch-face" data-face="${id}" aria-hidden="true"></span>
+              <span class="swatch-name">${t("template." + id)}</span>
+            </button>`).join("")}
+        </div>
+        <p class="template-desc" data-testid="template-desc">${t("template." + s.widgetTemplate + ".desc")}</p>
+      </div>
+      <div class="settings-block">
         <h3>${t("settings.widgetPreviews")}</h3>
         <div class="actions">
           <button type="button" class="btn" data-go="widget-lock">${t("settings.widgetLock")}</button>
@@ -518,7 +552,7 @@ function screenWidgetLock(d) {
     <div class="screen active">
       <div class="preview-banner">${t("widget.previewBanner")}</div>
       <div class="widget-stage">
-        <div class="lock-widget" aria-label="${t("widget.lockAria")}">
+        <div class="lock-widget" data-template="${currentTemplate()}" data-testid="lock-widget" aria-label="${t("widget.lockAria")}">
           <div class="brand">${t("brand")}</div>
           <div class="lab">${t("netWorth")}</div>
           <div class="val">${fmtNT(d.netWorth)}</div>
@@ -550,7 +584,7 @@ function screenWidgetHome(d) {
     <div class="screen active">
       <div class="preview-banner">${t("widget.previewBanner")}</div>
       <div class="widget-stage">
-        <div class="medium-widget" aria-label="${t("widget.homeAria")}">
+        <div class="medium-widget" data-template="${currentTemplate()}" data-testid="home-widget" aria-label="${t("widget.homeAria")}">
           <div class="mw-head">
             <span class="brand">${t("brand")}</span>
             <span class="period">${pl}</span>
@@ -613,10 +647,11 @@ function render() {
       <button type="button" data-go="passive" class="${route === "passive" ? "active" : ""}">${t("nav.passive")}</button>
       <button type="button" data-go="settings" class="${route === "settings" ? "active" : ""}">${t("nav.settings")}</button>
     </nav>
-    <div class="shell">${body}</div>
+    <div class="shell" data-template="${currentTemplate()}">${body}</div>
     ${sheet}
   `;
 
+  applyTemplateAttr(app);
   bind();
 
   if (route === "home") {
@@ -684,6 +719,15 @@ function bind() {
       persist();
     });
   }
+
+  document.getElementById("template-picker")?.querySelectorAll("[data-template-pick]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const id = normalizeWidgetTemplate(b.getAttribute("data-template-pick"));
+      state.settings.widgetTemplate = id;
+      persist();
+      render();
+    });
+  });
 
   const form = document.getElementById("edit-form");
   if (form) {

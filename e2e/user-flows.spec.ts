@@ -97,3 +97,21 @@ test("demo rhythm — ?demo=1 adds demo-rhythm class or metronome", async ({ pag
   // Metronome visible when honesty is pace (default seed)
   await expect(page.getByTestId("rhythm-metro").first()).toBeVisible();
 });
+
+test("widget template — Settings → select noir → preview has data-template", async ({ page }) => {
+  await gotoHome(page);
+  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByTestId("template-picker")).toBeVisible();
+
+  await page.getByTestId("template-noir").click();
+  await expect(page.getByTestId("template-noir")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#app")).toHaveAttribute("data-template", "noir");
+
+  await page.getByRole("button", { name: "Lock small (preview)" }).click();
+  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-template", "noir");
+  await expect(page.getByTestId("rhythm-metro").first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Home medium (preview)" }).click();
+  await expect(page.getByTestId("home-widget")).toHaveAttribute("data-template", "noir");
+});
