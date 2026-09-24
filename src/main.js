@@ -12,6 +12,15 @@ import {
   fmtNT,
   fmtDelta,
 } from "./math.js";
+import {
+  DISPLAY_MODES,
+  PRIVACY_FIELDS,
+  normalizeWidgetPrivacy,
+  privacyFieldOn,
+  formatWidgetMoney,
+  formatWidgetPace,
+  showRhythmWithoutPace,
+} from "./widgetPrivacy.js";
 import { configureAdGate, withEditAd } from "./adGate.js";
 import { fetchDelayedQuotes, mockPortfolioFromQuotes } from "./quotes.js";
 import {
@@ -31,6 +40,7 @@ if (!state.settings.locale || !SUPPORTED.includes(state.settings.locale)) {
 }
 setLocale(state.settings.locale);
 state.settings.widgetTemplate = normalizeWidgetTemplate(state.settings.widgetTemplate);
+state.settings.widgetPrivacy = normalizeWidgetPrivacy(state.settings.widgetPrivacy);
 
 let route = "home"; // home | house | stock | cash | passive | settings | widget-lock | widget-home
 let editBucket = null; // null | house | stock | cash | passive
@@ -45,6 +55,10 @@ function persist() {
 
 function currentTemplate() {
   return normalizeWidgetTemplate(state.settings.widgetTemplate);
+}
+
+function privacy() {
+  return normalizeWidgetPrivacy(state.settings.widgetPrivacy);
 }
 
 function applyTemplateAttr(root) {
@@ -399,6 +413,7 @@ function editSheetHTML(bucket) {
 }
 
 function screenHome(d) {
+  const priv = privacy();
   const pl = periodLabel(state.settings.period);
   const delta = primaryPeriodDelta(d);
   const honesty =
@@ -406,6 +421,61 @@ function screenHome(d) {
   const spark = sparkPath(d.quietDay);
   const stockDeltaClass =
     state.assets.equities.dayPnL < 0 ? "down" : "";
+  const showNw = privacyFieldOn(priv, "netWorth");
+  const showPace = privacyFieldOn(priv, "monthPace");
+  const showToday = privacyFieldOn(priv, "todayActual");
+
+  const nwHtml = showNw
+    ? `<div class="nw" data-testid="net-worth">${fmtNT(d.netWorth)}</div>`
+    : `<div class="nw" data-testid="net-worth" hidden></div>`;
+  const pacePill = showPace
+    ? `<span class="pill ${delta >= 0 ? "up" : "down"}">${pl} ${fmtDelta(delta)}</span>`
+    : "";
+  const todayLine =
+    state.settings.honesty === "actual" && showToday
+      ? `<p class="quiet-line" style="color:${state.assets.equities.dayPnL < 0 ? "var(--down)" : "var(--accent)"}">${t("twse.today", { delta: fmtDelta(state.assets.equities.dayPnL) })}</p>`
+      : "";
+  const paceBlock =
+    state.settings.honesty === "pace"
+      ? `<p class="rhythm-live-line" id="rhythmLiveLine">${t("rhythm.paceRunning")} <span id="rhythmLive">${fmtNT(Math.round(d.quietDay * 0.55))}</span></p>
+      <div class="rhythm-hero" data-testid="rhythm-hero">
+        <div class="cap">${t("rhythm.matrixCap")}</div>
+        ${rhythmHTML("full")}
+      </div>`
+      : todayLine;
+
+  const housingRow = privacyFieldOn(priv, "bucketHousing")
+    ? `<button type="button" class="asset-row" data-go="house" data-testid="bucket-housing">
+          <span class="name">${t("asset.housingEquity")}</span>
+          <span class="amt">${fmtNT(d.netEquity, true)}</span>
+          <span class="delta">${t("delta.principalMo", { amount: fmtNT(state.assets.housing.monthlyPrincipal, true) })}</span>
+          <span class="chev">›</span>
+        </button>`
+    : "";
+  const twseRow = privacyFieldOn(priv, "bucketTwse")
+    ? `<button type="button" class="asset-row" data-go="stock" data-testid="bucket-twse">
+          <span class="name">${t("asset.twse")}</span>
+          <span class="amt">${fmtNT(state.assets.equities.marketValue, true)}</span>
+          <span class="delta ${stockDeltaClass}">${showToday ? t("delta.today", { delta: fmtDelta(state.assets.equities.dayPnL, true) }) : ""}</span>
+          <span class="chev">›</span>
+        </button>`
+    : "";
+  const cashRow = privacyFieldOn(priv, "bucketCash")
+    ? `<button type="button" class="asset-row" data-go="cash" data-testid="bucket-cash">
+          <span class="name">${t("asset.cash")}</span>
+          <span class="amt">${fmtNT(d.cashTotal, true)}</span>
+          <span class="delta mute">${t("delta.checkingTd")}</span>
+          <span class="chev">›</span>
+        </button>`
+    : "";
+  const passiveRow = privacyFieldOn(priv, "bucketPassive")
+    ? `<button type="button" class="asset-row" data-go="passive" data-testid="bucket-passive">
+          <span class="name">${t("asset.passive")}</span>
+          <span class="amt">${fmtNT(state.assets.passive.monthly, true)}${t("perMo")}</span>
+          <span class="delta mute">${t("delta.monthlyPace")}</span>
+          <span class="chev">›</span>
+        </button>`
+    : "";
 
   return `
     <div class="topbar"><div class="title">${t("brand")}</div>
@@ -414,25 +484,15 @@ function screenHome(d) {
     <div class="screen active" data-screen="home">
       <div class="hero">
         <div class="label">${t("netWorth")}</div>
-        <div class="nw" data-testid="net-worth">${fmtNT(d.netWorth)}</div>
+        ${nwHtml}
         <div class="meta-row">
-          <span class="pill ${delta >= 0 ? "up" : "down"}">${pl} ${fmtDelta(delta)}</span>
+          ${pacePill}
           <button type="button" class="pill accent ${state.settings.honesty === "pace" ? "pace-breathe" : ""}" id="honesty-toggle" aria-pressed="${state.settings.honesty === "pace"}">${honesty}</button>
           ${state.settings.honesty === "pace" ? rhythmHTML("inline") : ""}
         </div>
       </div>
       <p class="quiet-line">${t("quiet.line", { amount: `<strong>${fmtNT(Math.round(d.quietDay))}</strong>` })}</p>
-      ${
-        state.settings.honesty === "pace"
-          ? `<p class="rhythm-live-line" id="rhythmLiveLine">${t("rhythm.paceRunning")} <span id="rhythmLive">${fmtNT(Math.round(d.quietDay * 0.55))}</span></p>
-      <div class="rhythm-hero" data-testid="rhythm-hero">
-        <div class="cap">${t("rhythm.matrixCap")}</div>
-        ${rhythmHTML("full")}
-      </div>`
-          : state.settings.honesty === "actual"
-          ? `<p class="quiet-line" style="color:${state.assets.equities.dayPnL < 0 ? "var(--down)" : "var(--accent)"}">${t("twse.today", { delta: fmtDelta(state.assets.equities.dayPnL) })}</p>`
-          : ""
-      }
+      ${paceBlock}
       <div class="spark-wrap spark-secondary">
         <div class="cap">${t("spark.cap")}</div>
         <svg viewBox="0 0 ${spark.w} ${spark.h}" preserveAspectRatio="none" aria-hidden="true">
@@ -442,30 +502,10 @@ function screenHome(d) {
         </svg>
       </div>
       <div class="asset-list">
-        <button type="button" class="asset-row" data-go="house" data-testid="bucket-housing">
-          <span class="name">${t("asset.housingEquity")}</span>
-          <span class="amt">${fmtNT(d.netEquity, true)}</span>
-          <span class="delta">${t("delta.principalMo", { amount: fmtNT(state.assets.housing.monthlyPrincipal, true) })}</span>
-          <span class="chev">›</span>
-        </button>
-        <button type="button" class="asset-row" data-go="stock">
-          <span class="name">${t("asset.twse")}</span>
-          <span class="amt">${fmtNT(state.assets.equities.marketValue, true)}</span>
-          <span class="delta ${stockDeltaClass}">${t("delta.today", { delta: fmtDelta(state.assets.equities.dayPnL, true) })}</span>
-          <span class="chev">›</span>
-        </button>
-        <button type="button" class="asset-row" data-go="cash">
-          <span class="name">${t("asset.cash")}</span>
-          <span class="amt">${fmtNT(d.cashTotal, true)}</span>
-          <span class="delta mute">${t("delta.checkingTd")}</span>
-          <span class="chev">›</span>
-        </button>
-        <button type="button" class="asset-row" data-go="passive">
-          <span class="name">${t("asset.passive")}</span>
-          <span class="amt">${fmtNT(state.assets.passive.monthly, true)}${t("perMo")}</span>
-          <span class="delta mute">${t("delta.monthlyPace")}</span>
-          <span class="chev">›</span>
-        </button>
+        ${housingRow}
+        ${twseRow}
+        ${cashRow}
+        ${passiveRow}
       </div>
     </div>`;
 }
@@ -540,6 +580,7 @@ function screenBucket(kind, d) {
 
 function screenSettings() {
   const s = state.settings;
+  const priv = privacy();
   const langButtons = SUPPORTED.map(
     (loc) =>
       `<button type="button" data-locale="${loc}" class="${s.locale === loc ? "active" : ""}">${localeLabel(loc)}</button>`
@@ -605,6 +646,32 @@ function screenSettings() {
         </div>
         <p class="template-desc" data-testid="template-desc">${t("template." + s.widgetTemplate + ".desc")}</p>
       </div>
+      <div class="settings-block" data-testid="widget-privacy">
+        <h3>${t("settings.widgetPrivacy")}</h3>
+        <p class="about privacy-note" data-testid="privacy-note">${t("settings.widgetPrivacyNote")}</p>
+        <h4 class="settings-sub">${t("settings.privacyDisplayMode")}</h4>
+        <div class="seg seg-wrap" id="privacy-mode-seg" data-testid="privacy-mode-seg" role="listbox" aria-label="${t("settings.privacyDisplayMode")}">
+          ${DISPLAY_MODES.map((mode) => `
+            <button type="button"
+              data-privacy-mode="${mode}"
+              data-testid="privacy-mode-${mode}"
+              class="${priv.displayMode === mode ? "active" : ""}"
+              role="option"
+              aria-selected="${priv.displayMode === mode ? "true" : "false"}">${t("privacy.mode." + mode)}</button>`).join("")}
+        </div>
+        <p class="template-desc" data-testid="privacy-mode-desc">${t("privacy.mode." + priv.displayMode + ".desc")}</p>
+        <h4 class="settings-sub">${t("settings.privacyFields")}</h4>
+        <div class="privacy-fields" data-testid="privacy-fields">
+          ${PRIVACY_FIELDS.map((key) => `
+            <div class="toggle-row privacy-field-row">
+              <div>${t("privacy.field." + key)}</div>
+              <label class="switch">
+                <input type="checkbox" data-privacy-field="${key}" data-testid="privacy-field-${key}" ${priv.fields[key] ? "checked" : ""} />
+                <span class="slider"></span>
+              </label>
+            </div>`).join("")}
+        </div>
+      </div>
       <div class="settings-block">
         <h3>${t("settings.widgetPreviews")}</h3>
         <div class="actions">
@@ -624,7 +691,55 @@ function screenSettings() {
 }
 
 function screenWidgetLock(d) {
+  const priv = privacy();
   const pace30 = Math.round(d.periodQuiet(30));
+  const showNw = privacyFieldOn(priv, "netWorth");
+  const showPace = privacyFieldOn(priv, "monthPace");
+  const showRhythm = showPace || showRhythmWithoutPace(priv);
+  const nwText = formatWidgetMoney(d.netWorth, priv, {
+    kind: "absolute",
+    asMonthProgress: priv.displayMode === "relative",
+  });
+  const paceRaw = formatWidgetPace(pace30, priv, { base: d.netWorth, compact: true });
+  const paceText =
+    priv.displayMode === "rhythm"
+      ? ""
+      : priv.displayMode === "relative"
+      ? paceRaw
+      : paceRaw
+        ? t("widget.monthPace", { delta: paceRaw })
+        : "";
+
+  const valHtml = showNw && nwText ? `<div class="val" data-testid="lock-net-worth">${nwText}</div>` : "";
+  const paceHtml =
+    showPace && paceText
+      ? `<div class="pace pace-breathe" data-testid="lock-pace">${paceText}</div>`
+      : "";
+  const rhythmHtml = showRhythm ? rhythmHTML("compact") : "";
+
+  const body =
+    currentTemplate() === "sumi"
+      ? `<div class="lw-asymmetric">
+            <div class="lw-value-block">${valHtml || '<div class="val muted">&nbsp;</div>'}</div>
+            <div class="lw-meta-block">
+              <div class="brand">${t("brand")}</div>
+              <div class="lab">${t("netWorth")}</div>
+              ${paceHtml}
+            </div>
+          </div>
+          ${showRhythm ? `<div class="pace-row">${rhythmHtml}</div>` : ""}`
+      : `<div class="brand">${t("brand")}</div>
+          <div class="lab">${t("netWorth")}</div>
+          ${valHtml}
+          ${
+            showPace || showRhythm
+              ? `<div class="pace-row">
+            ${paceHtml}
+            ${rhythmHtml}
+          </div>`
+              : ""
+          }`;
+
   return `
     <div class="topbar">
       <button type="button" class="back" data-go="settings">${t("back")}</button>
@@ -633,26 +748,8 @@ function screenWidgetLock(d) {
     <div class="screen active">
       <div class="preview-banner">${t("widget.previewBanner")}</div>
       <div class="widget-stage">
-        <div class="lock-widget tpl-${currentTemplate()}" data-template="${currentTemplate()}" data-rhythm="${rhythmVariant()}" data-testid="lock-widget" aria-label="${t("widget.lockAria")}">
-          ${
-            currentTemplate() === "sumi"
-              ? `<div class="lw-asymmetric">
-            <div class="lw-value-block"><div class="val">${fmtNT(d.netWorth)}</div></div>
-            <div class="lw-meta-block">
-              <div class="brand">${t("brand")}</div>
-              <div class="lab">${t("netWorth")}</div>
-              <div class="pace pace-breathe">${t("widget.monthPace", { delta: fmtDelta(pace30, true) })}</div>
-            </div>
-          </div>
-          <div class="pace-row">${rhythmHTML("compact")}</div>`
-              : `<div class="brand">${t("brand")}</div>
-          <div class="lab">${t("netWorth")}</div>
-          <div class="val">${fmtNT(d.netWorth)}</div>
-          <div class="pace-row">
-            <div class="pace pace-breathe">${t("widget.monthPace", { delta: fmtDelta(pace30, true) })}</div>
-            ${rhythmHTML("compact")}
-          </div>`
-          }
+        <div class="lock-widget tpl-${currentTemplate()}" data-template="${currentTemplate()}" data-rhythm="${rhythmVariant()}" data-privacy-mode="${priv.displayMode}" data-testid="lock-widget" aria-label="${t("widget.lockAria")}">
+          ${body}
         </div>
       </div>
       <p class="preview-note">${t("widget.previewNoteLock")}</p>
@@ -660,14 +757,102 @@ function screenWidgetLock(d) {
 }
 
 function screenWidgetHome(d) {
+  const priv = privacy();
   const pl = periodLabel(state.settings.period);
   const days = periodDays(state.settings.period);
   const e = state.assets.equities;
-  const stockDelta =
-    state.settings.honesty === "actual"
-      ? { t: t("delta.today", { delta: fmtDelta(e.dayPnL, true) }), c: e.dayPnL < 0 ? "down" : "" }
-      : { t: pl + " " + fmtDelta(e.periodPnL, true), c: "" };
   const dailyTd = d.dailyTdInterest;
+  const base = d.netWorth;
+  const moneyOpts = { compact: true, base };
+
+  function amt(n) {
+    return formatWidgetMoney(n, priv, { kind: "absolute", compact: true, base });
+  }
+  function deltaMoney(n) {
+    return formatWidgetPace(n, priv, { base, compact: true });
+  }
+
+  const prinAmt = Math.round(state.assets.housing.monthlyPrincipal * (days / 30));
+  const tdAmt = Math.round(dailyTd * days);
+  const passAmt = Math.round(state.assets.passive.monthly * (days / 30));
+
+  let stockDeltaText = "";
+  let stockDeltaClass = "";
+  if (state.settings.honesty === "actual") {
+    if (privacyFieldOn(priv, "todayActual")) {
+      const raw = deltaMoney(e.dayPnL);
+      stockDeltaText =
+        priv.displayMode === "relative" || priv.displayMode === "masked" || priv.displayMode === "rounded"
+          ? raw
+          : raw
+            ? t("delta.today", { delta: raw })
+            : "";
+      stockDeltaClass = e.dayPnL < 0 ? "down" : "";
+    }
+  } else if (privacyFieldOn(priv, "monthPace")) {
+    const raw = deltaMoney(e.periodPnL);
+    stockDeltaText = raw ? pl + " " + raw : "";
+  }
+
+  function row(fieldKey, tag, amountHtml, deltaHtml, deltaClass = "") {
+    if (!privacyFieldOn(priv, fieldKey)) return "";
+    const a =
+      priv.displayMode === "rhythm"
+        ? ""
+        : amountHtml
+          ? `<span class="amt">${amountHtml}</span>`
+          : "";
+    const dlt =
+      priv.displayMode === "rhythm"
+        ? ""
+        : deltaHtml
+          ? `<span class="d ${deltaClass}">${deltaHtml}</span>`
+          : "";
+    return `<div class="mw-row" data-privacy-field="${fieldKey}">
+            <span class="tag">${tag}</span>
+            ${a}
+            ${dlt}
+          </div>`;
+  }
+
+  const housingDelta =
+    privacyFieldOn(priv, "monthPace") && priv.displayMode !== "rhythm"
+      ? (() => {
+          const raw = deltaMoney(prinAmt);
+          if (!raw) return "";
+          if (priv.displayMode === "relative" || priv.displayMode === "masked") return raw;
+          return t("widget.prin", { amount: formatWidgetMoney(prinAmt, priv, moneyOpts) });
+        })()
+      : "";
+
+  const cashDelta =
+    privacyFieldOn(priv, "monthPace") && priv.displayMode !== "rhythm"
+      ? (() => {
+          const raw = deltaMoney(tdAmt);
+          if (!raw) return "";
+          if (priv.displayMode === "relative" || priv.displayMode === "masked") return raw;
+          return t("widget.tdInt", { amount: formatWidgetMoney(tdAmt, priv, moneyOpts) });
+        })()
+      : "";
+
+  const passiveDelta =
+    privacyFieldOn(priv, "monthPace") && priv.displayMode !== "rhythm"
+      ? (() => {
+          const raw = deltaMoney(passAmt);
+          if (!raw) return "";
+          if (priv.displayMode === "relative" || priv.displayMode === "masked") return raw;
+          return t("widget.pace", { amount: formatWidgetMoney(passAmt, priv, moneyOpts) });
+        })()
+      : "";
+
+  const passiveAmt =
+    priv.displayMode === "relative"
+      ? amt(state.assets.passive.monthly)
+      : priv.displayMode === "rhythm"
+      ? ""
+      : amt(state.assets.passive.monthly) + (priv.displayMode === "masked" ? "" : t("perMo"));
+
+  const showRhythm = privacyFieldOn(priv, "monthPace") || showRhythmWithoutPace(priv);
 
   return `
     <div class="topbar">
@@ -677,34 +862,18 @@ function screenWidgetHome(d) {
     <div class="screen active">
       <div class="preview-banner">${t("widget.previewBanner")}</div>
       <div class="widget-stage">
-        <div class="medium-widget tpl-${currentTemplate()}" data-template="${currentTemplate()}" data-rhythm="${rhythmVariant()}" data-testid="home-widget" aria-label="${t("widget.homeAria")}">
+        <div class="medium-widget tpl-${currentTemplate()}" data-template="${currentTemplate()}" data-rhythm="${rhythmVariant()}" data-privacy-mode="${priv.displayMode}" data-testid="home-widget" aria-label="${t("widget.homeAria")}">
           <div class="mw-head">
             <span class="brand">${t("brand")}</span>
             <span class="period">${pl}</span>
           </div>
           <div class="mw-body">
-          <div class="mw-row">
-            <span class="tag">${t("widget.housing")}</span>
-            <span class="amt">${fmtNT(d.netEquity, true)}</span>
-            <span class="d">${t("widget.prin", { amount: fmtNT(Math.round(state.assets.housing.monthlyPrincipal * (days / 30)), true) })}</span>
+          ${row("bucketHousing", t("widget.housing"), amt(d.netEquity), housingDelta)}
+          ${row("bucketTwse", t("widget.twse"), amt(e.marketValue), stockDeltaText, stockDeltaClass)}
+          ${row("bucketCash", t("widget.cash"), amt(d.cashTotal), cashDelta, "mute")}
+          ${row("bucketPassive", t("widget.passive"), passiveAmt, passiveDelta)}
           </div>
-          <div class="mw-row">
-            <span class="tag">${t("widget.twse")}</span>
-            <span class="amt">${fmtNT(e.marketValue, true)}</span>
-            <span class="d ${stockDelta.c}">${stockDelta.t}</span>
-          </div>
-          <div class="mw-row">
-            <span class="tag">${t("widget.cash")}</span>
-            <span class="amt">${fmtNT(d.cashTotal, true)}</span>
-            <span class="d mute">${t("widget.tdInt", { amount: fmtNT(Math.round(dailyTd * days), true) })}</span>
-          </div>
-          <div class="mw-row">
-            <span class="tag">${t("widget.passive")}</span>
-            <span class="amt">${fmtNT(state.assets.passive.monthly, true)}${t("perMo")}</span>
-            <span class="d">${t("widget.pace", { amount: fmtNT(Math.round(state.assets.passive.monthly * (days / 30)), true) })}</span>
-          </div>
-          </div>
-          <div class="mw-rhythm">${rhythmHTML("strip")}</div>
+          ${showRhythm ? `<div class="mw-rhythm">${rhythmHTML("strip")}</div>` : ""}
         </div>
       </div>
       <p class="preview-note">${t("widget.previewNoteHome")}</p>
@@ -820,6 +989,29 @@ function bind() {
     b.addEventListener("click", () => {
       const id = normalizeWidgetTemplate(b.getAttribute("data-template-pick"));
       state.settings.widgetTemplate = id;
+      persist();
+      render();
+    });
+  });
+
+  document.getElementById("privacy-mode-seg")?.querySelectorAll("[data-privacy-mode]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const mode = b.getAttribute("data-privacy-mode");
+      state.settings.widgetPrivacy = normalizeWidgetPrivacy({
+        ...privacy(),
+        displayMode: mode,
+      });
+      persist();
+      render();
+    });
+  });
+
+  document.querySelectorAll("input[data-privacy-field]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const key = input.getAttribute("data-privacy-field");
+      const next = normalizeWidgetPrivacy(privacy());
+      next.fields[key] = !!input.checked;
+      state.settings.widgetPrivacy = next;
       persist();
       render();
     });

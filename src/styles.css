@@ -1546,3 +1546,40 @@ body.demo-rhythm[data-template="matrix"] .lock-widget .rhythm-metro[data-rhythm=
   width: 8px;
   height: 16px;
 }
+
+
+/* Widget privacy */
+.settings-sub {
+  margin: 12px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted, #6b7280);
+}
+.privacy-note {
+  margin: 0 0 10px;
+}
+.seg.seg-wrap {
+  flex-wrap: wrap;
+}
+.seg.seg-wrap button {
+  flex: 1 1 auto;
+  min-width: 4.5rem;
+}
+.privacy-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.privacy-field-row {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--hairline, rgba(0,0,0,0.06));
+}
+.privacy-field-row:last-child {
+  border-bottom: none;
+}
+.lock-widget[data-privacy-mode="rhythm"] .val,
+.medium-widget[data-privacy-mode="rhythm"] .amt,
+.medium-widget[data-privacy-mode="rhythm"] .d {
+  display: none;
+}

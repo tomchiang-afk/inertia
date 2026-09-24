@@ -161,3 +161,39 @@ test("widget template — Settings → select matrix → preview has data-templa
   await expect(page.getByTestId("rhythm-scan").first()).toBeVisible();
 });
 
+
+test("widget privacy — masked hides raw NT$ on lock preview", async ({ page }) => {
+  await gotoHome(page);
+  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByTestId("widget-privacy")).toBeVisible();
+
+  await page.getByTestId("privacy-mode-masked").click();
+  await expect(page.getByTestId("privacy-mode-masked")).toHaveAttribute("aria-selected", "true");
+
+  await page.getByRole("button", { name: "Lock small (preview)" }).click();
+  const lock = page.getByTestId("lock-widget");
+  await expect(lock).toHaveAttribute("data-privacy-mode", "masked");
+  await expect(page.getByTestId("lock-net-worth")).toHaveText("NT$••••••");
+  // Demo net worth NT$16,470,000 must not appear as raw absolute figure
+  await expect(lock).not.toContainText("16,470,000");
+  await expect(lock).not.toContainText("NT$16,470,000");
+});
+
+test("widget privacy — relative shows % / progress, not raw absolute", async ({ page }) => {
+  await gotoHome(page);
+  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
+
+  await page.getByTestId("privacy-mode-relative").click();
+  await expect(page.getByTestId("privacy-mode-relative")).toHaveAttribute("aria-selected", "true");
+
+  await page.getByRole("button", { name: "Lock small (preview)" }).click();
+  const lock = page.getByTestId("lock-widget");
+  await expect(lock).toHaveAttribute("data-privacy-mode", "relative");
+  await expect(page.getByTestId("lock-net-worth")).toContainText(/Month progress \d+%/);
+  await expect(lock).not.toContainText("16,470,000");
+  await expect(lock).not.toContainText("NT$16,470,000");
+
+  const pace = page.getByTestId("lock-pace");
+  await expect(pace).toBeVisible();
+  await expect(pace).toHaveText(/^[+−]?\d+(\.\d+)?%$/);
+});

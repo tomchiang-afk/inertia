@@ -1,5 +1,10 @@
 /** Local-first persistence (localStorage) */
 
+import {
+  DEFAULT_WIDGET_PRIVACY,
+  normalizeWidgetPrivacy,
+} from "./widgetPrivacy.js";
+
 const KEY = "inertia.v1";
 const LEGACY_KEY = "jingchang.v1";
 
@@ -32,6 +37,7 @@ export const DEFAULT_SETTINGS = {
   period: "30d", // 7d | 30d | month
   buyout: false,
   widgetTemplate: "paper", // paper | swiss | sumi | glass | noir | matrix
+  widgetPrivacy: { ...DEFAULT_WIDGET_PRIVACY, fields: { ...DEFAULT_WIDGET_PRIVACY.fields } },
   // locale: set on first launch via i18n.detectLocale()
 };
 
@@ -60,12 +66,16 @@ export function loadState() {
     if (!raw) {
       return {
         assets: structuredClone(DEFAULT_ASSETS),
-        settings: { ...DEFAULT_SETTINGS },
+        settings: {
+          ...DEFAULT_SETTINGS,
+          widgetPrivacy: normalizeWidgetPrivacy(DEFAULT_SETTINGS.widgetPrivacy),
+        },
       };
     }
     const parsed = JSON.parse(raw);
     const settings = { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) };
     settings.widgetTemplate = normalizeWidgetTemplate(settings.widgetTemplate);
+    settings.widgetPrivacy = normalizeWidgetPrivacy(settings.widgetPrivacy);
     return {
       assets: {
         ...structuredClone(DEFAULT_ASSETS),
@@ -80,7 +90,10 @@ export function loadState() {
   } catch {
     return {
       assets: structuredClone(DEFAULT_ASSETS),
-      settings: { ...DEFAULT_SETTINGS },
+      settings: {
+        ...DEFAULT_SETTINGS,
+        widgetPrivacy: normalizeWidgetPrivacy(DEFAULT_SETTINGS.widgetPrivacy),
+      },
     };
   }
 }
@@ -94,3 +107,5 @@ export function saveState(state) {
     })
   );
 }
+
+export { normalizeWidgetPrivacy, DEFAULT_WIDGET_PRIVACY };
