@@ -1,7 +1,7 @@
 # Inertia — Lean PRD
 
 > Taiwan-first household asset management. Widget-first. Not a trading app.
-> English product name only. Tagline: **Your assets keep moving.**
+> Product name **Inertia** fixed in every language (never translate). Tagline localizes: **Your assets keep moving.**
 > Version: web MVP · 2026-09-24
 
 ---
@@ -17,10 +17,24 @@ On **flat or red market days**, Taiwanese households with Housing + TWSE + Cash 
 ## 2. Target user (Taiwan)
 
 - Primary: 30–50, dual-income or homeowner, holds housing ± mortgage, some TWSE ETF/stocks, checking + time deposit, optional rental or dividend income.
-- Thinks in **TWD**; UI chrome is **English**.
+- Thinks in **TWD**; UI supports **zh-TW / en / es / ja / ko** (product name Inertia fixed).
 - Checks phone home/lock many times a day; opens finance apps rarely on quiet days.
 - Wants calm household stewardship, not day-trading tips.
 - Not: crypto traders, US-centric FIRE maximalists, or live-bank-API early adopters.
+
+---
+
+## 2b. Supported languages
+
+| Code | Language |
+|------|----------|
+| `zh-TW` | 繁體中文 |
+| `en` | English (fallback) |
+| `es` | Español |
+| `ja` | 日本語 |
+| `ko` | 한국어 |
+
+**Inertia** (product name) is never localized. Tagline may localize. Currency remains NT$/TWD. Locale is detected on first launch from `navigator.language` and stored in `settings.locale` (`inertia.v1`).
 
 ---
 
@@ -109,8 +123,9 @@ Do **not** include TWSE mark-to-market in quiet growth.
 
 ```
 [Vite web app]
-  ├─ UI (English) — Home / Buckets / Edit / Settings / Widget previews
-  ├─ store.js — localStorage inertia.v1 (assets + settings + buyout; migrates jingchang.v1)
+  ├─ UI (i18n) — Home / Buckets / Edit / Settings / Widget previews
+  ├─ i18n/ — zh-TW, en, es, ja, ko; Inertia name fixed; locale in settings
+  ├─ store.js — localStorage inertia.v1 (assets + settings + buyout + locale; migrates jingchang.v1)
   ├─ math.js — quiet-day / period / net worth
   ├─ adGate.js — edit-only interstitial when !buyout
   └─ quotes.js — fetchDelayedQuotes() stub (mock delayed)
@@ -136,4 +151,4 @@ Future:
 
 ---
 
-*End of lean PRD. Product name: **Inertia**.*
+*End of lean PRD. Product name: **Inertia** (fixed in every language). Languages: zh-TW, en, es, ja, ko.*

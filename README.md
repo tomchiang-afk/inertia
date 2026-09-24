@@ -1,8 +1,24 @@
 # Inertia — Web MVP
 
-Taiwan household asset app · local-first · English UI · TWD.  
-Tagline: **Your assets keep moving.**  
+Taiwan household asset app · local-first · multi-language UI · TWD.  
+Tagline: **Your assets keep moving.** (localizes; product name **Inertia** does not)  
 Design tokens from `/workspace/quiet-wealth-prototype/` (light `#F7F6F3`, accent `#2F5D4A`, dense rows).
+
+## Supported languages
+
+| Code | Language |
+|------|----------|
+| `zh-TW` | 繁體中文 (Traditional Chinese) |
+| `en` | English (fallback) |
+| `es` | Español |
+| `ja` | 日本語 |
+| `ko` | 한국어 |
+
+- Product name **Inertia** is **fixed in every language** — never translate.
+- Tagline localizes. Currency stays **NT$** / TWD.
+- First launch detects `navigator.language`, persists `settings.locale` in `inertia.v1`.
+- Settings → Language picker; instant re-render; sets `document.documentElement.lang`.
+- Implementation: `src/i18n/` (`en`, `zh-TW`, `es`, `ja`, `ko` + `t(key)` / `setLocale`).
 
 ## How to run
 
@@ -35,6 +51,7 @@ Browsing Home / buckets / widget previews **never** triggers ads.
 | Area | Status |
 |------|--------|
 | App Home / 4 buckets / Edit / Settings | Working |
+| UI i18n (zh-TW / en / es / ja / ko) | Working — Inertia name fixed |
 | Rhythm motion (metronome, live counter, spark playhead) | Working — Home + lock widget preview |
 | Quiet-day math | `dailyPrincipal + dailyTdInterest + dailyPassivePace` |
 | Persistence | `localStorage` key `inertia.v1` (migrates from `jingchang.v1`) |
@@ -102,4 +119,4 @@ Light only · one accent · restrained borders · dense rows · no neon · no em
 
 ## Product decisions (do not reopen)
 
-Free download · one-time buyout removes ads · fully local-first · user-entered quotes primary · ads edit-only · no LLM · buckets: Housing / TWSE / Cash / Passive income · English product name **Inertia** only.
+Free download · one-time buyout removes ads · fully local-first · user-entered quotes primary · ads edit-only · no LLM · buckets: Housing / TWSE / Cash / Passive income · English product name **Inertia** only (never translate in any locale).

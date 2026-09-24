@@ -9,8 +9,23 @@ import {
 } from "./math.js";
 import { configureAdGate, withEditAd } from "./adGate.js";
 import { fetchDelayedQuotes, mockPortfolioFromQuotes } from "./quotes.js";
+import {
+  t,
+  setLocale,
+  detectLocale,
+  SUPPORTED,
+  localeLabel,
+} from "./i18n/index.js";
 
 const state = loadState();
+
+/* First launch: detect navigator.language; persist settings.locale */
+if (!state.settings.locale || !SUPPORTED.includes(state.settings.locale)) {
+  state.settings.locale = detectLocale();
+  saveState(state);
+}
+setLocale(state.settings.locale);
+
 let route = "home"; // home | house | stock | cash | passive | settings | widget-lock | widget-home
 let editBucket = null; // null | house | stock | cash | passive
 
@@ -154,11 +169,11 @@ function startPlayhead() {
     const p = ((now - t0) % loopMs) / loopMs;
     const f = p * (n - 1);
     const i = Math.floor(f);
-    const t = f - i;
+    const tFrac = f - i;
     const a = sparkCoords[i];
     const b = sparkCoords[Math.min(i + 1, n - 1)];
-    const x = a[0] + (b[0] - a[0]) * t;
-    const y = a[1] + (b[1] - a[1]) * t;
+    const x = a[0] + (b[0] - a[0]) * tFrac;
+    const y = a[1] + (b[1] - a[1]) * tFrac;
     head.setAttribute("cx", x.toFixed(2));
     head.setAttribute("cy", y.toFixed(2));
     playheadRaf = requestAnimationFrame(frame);
@@ -239,40 +254,40 @@ function editSheetHTML(bucket) {
   const e = state.assets.equities;
   const c = state.assets.cash;
   const p = state.assets.passive;
-  let title = "Edit";
+  let title = t("edit");
   let fields = "";
 
   if (bucket === "house") {
-    title = "Edit Housing";
+    title = t("edit.housing");
     fields = `
-      <div class="field"><label for="f-mv">Market value (TWD)</label>
+      <div class="field"><label for="f-mv">${t("edit.marketValue")}</label>
         <input id="f-mv" name="marketValue" type="number" inputmode="numeric" value="${h.marketValue}" /></div>
-      <div class="field"><label for="f-mort">Mortgage balance (TWD)</label>
+      <div class="field"><label for="f-mort">${t("edit.mortgage")}</label>
         <input id="f-mort" name="mortgage" type="number" inputmode="numeric" value="${h.mortgage}" /></div>
-      <div class="field"><label for="f-prin">Monthly principal (TWD)</label>
+      <div class="field"><label for="f-prin">${t("edit.monthlyPrincipal")}</label>
         <input id="f-prin" name="monthlyPrincipal" type="number" inputmode="numeric" value="${h.monthlyPrincipal}" /></div>`;
   } else if (bucket === "stock") {
-    title = "Edit TWSE";
+    title = t("edit.twse");
     fields = `
-      <div class="field"><label for="f-smv">Market value (TWD)</label>
+      <div class="field"><label for="f-smv">${t("edit.marketValue")}</label>
         <input id="f-smv" name="marketValue" type="number" inputmode="numeric" value="${e.marketValue}" /></div>
-      <div class="field"><label for="f-day">Today P&amp;L (TWD)</label>
+      <div class="field"><label for="f-day">${t("edit.todayPnL")}</label>
         <input id="f-day" name="dayPnL" type="number" inputmode="numeric" value="${e.dayPnL}" /></div>
-      <div class="field"><label for="f-per">Period P&amp;L (TWD)</label>
+      <div class="field"><label for="f-per">${t("edit.periodPnL")}</label>
         <input id="f-per" name="periodPnL" type="number" inputmode="numeric" value="${e.periodPnL}" /></div>`;
   } else if (bucket === "cash") {
-    title = "Edit Cash";
+    title = t("edit.cash");
     fields = `
-      <div class="field"><label for="f-chk">Checking (TWD)</label>
+      <div class="field"><label for="f-chk">${t("edit.checking")}</label>
         <input id="f-chk" name="checking" type="number" inputmode="numeric" value="${c.checking}" /></div>
-      <div class="field"><label for="f-td">Time deposit (TWD)</label>
+      <div class="field"><label for="f-td">${t("edit.timeDeposit")}</label>
         <input id="f-td" name="timeDeposit" type="number" inputmode="numeric" value="${c.timeDeposit}" /></div>
-      <div class="field"><label for="f-rate">TD annual rate (%)</label>
+      <div class="field"><label for="f-rate">${t("edit.tdRate")}</label>
         <input id="f-rate" name="tdAnnualRate" type="number" step="0.01" inputmode="decimal" value="${c.tdAnnualRate}" /></div>`;
   } else if (bucket === "passive") {
-    title = "Edit Passive income";
+    title = t("edit.passive");
     fields = `
-      <div class="field"><label for="f-pass">Monthly pace (dividends + rent, TWD)</label>
+      <div class="field"><label for="f-pass">${t("edit.monthlyPassive")}</label>
         <input id="f-pass" name="monthly" type="number" inputmode="numeric" value="${p.monthly}" /></div>`;
   }
 
@@ -282,8 +297,8 @@ function editSheetHTML(bucket) {
         <h2>${title}</h2>
         ${fields}
         <div class="sheet-actions">
-          <button type="button" class="btn btn-ghost" id="edit-cancel">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-ghost" id="edit-cancel">${t("cancel")}</button>
+          <button type="submit" class="btn btn-primary">${t("save")}</button>
         </div>
       </form>
     </div>`;
@@ -293,18 +308,18 @@ function screenHome(d) {
   const pl = periodLabel(state.settings.period);
   const delta = primaryPeriodDelta(d);
   const honesty =
-    state.settings.honesty === "pace" ? "Month pace" : "Today actual";
+    state.settings.honesty === "pace" ? t("honesty.pace") : t("honesty.actual");
   const spark = sparkPath(d.quietDay);
   const stockDeltaClass =
     state.assets.equities.dayPnL < 0 ? "down" : "";
 
   return `
-    <div class="topbar"><div class="title">Inertia</div>
-      <button type="button" class="back" data-go="settings">Settings</button>
+    <div class="topbar"><div class="title">${t("brand")}</div>
+      <button type="button" class="back" data-go="settings">${t("settings")}</button>
     </div>
     <div class="screen active" data-screen="home">
       <div class="hero">
-        <div class="label">Net worth</div>
+        <div class="label">${t("netWorth")}</div>
         <div class="nw">${fmtNT(d.netWorth)}</div>
         <div class="meta-row">
           <span class="pill ${delta >= 0 ? "up" : "down"}">${pl} ${fmtDelta(delta)}</span>
@@ -312,16 +327,16 @@ function screenHome(d) {
           ${state.settings.honesty === "pace" ? metroHTML() : ""}
         </div>
       </div>
-      <p class="quiet-line">Today's quiet contribution ~ <strong>${fmtNT(Math.round(d.quietDay))}</strong> · mortgage principal + TD interest + passive pace</p>
+      <p class="quiet-line">${t("quiet.line", { amount: `<strong>${fmtNT(Math.round(d.quietDay))}</strong>` })}</p>
       ${
         state.settings.honesty === "pace"
-          ? `<p class="rhythm-live-line" id="rhythmLiveLine">Pace running <span id="rhythmLive">${fmtNT(Math.round(d.quietDay * 0.55))}</span></p>`
+          ? `<p class="rhythm-live-line" id="rhythmLiveLine">${t("rhythm.paceRunning")} <span id="rhythmLive">${fmtNT(Math.round(d.quietDay * 0.55))}</span></p>`
           : state.settings.honesty === "actual"
-          ? `<p class="quiet-line" style="color:${state.assets.equities.dayPnL < 0 ? "var(--down)" : "var(--accent)"}">TWSE today ${fmtDelta(state.assets.equities.dayPnL)}</p>`
+          ? `<p class="quiet-line" style="color:${state.assets.equities.dayPnL < 0 ? "var(--down)" : "var(--accent)"}">${t("twse.today", { delta: fmtDelta(state.assets.equities.dayPnL) })}</p>`
           : ""
       }
       <div class="spark-wrap">
-        <div class="cap">30-day quiet growth pace (illustrative)</div>
+        <div class="cap">${t("spark.cap")}</div>
         <svg viewBox="0 0 ${spark.w} ${spark.h}" preserveAspectRatio="none" aria-hidden="true">
           <path class="fill" d="${spark.fill}" />
           <path class="line" id="sparkLine" d="${spark.d}" />
@@ -330,27 +345,27 @@ function screenHome(d) {
       </div>
       <div class="asset-list">
         <button type="button" class="asset-row" data-go="house">
-          <span class="name">Housing equity</span>
+          <span class="name">${t("asset.housingEquity")}</span>
           <span class="amt">${fmtNT(d.netEquity, true)}</span>
-          <span class="delta">Principal +${fmtNT(state.assets.housing.monthlyPrincipal, true)}/mo</span>
+          <span class="delta">${t("delta.principalMo", { amount: fmtNT(state.assets.housing.monthlyPrincipal, true) })}</span>
           <span class="chev">›</span>
         </button>
         <button type="button" class="asset-row" data-go="stock">
-          <span class="name">TWSE</span>
+          <span class="name">${t("asset.twse")}</span>
           <span class="amt">${fmtNT(state.assets.equities.marketValue, true)}</span>
-          <span class="delta ${stockDeltaClass}">Today ${fmtDelta(state.assets.equities.dayPnL, true)}</span>
+          <span class="delta ${stockDeltaClass}">${t("delta.today", { delta: fmtDelta(state.assets.equities.dayPnL, true) })}</span>
           <span class="chev">›</span>
         </button>
         <button type="button" class="asset-row" data-go="cash">
-          <span class="name">Cash</span>
+          <span class="name">${t("asset.cash")}</span>
           <span class="amt">${fmtNT(d.cashTotal, true)}</span>
-          <span class="delta mute">Checking + TD</span>
+          <span class="delta mute">${t("delta.checkingTd")}</span>
           <span class="chev">›</span>
         </button>
         <button type="button" class="asset-row" data-go="passive">
-          <span class="name">Passive income</span>
-          <span class="amt">${fmtNT(state.assets.passive.monthly, true)}/mo</span>
-          <span class="delta mute">Monthly pace</span>
+          <span class="name">${t("asset.passive")}</span>
+          <span class="amt">${fmtNT(state.assets.passive.monthly, true)}${t("perMo")}</span>
+          <span class="delta mute">${t("delta.monthlyPace")}</span>
           <span class="chev">›</span>
         </button>
       </div>
@@ -359,67 +374,67 @@ function screenHome(d) {
 
 function screenBucket(kind, d) {
   const titles = {
-    house: "Housing",
-    stock: "TWSE",
-    cash: "Cash",
-    passive: "Passive income",
+    house: t("bucket.housing"),
+    stock: t("bucket.twse"),
+    cash: t("bucket.cash"),
+    passive: t("bucket.passive"),
   };
   let body = "";
   if (kind === "house") {
     const h = state.assets.housing;
     body = `
       <div class="detail-card">
-        <div class="detail-row"><span class="k">Net equity</span><span class="v">${fmtNT(d.netEquity)}</span></div>
-        <div class="detail-row"><span class="k">Market value</span><span class="v">${fmtNT(h.marketValue)}</span></div>
-        <div class="detail-row"><span class="k">Mortgage</span><span class="v">${fmtNT(h.mortgage)}</span></div>
-        <div class="detail-row"><span class="k">Monthly principal</span><span class="v">${fmtNT(h.monthlyPrincipal)}/mo</span></div>
-        <p class="detail-note">About ${fmtNT(Math.round(d.dailyPrincipal))}/day of principal counts toward quiet growth. Interest does not.</p>
+        <div class="detail-row"><span class="k">${t("field.netEquity")}</span><span class="v">${fmtNT(d.netEquity)}</span></div>
+        <div class="detail-row"><span class="k">${t("field.marketValue")}</span><span class="v">${fmtNT(h.marketValue)}</span></div>
+        <div class="detail-row"><span class="k">${t("field.mortgage")}</span><span class="v">${fmtNT(h.mortgage)}</span></div>
+        <div class="detail-row"><span class="k">${t("field.monthlyPrincipal")}</span><span class="v">${fmtNT(h.monthlyPrincipal)}${t("perMo")}</span></div>
+        <p class="detail-note">${t("note.housing", { amount: fmtNT(Math.round(d.dailyPrincipal)) })}</p>
       </div>
       <div class="actions">
-        <button type="button" class="btn btn-primary" data-edit="house">Edit</button>
+        <button type="button" class="btn btn-primary" data-edit="house">${t("edit")}</button>
       </div>`;
   } else if (kind === "stock") {
     const e = state.assets.equities;
     body = `
       <div class="detail-card">
-        <div class="detail-row"><span class="k">Market value</span><span class="v">${fmtNT(e.marketValue)}</span></div>
-        <div class="detail-row"><span class="k">Today P&amp;L</span><span class="v ${e.dayPnL < 0 ? "down" : "up"}">${fmtDelta(e.dayPnL)}</span></div>
-        <div class="detail-row"><span class="k">Period P&amp;L</span><span class="v ${e.periodPnL < 0 ? "down" : "up"}">${fmtDelta(e.periodPnL)}</span></div>
-        <p class="detail-note">TWSE figures are what you enter. Delayed quotes are reference only and never overwrite without your confirm.</p>
+        <div class="detail-row"><span class="k">${t("field.marketValue")}</span><span class="v">${fmtNT(e.marketValue)}</span></div>
+        <div class="detail-row"><span class="k">${t("field.todayPnL")}</span><span class="v ${e.dayPnL < 0 ? "down" : "up"}">${fmtDelta(e.dayPnL)}</span></div>
+        <div class="detail-row"><span class="k">${t("field.periodPnL")}</span><span class="v ${e.periodPnL < 0 ? "down" : "up"}">${fmtDelta(e.periodPnL)}</span></div>
+        <p class="detail-note">${t("note.twse")}</p>
       </div>
       <div class="actions">
-        <button type="button" class="btn btn-primary" data-edit="stock">Edit</button>
-        <button type="button" class="btn" id="btn-delayed-quote">Delayed TWSE update (mock)</button>
+        <button type="button" class="btn btn-primary" data-edit="stock">${t("edit")}</button>
+        <button type="button" class="btn" id="btn-delayed-quote">${t("btn.delayedQuote")}</button>
       </div>`;
   } else if (kind === "cash") {
     const c = state.assets.cash;
     body = `
       <div class="detail-card">
-        <div class="detail-row"><span class="k">Total</span><span class="v">${fmtNT(d.cashTotal)}</span></div>
-        <div class="detail-row"><span class="k">Checking</span><span class="v">${fmtNT(c.checking)}</span></div>
-        <div class="detail-row"><span class="k">Time deposit</span><span class="v">${fmtNT(c.timeDeposit)}</span></div>
-        <div class="detail-row"><span class="k">TD annual rate</span><span class="v">${c.tdAnnualRate}%</span></div>
-        <p class="detail-note">Daily TD interest accrual ~ ${fmtNT(Math.round(d.dailyTdInterest))}, counted in quiet growth.</p>
+        <div class="detail-row"><span class="k">${t("field.total")}</span><span class="v">${fmtNT(d.cashTotal)}</span></div>
+        <div class="detail-row"><span class="k">${t("field.checking")}</span><span class="v">${fmtNT(c.checking)}</span></div>
+        <div class="detail-row"><span class="k">${t("field.timeDeposit")}</span><span class="v">${fmtNT(c.timeDeposit)}</span></div>
+        <div class="detail-row"><span class="k">${t("field.tdAnnualRate")}</span><span class="v">${c.tdAnnualRate}%</span></div>
+        <p class="detail-note">${t("note.cash", { amount: fmtNT(Math.round(d.dailyTdInterest)) })}</p>
       </div>
       <div class="actions">
-        <button type="button" class="btn btn-primary" data-edit="cash">Edit</button>
+        <button type="button" class="btn btn-primary" data-edit="cash">${t("edit")}</button>
       </div>`;
   } else if (kind === "passive") {
     const p = state.assets.passive;
     body = `
       <div class="detail-card">
-        <div class="detail-row"><span class="k">Monthly pace</span><span class="v">${fmtNT(p.monthly)}/mo</span></div>
-        <div class="detail-row"><span class="k">Daily pace</span><span class="v">${fmtNT(Math.round(d.dailyPassivePace))}</span></div>
-        <p class="detail-note">Dividends and rent show as pace — not added to net worth, to avoid double-counting housing equity.</p>
+        <div class="detail-row"><span class="k">${t("field.monthlyPace")}</span><span class="v">${fmtNT(p.monthly)}${t("perMo")}</span></div>
+        <div class="detail-row"><span class="k">${t("field.dailyPace")}</span><span class="v">${fmtNT(Math.round(d.dailyPassivePace))}</span></div>
+        <p class="detail-note">${t("note.passive")}</p>
       </div>
       <div class="actions">
-        <button type="button" class="btn btn-primary" data-edit="passive">Edit</button>
+        <button type="button" class="btn btn-primary" data-edit="passive">${t("edit")}</button>
       </div>`;
   }
 
   return `
     <div class="topbar">
-      <button type="button" class="back" data-go="home">Back</button>
+      <button type="button" class="back" data-go="home">${t("back")}</button>
       <div class="title">${titles[kind]}</div>
     </div>
     <div class="screen active">${body}</div>`;
@@ -427,32 +442,43 @@ function screenBucket(kind, d) {
 
 function screenSettings() {
   const s = state.settings;
+  const langButtons = SUPPORTED.map(
+    (loc) =>
+      `<button type="button" data-locale="${loc}" class="${s.locale === loc ? "active" : ""}">${localeLabel(loc)}</button>`
+  ).join("");
+
   return `
     <div class="topbar">
-      <button type="button" class="back" data-go="home">Back</button>
-      <div class="title">Settings</div>
+      <button type="button" class="back" data-go="home">${t("back")}</button>
+      <div class="title">${t("settings.title")}</div>
     </div>
     <div class="screen active">
       <div class="settings-block">
-        <h3>Period</h3>
-        <div class="seg" id="period-seg">
-          <button type="button" data-period="7d" class="${s.period === "7d" ? "active" : ""}">7 days</button>
-          <button type="button" data-period="30d" class="${s.period === "30d" ? "active" : ""}">30 days</button>
-          <button type="button" data-period="month" class="${s.period === "month" ? "active" : ""}">This month</button>
+        <h3>${t("settings.language")}</h3>
+        <div class="seg" id="locale-seg">
+          ${langButtons}
         </div>
       </div>
       <div class="settings-block">
-        <h3>Honesty (default)</h3>
+        <h3>${t("settings.period")}</h3>
+        <div class="seg" id="period-seg">
+          <button type="button" data-period="7d" class="${s.period === "7d" ? "active" : ""}">${t("period.7d.full")}</button>
+          <button type="button" data-period="30d" class="${s.period === "30d" ? "active" : ""}">${t("period.30d.full")}</button>
+          <button type="button" data-period="month" class="${s.period === "month" ? "active" : ""}">${t("period.month.full")}</button>
+        </div>
+      </div>
+      <div class="settings-block">
+        <h3>${t("settings.honesty")}</h3>
         <div class="seg" id="honesty-seg">
-          <button type="button" data-honesty="pace" class="${s.honesty === "pace" ? "active" : ""}">Month pace</button>
-          <button type="button" data-honesty="actual" class="${s.honesty === "actual" ? "active" : ""}">Today actual</button>
+          <button type="button" data-honesty="pace" class="${s.honesty === "pace" ? "active" : ""}">${t("honesty.pace")}</button>
+          <button type="button" data-honesty="actual" class="${s.honesty === "actual" ? "active" : ""}">${t("honesty.actual")}</button>
         </div>
       </div>
       <div class="settings-block">
         <div class="toggle-row">
           <div>
-            <div>Buyout unlock (mock)</div>
-            <div class="desc">When on, edit ads never show. Production = one-time IAP.</div>
+            <div>${t("settings.buyout")}</div>
+            <div class="desc">${t("settings.buyoutDesc")}</div>
           </div>
           <label class="switch">
             <input type="checkbox" id="buyout-toggle" ${s.buyout ? "checked" : ""} />
@@ -461,20 +487,23 @@ function screenSettings() {
         </div>
       </div>
       <div class="settings-block">
-        <h3>About delayed quotes</h3>
-        <p class="about">Numbers you <strong>enter by hand</strong> are the source of truth. Optional delayed TWSE quotes (~15 min) are reference only; confirming a market-value update is still an edit path. This build uses an offline mock stub (<code>src/quotes.js</code>).</p>
+        <h3>${t("settings.aboutQuotes")}</h3>
+        <p class="about">${t("settings.aboutQuotesBody")}</p>
       </div>
       <div class="settings-block">
-        <h3>Widget previews</h3>
+        <h3>${t("settings.widgetPreviews")}</h3>
         <div class="actions">
-          <button type="button" class="btn" data-go="widget-lock">Lock small (preview)</button>
-          <button type="button" class="btn" data-go="widget-home">Home medium (preview)</button>
+          <button type="button" class="btn" data-go="widget-lock">${t("settings.widgetLock")}</button>
+          <button type="button" class="btn" data-go="widget-home">${t("settings.widgetHome")}</button>
         </div>
-        <p class="about" style="margin-top:6px">Previews never show ads. Production = iOS / Android native widgets.</p>
+        <p class="about" style="margin-top:6px">${t("settings.widgetNote")}</p>
       </div>
       <div class="settings-block">
-        <h3>About</h3>
-        <p class="about">Inertia<br />Your assets keep moving.<br />UI: English · Currency: TWD<br />No LLM · Data stays on-device</p>
+        <h3>${t("settings.about")}</h3>
+        <p class="about">${t("settings.aboutBody", {
+          tagline: t("tagline"),
+          lang: localeLabel(s.locale || "en"),
+        })}</p>
       </div>
     </div>`;
 }
@@ -483,23 +512,23 @@ function screenWidgetLock(d) {
   const pace30 = Math.round(d.periodQuiet(30));
   return `
     <div class="topbar">
-      <button type="button" class="back" data-go="settings">Back</button>
-      <div class="title">Lock widget</div>
+      <button type="button" class="back" data-go="settings">${t("back")}</button>
+      <div class="title">${t("widget.lockTitle")}</div>
     </div>
     <div class="screen active">
-      <div class="preview-banner">Preview · no ads</div>
+      <div class="preview-banner">${t("widget.previewBanner")}</div>
       <div class="widget-stage">
-        <div class="lock-widget" aria-label="Inertia lock widget preview">
-          <div class="brand">Inertia</div>
-          <div class="lab">Net worth</div>
+        <div class="lock-widget" aria-label="${t("widget.lockAria")}">
+          <div class="brand">${t("brand")}</div>
+          <div class="lab">${t("netWorth")}</div>
           <div class="val">${fmtNT(d.netWorth)}</div>
           <div class="pace-row">
-            <div class="pace pace-breathe">Month pace ${fmtDelta(pace30, true)}</div>
+            <div class="pace pace-breathe">${t("widget.monthPace", { delta: fmtDelta(pace30, true) })}</div>
             ${metroHTML()}
           </div>
         </div>
       </div>
-      <p class="preview-note">Production uses WidgetKit / App Widgets. Browse and widgets never show ads.</p>
+      <p class="preview-note">${t("widget.previewNoteLock")}</p>
     </div>`;
 }
 
@@ -509,46 +538,46 @@ function screenWidgetHome(d) {
   const e = state.assets.equities;
   const stockDelta =
     state.settings.honesty === "actual"
-      ? { t: "Today " + fmtDelta(e.dayPnL, true), c: e.dayPnL < 0 ? "down" : "" }
+      ? { t: t("delta.today", { delta: fmtDelta(e.dayPnL, true) }), c: e.dayPnL < 0 ? "down" : "" }
       : { t: pl + " " + fmtDelta(e.periodPnL, true), c: "" };
   const dailyTd = d.dailyTdInterest;
 
   return `
     <div class="topbar">
-      <button type="button" class="back" data-go="settings">Back</button>
-      <div class="title">Home medium</div>
+      <button type="button" class="back" data-go="settings">${t("back")}</button>
+      <div class="title">${t("widget.homeTitle")}</div>
     </div>
     <div class="screen active">
-      <div class="preview-banner">Preview · no ads</div>
+      <div class="preview-banner">${t("widget.previewBanner")}</div>
       <div class="widget-stage">
-        <div class="medium-widget" aria-label="Inertia home medium widget preview">
+        <div class="medium-widget" aria-label="${t("widget.homeAria")}">
           <div class="mw-head">
-            <span class="brand">Inertia</span>
+            <span class="brand">${t("brand")}</span>
             <span class="period">${pl}</span>
           </div>
           <div class="mw-row">
-            <span class="tag">Housing</span>
+            <span class="tag">${t("widget.housing")}</span>
             <span class="amt">${fmtNT(d.netEquity, true)}</span>
-            <span class="d">Prin. +${fmtNT(Math.round(state.assets.housing.monthlyPrincipal * (days / 30)), true)}</span>
+            <span class="d">${t("widget.prin", { amount: fmtNT(Math.round(state.assets.housing.monthlyPrincipal * (days / 30)), true) })}</span>
           </div>
           <div class="mw-row">
-            <span class="tag">TWSE</span>
+            <span class="tag">${t("widget.twse")}</span>
             <span class="amt">${fmtNT(e.marketValue, true)}</span>
             <span class="d ${stockDelta.c}">${stockDelta.t}</span>
           </div>
           <div class="mw-row">
-            <span class="tag">Cash</span>
+            <span class="tag">${t("widget.cash")}</span>
             <span class="amt">${fmtNT(d.cashTotal, true)}</span>
-            <span class="d mute">TD int. +${fmtNT(Math.round(dailyTd * days), true)}</span>
+            <span class="d mute">${t("widget.tdInt", { amount: fmtNT(Math.round(dailyTd * days), true) })}</span>
           </div>
           <div class="mw-row">
-            <span class="tag">Passive</span>
-            <span class="amt">${fmtNT(state.assets.passive.monthly, true)}/mo</span>
-            <span class="d">Pace +${fmtNT(Math.round(state.assets.passive.monthly * (days / 30)), true)}</span>
+            <span class="tag">${t("widget.passive")}</span>
+            <span class="amt">${fmtNT(state.assets.passive.monthly, true)}${t("perMo")}</span>
+            <span class="d">${t("widget.pace", { amount: fmtNT(Math.round(state.assets.passive.monthly * (days / 30)), true) })}</span>
           </div>
         </div>
       </div>
-      <p class="preview-note">Production = native widget. Static preview only — no ad gate.</p>
+      <p class="preview-note">${t("widget.previewNoteHome")}</p>
     </div>`;
 }
 
@@ -573,16 +602,16 @@ function render() {
 
   app.innerHTML = `
     <header class="app-chrome">
-      <h1>Inertia<em>Your assets keep moving.</em></h1>
-      <p>Household pace · on-device data · ads only on edit (if not bought out)</p>
+      <h1>${t("brand")}<em>${t("tagline")}</em></h1>
+      <p>${t("chrome.sub")}</p>
     </header>
-    <nav class="nav-seg" aria-label="Screens">
-      <button type="button" data-go="home" class="${route === "home" ? "active" : ""}">Home</button>
-      <button type="button" data-go="house" class="${route === "house" ? "active" : ""}">Housing</button>
-      <button type="button" data-go="stock" class="${route === "stock" ? "active" : ""}">TWSE</button>
-      <button type="button" data-go="cash" class="${route === "cash" ? "active" : ""}">Cash</button>
-      <button type="button" data-go="passive" class="${route === "passive" ? "active" : ""}">Passive</button>
-      <button type="button" data-go="settings" class="${route === "settings" ? "active" : ""}">Settings</button>
+    <nav class="nav-seg" aria-label="${t("nav.screens")}">
+      <button type="button" data-go="home" class="${route === "home" ? "active" : ""}">${t("nav.home")}</button>
+      <button type="button" data-go="house" class="${route === "house" ? "active" : ""}">${t("nav.housing")}</button>
+      <button type="button" data-go="stock" class="${route === "stock" ? "active" : ""}">${t("nav.twse")}</button>
+      <button type="button" data-go="cash" class="${route === "cash" ? "active" : ""}">${t("nav.cash")}</button>
+      <button type="button" data-go="passive" class="${route === "passive" ? "active" : ""}">${t("nav.passive")}</button>
+      <button type="button" data-go="settings" class="${route === "settings" ? "active" : ""}">${t("nav.settings")}</button>
     </nav>
     <div class="shell">${body}</div>
     ${sheet}
@@ -620,6 +649,17 @@ function bind() {
       render();
     });
   }
+
+  document.getElementById("locale-seg")?.querySelectorAll("[data-locale]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const loc = b.getAttribute("data-locale");
+      if (!SUPPORTED.includes(loc)) return;
+      state.settings.locale = loc;
+      setLocale(loc);
+      persist();
+      render();
+    });
+  });
 
   document.getElementById("period-seg")?.querySelectorAll("[data-period]").forEach((b) => {
     b.addEventListener("click", () => {
@@ -684,7 +724,7 @@ function bind() {
   if (quoteBtn) {
     quoteBtn.addEventListener("click", async () => {
       quoteBtn.disabled = true;
-      quoteBtn.textContent = "Fetching delayed quotes…";
+      quoteBtn.textContent = t("btn.fetchingQuotes");
       try {
         const quotes = await fetchDelayedQuotes(["0050", "2330"]);
         const next = mockPortfolioFromQuotes(
@@ -692,10 +732,16 @@ function bind() {
           state.assets.equities.marketValue
         );
         const summary = quotes
-          .map((q) => `${q.symbol} ${q.price} (~${q.delayedMin} min delay)`)
+          .map(
+            (q) =>
+              `${q.symbol} ${q.price} (${t("confirm.delayMin", { min: q.delayedMin })})`
+          )
           .join(", ");
         const ok = window.confirm(
-          `Delayed quotes (mock):\n${summary}\n\nUpdate TWSE market value to ${fmtNT(next)}?\n(Requires confirm; edit path — may show an ad if not bought out)`
+          t("confirm.delayedQuotes", {
+            summary,
+            value: fmtNT(next),
+          })
         );
         if (ok) {
           withEditAd("save", () => {
@@ -705,11 +751,11 @@ function bind() {
           });
         } else {
           quoteBtn.disabled = false;
-          quoteBtn.textContent = "Delayed TWSE update (mock)";
+          quoteBtn.textContent = t("btn.delayedQuote");
         }
       } catch {
         quoteBtn.disabled = false;
-        quoteBtn.textContent = "Delayed TWSE update (mock)";
+        quoteBtn.textContent = t("btn.delayedQuote");
       }
     });
   }

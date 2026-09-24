@@ -3,6 +3,7 @@
  * NEVER on widgets. NEVER on mere browse/view of Home or bucket detail.
  * ONLY when user opens Edit sheet or commits Save — and only if !buyout.
  */
+import { t } from "./i18n/index.js";
 
 let buyoutGetter = () => false;
 
@@ -32,19 +33,23 @@ function showMockInterstitial(reason, onContinue) {
   overlay.className = "ad-overlay";
   overlay.setAttribute("role", "dialog");
   overlay.setAttribute("aria-modal", "true");
-  overlay.setAttribute("aria-label", "Ad (mock)");
+  overlay.setAttribute("aria-label", t("ad.aria"));
 
   const reasonLabel =
-    reason === "save" ? "before save" : reason === "edit" ? "before edit" : "";
+    reason === "save"
+      ? t("ad.beforeSave")
+      : reason === "edit"
+      ? t("ad.beforeEdit")
+      : "";
 
   overlay.innerHTML = `
     <div class="ad-card">
-      <div class="ad-kicker">Ad (mock)${reasonLabel ? " · " + reasonLabel : ""}</div>
-      <p class="ad-body">Inertia is free. Ads appear only when you edit numbers — never on browse or widgets.</p>
-      <p class="ad-hint">Production uses AdMob; buyout turns this off forever.</p>
+      <div class="ad-kicker">${t("ad.kicker")}${reasonLabel ? " · " + reasonLabel : ""}</div>
+      <p class="ad-body">${t("ad.body")}</p>
+      <p class="ad-hint">${t("ad.hint")}</p>
       <div class="ad-actions">
-        <button type="button" class="btn btn-ghost" id="ad-skip" disabled>Skip (1)</button>
-        <button type="button" class="btn btn-primary" id="ad-skip-now">Skip</button>
+        <button type="button" class="btn btn-ghost" id="ad-skip" disabled>${t("ad.skipCountdown", { n: 1 })}</button>
+        <button type="button" class="btn btn-primary" id="ad-skip-now">${t("ad.skip")}</button>
       </div>
     </div>
   `;
@@ -70,10 +75,10 @@ function showMockInterstitial(reason, onContinue) {
     if (left <= 0) {
       clearInterval(timer);
       skipTimed.disabled = false;
-      skipTimed.textContent = "Skip";
+      skipTimed.textContent = t("ad.skip");
       skipTimed.addEventListener("click", close, { once: true });
     } else {
-      skipTimed.textContent = `Skip (${left})`;
+      skipTimed.textContent = t("ad.skipCountdown", { n: left });
     }
   }, 1000);
 }

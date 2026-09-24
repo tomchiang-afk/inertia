@@ -24,10 +24,12 @@ export const DEFAULT_ASSETS = {
   },
 };
 
+/** locale omitted until first launch → detect navigator.language */
 export const DEFAULT_SETTINGS = {
   honesty: "pace", // pace | actual
   period: "30d", // 7d | 30d | month
   buyout: false,
+  // locale: set on first launch via i18n.detectLocale()
 };
 
 function migrateLegacyKey() {

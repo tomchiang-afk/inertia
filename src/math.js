@@ -1,4 +1,5 @@
 /** Quiet-day / net-worth math — same as prototype */
+import { t } from "./i18n/index.js";
 
 export const DAYS_IN_MONTH = 30;
 
@@ -35,10 +36,11 @@ export function periodDays(period) {
   return 30;
 }
 
+/** Localized short period label (uses current i18n locale) */
 export function periodLabel(period) {
-  if (period === "7d") return "7d";
-  if (period === "month") return "This month";
-  return "30d";
+  if (period === "7d") return t("period.7d");
+  if (period === "month") return t("period.month");
+  return t("period.30d");
 }
 
 export function fmtNT(n, compact = false) {

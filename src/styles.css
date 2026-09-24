@@ -358,6 +358,17 @@ select:focus-visible {
 }
 .seg button:hover:not(.active):not(:disabled) { background: var(--bg); }
 
+#locale-seg {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+#locale-seg button {
+  flex: 1 1 30%;
+  min-width: 4.5rem;
+  border-bottom: 1px solid var(--line);
+}
+#locale-seg button:last-child { border-right: none; }
+
 .toggle-row {
   display: flex;
   align-items: center;
