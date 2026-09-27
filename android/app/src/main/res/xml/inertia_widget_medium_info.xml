@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Inertia 4x2 (resizable). Same renderer as the small widget. -->
+<!-- Inertia 4x2 (resizable). Same renderer as the small widget.
+     maxResize* must stay generous: Launcher3 takes the smallest max span across its portrait
+     and landscape profiles and ignores targetCellWidth when it exceeds it (540dp capped a
+     Pixel 7 at 3 columns, so this entry landed as 3x2 and could not be widened). -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_description_medium"
     android:initialLayout="@layout/widget_medium"
@@ -7,8 +10,8 @@
     android:minHeight="110dp"
     android:minResizeWidth="110dp"
     android:minResizeHeight="110dp"
-    android:maxResizeWidth="540dp"
-    android:maxResizeHeight="320dp"
+    android:maxResizeWidth="1200dp"
+    android:maxResizeHeight="800dp"
     android:previewImage="@drawable/widget_preview_medium"
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="4"

@@ -44,6 +44,10 @@ Two picker entries, both labelled **Inertia**, both resizable (`horizontal|verti
 - `InertiaWidgetProvider`: 2×2 default (`minWidth/Height 110dp`, `targetCell 2×2`)
 - `InertiaWidgetMediumProvider`: 4×2 default (`minWidth 250dp`, `targetCell 4×2`)
 
+`maxResizeWidth/Height` are deliberately large (1200dp / 800dp). Launcher3 derives the max span
+from the landscape cell size too and drops `targetCellWidth` if it's above that max, so a tight
+value (540dp) made the 4×2 entry land as 3×2 on a Pixel 7.
+
 Layout picked by width: < 220dp → `widget_small.xml`, ≥ 220dp → `widget_medium.xml`
 (adds the bucket column). Android 12+ gets a responsive `RemoteViews(Map<SizeF, RemoteViews>)`
 built from `OPTION_APPWIDGET_SIZES`. Older versions use portrait min-width / max-height from the
