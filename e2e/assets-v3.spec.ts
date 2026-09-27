@@ -185,6 +185,18 @@ test("change base currency — totals, goals and widget snapshot follow; FX edit
   const s = await saved(page);
   expect(s.settings.fx.base).toBe("USD");
   expect(s.goals[0].target).toBe(625_000);
+
+  // Round trip USD → JPY → TWD: the rates the user typed come back exactly (no drift).
+  await nav(page, "Settings");
+  await page.getByTestId("fx-base").selectOption("JPY");
+  await page.getByTestId("fx-base").selectOption("TWD");
+  await expect(page.getByTestId("fx-rate-USD")).toHaveValue("32");
+  await expect(page.getByTestId("fx-rate-JPY")).toHaveValue("0.21");
+  await nav(page, "Home");
+  await expect(page.getByTestId("net-worth")).toHaveText("NT$16,470,000");
+  const back = await saved(page);
+  expect(back.settings.fx.rates.USD).toBe(32);
+  expect(Math.round(back.goals[0].target)).toBe(20_000_000);
 });
 
 test("missing FX rate — item excluded + flagged until the rate is added", async ({ page }) => {

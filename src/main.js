@@ -44,6 +44,8 @@ import {
   rateToBase,
   toBase,
   currencySymbol,
+  roundSig,
+  fmtRateInput,
 } from "./currency.js";
 import { setDisplayCurrency, fmtMoney, fmtMasked } from "./format.js";
 import {
@@ -561,7 +563,7 @@ function goalSheetHTML() {
         <div class="field"><label for="g-name">${t("goals.name")}</label>
           <input id="g-name" name="name" type="text" maxlength="48" value="${escapeHtml(g.name)}" required data-testid="goal-name" /></div>
         <div class="field"><label for="g-target">${t("goals.target", { ccy: fx().base })}</label>
-          <input id="g-target" name="target" type="number" inputmode="numeric" min="1" value="${g.target || ""}" required data-testid="goal-target" /></div>
+          <input id="g-target" name="target" type="number" inputmode="numeric" min="1" value="${g.target ? Math.round(g.target) : ""}" required data-testid="goal-target" /></div>
         <div class="field"><label for="g-align">${t("goals.align")}</label>
           <select id="g-align" name="align" data-testid="goal-align">${alignOpts}</select></div>
         <div class="toggle-row" style="margin:8px 0 4px">
@@ -759,7 +761,7 @@ function changeBaseCurrency(code) {
   // Goal targets are base-currency numbers: convert them so progress stays the same.
   const factor = rateToBase(prev.base, next);
   if (factor != null) {
-    state.goals = normalizeGoals(state.goals).map((g) => ({ ...g, target: Math.round(g.target * factor) }));
+    state.goals = normalizeGoals(state.goals).map((g) => ({ ...g, target: roundSig(g.target * factor) }));
   }
   state.settings.fx = next;
   setDisplayCurrency(next.base);
@@ -1010,7 +1012,7 @@ function fxSettingsHTML() {
       return `<div class="fx-row${missing ? " is-missing" : ""}" data-testid="fx-row-${c}">
           <span class="fx-code">${c}</span>
           <label class="fx-eq" for="fx-${c}">1 ${c} =</label>
-          <input id="fx-${c}" type="number" inputmode="decimal" step="any" min="0" value="${missing ? "" : r}" placeholder="${t("fx.needsRate")}" data-fx-rate="${c}" data-testid="fx-rate-${c}" />
+          <input id="fx-${c}" type="number" inputmode="decimal" step="any" min="0" value="${missing ? "" : fmtRateInput(r)}" placeholder="${t("fx.needsRate")}" data-fx-rate="${c}" data-testid="fx-rate-${c}" />
           <span class="fx-base">${table.base}</span>
           ${used.has(c) ? `<span class="fx-used" title="${t("fx.inUse")}">${t("fx.inUse")}</span>` : `<button type="button" class="icon-btn" data-fx-remove="${c}" aria-label="${t("fx.remove")} ${c}" data-testid="fx-remove-${c}">×</button>`}
         </div>`;

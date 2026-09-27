@@ -6,6 +6,11 @@
  *   rates[c] = how many units of `base` one unit of `c` is worth. The base itself is implicit (1).
  *   A rate of null means "unknown" (the user added a currency but no rate yet); amounts in that
  *   currency are left out of totals and flagged in the UI instead of being guessed.
+ *
+ *   Optional `anchor: { base, rates }` is the table as the user last entered it. Changing the
+ *   base always re-derives from the anchor (one hop), so switching TWD → USD → JPY → TWD gives
+ *   back exactly the numbers the user typed instead of accumulating rounding. Any rate edit
+ *   makes the current table the new anchor.
  */
 
 export const DEFAULT_BASE = "TWD";
@@ -82,12 +87,25 @@ export function normalizeFx(raw, baseHint) {
     const n = Number(v);
     rates[code] = v == null || v === "" || !Number.isFinite(n) || n <= 0 ? null : n;
   }
-  return {
+  const out = {
     base,
     rates,
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt.slice(0, 10) : DEFAULT_FX_DATE,
     edited: !!raw.edited,
   };
+  const a = raw.anchor;
+  if (a && typeof a === "object" && a.rates && typeof a.rates === "object") {
+    const ab = normalizeCurrency(a.base);
+    const ar = {};
+    for (const [k, v] of Object.entries(a.rates)) {
+      const code = normalizeCurrency(k, "");
+      if (!code || code === ab) continue;
+      const n = Number(v);
+      ar[code] = v == null || v === "" || !Number.isFinite(n) || n <= 0 ? null : n;
+    }
+    if (ab !== base) out.anchor = { base: ab, rates: ar };
+  }
+  return out;
 }
 
 /**
@@ -97,21 +115,35 @@ export function normalizeFx(raw, baseHint) {
 export function rebaseFx(fx, newBase) {
   const nb = normalizeCurrency(newBase);
   const ob = normalizeCurrency(fx?.base);
-  const src = fx?.rates || {};
-  if (nb === ob) return { ...fx, base: nb, rates: { ...src } };
-  const pivot = src[nb]; // 1 newBase = pivot oldBase
+  const meta = { updatedAt: fx?.updatedAt || DEFAULT_FX_DATE, edited: !!fx?.edited };
+  if (nb === ob) return { ...fx, base: nb, rates: { ...(fx?.rates || {}) } };
+  // Derive from the anchor (what the user entered), never from an already-rebased table.
+  const anchor = fx?.anchor?.rates ? fx.anchor : { base: ob, rates: fx?.rates || {} };
+  const ab = normalizeCurrency(anchor.base);
+  const src = { ...anchor.rates };
+  // Codes present in the current table but not the anchor (shouldn't happen) are carried as unknown.
+  for (const code of Object.keys(fx?.rates || {})) if (!(code in src) && code !== ab) src[code] = null;
+  if (nb === ab) return { base: nb, rates: src, ...meta };
+  const pivot = src[nb]; // 1 newBase = pivot anchorBase
   const rates = {};
   const ok = Number.isFinite(pivot) && pivot > 0;
-  rates[ob] = ok ? round6(1 / pivot) : null;
+  rates[ab] = ok ? roundSig(1 / pivot) : null;
   for (const [code, r] of Object.entries(src)) {
     if (code === nb) continue;
-    rates[code] = ok && Number.isFinite(r) && r > 0 ? round6(r / pivot) : null;
+    rates[code] = ok && Number.isFinite(r) && r > 0 ? roundSig(r / pivot) : null;
   }
-  return { base: nb, rates, updatedAt: fx?.updatedAt || DEFAULT_FX_DATE, edited: !!fx?.edited };
+  return { base: nb, rates, ...meta, anchor: { base: ab, rates: src } };
 }
 
-function round6(n) {
-  return Math.round(n * 1e6) / 1e6;
+/** Round to 12 significant digits (strips float noise); inputs show 6 (fmtRateInput). */
+export function roundSig(n, digits = 12) {
+  if (!Number.isFinite(n) || n === 0) return n;
+  return Number(n.toPrecision(digits));
+}
+
+/** Compact rate for an input field (6 significant digits). */
+export function fmtRateInput(r) {
+  return Number.isFinite(r) ? String(Number(r.toPrecision(6))) : "";
 }
 
 /** Units of fx.base per 1 unit of `code`; 1 for the base; null if unknown. */
@@ -142,8 +174,9 @@ export function withRate(fx, code, rate, { date } = {}) {
   const c = normalizeCurrency(code, "");
   if (!c || c === fx.base) return fx;
   const n = Number(rate);
+  const { anchor: _drop, ...rest } = fx; // the edited table becomes the new source of truth
   return {
-    ...fx,
+    ...rest,
     rates: { ...fx.rates, [c]: Number.isFinite(n) && n > 0 ? n : null },
     updatedAt: date || todayISO(),
     edited: true,
@@ -154,12 +187,17 @@ export function withoutRate(fx, code, { date } = {}) {
   const c = normalizeCurrency(code, "");
   const rates = { ...fx.rates };
   delete rates[c];
-  return { ...fx, rates, updatedAt: date || todayISO(), edited: true };
+  const { anchor: _drop, ...rest } = fx;
+  return { ...rest, rates, updatedAt: date || todayISO(), edited: true };
 }
 
 /** Make sure a currency used by an item has a row (rate null = needs input). */
 export function ensureCurrency(fx, code) {
   const c = normalizeCurrency(code, "");
   if (!c || c === fx.base || c in fx.rates) return fx;
-  return { ...fx, rates: { ...fx.rates, [c]: null } };
+  const out = { ...fx, rates: { ...fx.rates, [c]: null } };
+  if (fx.anchor && c !== fx.anchor.base && !(c in fx.anchor.rates)) {
+    out.anchor = { ...fx.anchor, rates: { ...fx.anchor.rates, [c]: null } };
+  }
+  return out;
 }

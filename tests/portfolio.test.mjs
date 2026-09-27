@@ -24,6 +24,8 @@ import {
   ensureCurrency,
   normalizeFx,
   currencySymbol,
+  roundSig,
+  fmtRateInput,
 } from "../src/currency.js";
 import { fmtMoney, fmtCompact, fmtRounded, fmtMasked } from "../src/format.js";
 import { derive } from "../src/math.js";
@@ -169,6 +171,14 @@ test("FX: rebase keeps cross rates and adds the old base", () => {
   assert.equal(defaultFx("USD").base, "USD");
 });
 
+test("FX: base round trips (TWD → USD → JPY → TWD) keep rates and totals exact", () => {
+  const start = defaultFx("TWD");
+  const back = rebaseFx(rebaseFx(rebaseFx(start, "USD"), "JPY"), "TWD");
+  for (const [code, r] of Object.entries(start.rates)) assert.equal(back.rates[code], r, code);
+  const assets = demoAssets("zh-TW");
+  assert.equal(derive(assets, back).netEquity, derive(assets, start).netEquity);
+});
+
 test("FX: user edits stamp a date; unknown codes are added with null rate", () => {
   let fx = withRate(defaultFx("TWD"), "usd", 31.2, { date: "2026-10-01" });
   assert.equal(fx.rates.USD, 31.2);
@@ -261,4 +271,24 @@ test("format: symbols, exact, compact, rounded, masked per currency", () => {
   assert.equal(fmtRounded(843, "EUR"), "€840");
   assert.equal(fmtRounded(-2_500, "USD", { delta: true }), "−US$3k");
   assert.equal(fmtMasked("EUR"), "€••••••");
+});
+
+test("FX: roundSig / fmtRateInput", () => {
+  assert.equal(roundSig(0.1 + 0.2), 0.3);
+  assert.equal(roundSig(1 / (1 / 30.5)), 30.5);
+  assert.equal(fmtRateInput(1 / 30.5), "0.0327869");
+  assert.equal(fmtRateInput(null), "");
+});
+
+test("FX: a rate edit after a base switch becomes the new anchor", () => {
+  let fx = rebaseFx(defaultFx("TWD"), "USD");
+  assert.equal(fx.anchor.base, "TWD");
+  fx = withRate(fx, "JPY", 0.007, { date: "2026-10-01" });
+  assert.equal(fx.anchor, undefined);
+  const twd = rebaseFx(fx, "TWD");
+  assert.equal(twd.rates.USD, roundSig(1 / fx.rates.TWD));
+  assert.equal(twd.rates.JPY, roundSig(0.007 / fx.rates.TWD));
+  // anchor survives normalize (persisted state)
+  const persisted = normalizeFx(JSON.parse(JSON.stringify(rebaseFx(defaultFx("TWD"), "EUR"))));
+  assert.equal(rebaseFx(persisted, "TWD").rates.USD, 30.5);
 });
