@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description_small">純資産と今月のペース。広告なし、ウィジェットのプライバシー設定に従います。</string>
+    <string name="widget_description_medium">純資産、今月のペース、資産項目と目標。広告なし、プライバシー設定に従います。</string>
+    <string name="widget_placeholder">Inertia を一度開くとウィジェットが同期されます。</string>
+    <string name="widget_updated_fallback">更新</string>
+</resources>

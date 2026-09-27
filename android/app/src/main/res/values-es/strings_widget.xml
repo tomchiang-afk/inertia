@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description_small">Patrimonio neto y ritmo del mes. Sin anuncios; respeta tu modo de privacidad.</string>
+    <string name="widget_description_medium">Patrimonio, ritmo del mes, categorías y meta. Sin anuncios; respeta tu modo de privacidad.</string>
+    <string name="widget_placeholder">Abre Inertia una vez para sincronizar el widget.</string>
+    <string name="widget_updated_fallback">Actualizado</string>
+</resources>

@@ -33,6 +33,31 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+        <!-- Inertia home-screen widgets (always ad-free). Data is pushed from the
+             web app via the local InertiaWidget Capacitor plugin. -->
+        <receiver
+            android:name=".widget.InertiaWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/inertia_widget_small_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.InertiaWidgetMediumProvider"
+            android:exported="false"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/inertia_widget_medium_info" />
+        </receiver>
     </application>
 
     <!-- Permissions -->

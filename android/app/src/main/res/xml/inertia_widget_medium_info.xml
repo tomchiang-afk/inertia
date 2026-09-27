@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Inertia 4x2 (resizable). Same renderer as the small widget. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_description_medium"
+    android:initialLayout="@layout/widget_medium"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="110dp"
+    android:maxResizeWidth="540dp"
+    android:maxResizeHeight="320dp"
+    android:previewImage="@drawable/widget_preview_medium"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />
