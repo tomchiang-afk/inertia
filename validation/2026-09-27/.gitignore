@@ -1,0 +1,12 @@
+# Only a selection of screenshots is committed (repo size); the full set of 49 stays local.
+*.png
+!10-home-exact.png
+!11-home-goals.png
+!22-resize-4wide-blocked-before-fix.png
+!40-home-landscape.png
+!45-save-ad.png
+!47-widgets-after-edit.png
+!50-fixed-medium-resized-4x2.png
+!51-fixed-picker-4x2.png
+!52-final-home-widgets.png
+!60-widget-privacy-modes-montage.png
