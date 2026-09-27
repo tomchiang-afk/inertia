@@ -6,6 +6,15 @@ import {
   normalizeWidgetTemplate,
 } from "./store.js";
 import {
+  GOAL_ALIGNS,
+  MAX_GOALS,
+  newGoalId,
+  normalizeGoals,
+  primaryGoal,
+  goalProgress,
+  withPrimaryOnWidget,
+} from "./goals.js";
+import {
   derive,
   periodDays,
   periodLabel,
@@ -19,6 +28,8 @@ import {
   privacyFieldOn,
   formatWidgetMoney,
   formatWidgetPace,
+  formatGoalProgressLabel,
+  showGoalBarFill,
   showRhythmWithoutPace,
 } from "./widgetPrivacy.js";
 import { configureAdGate, withEditAd } from "./adGate.js";
@@ -32,6 +43,7 @@ import {
 } from "./i18n/index.js";
 
 const state = loadState();
+state.goals = normalizeGoals(state.goals);
 
 /* First launch: detect navigator.language; persist settings.locale */
 if (!state.settings.locale || !SUPPORTED.includes(state.settings.locale)) {
@@ -44,6 +56,7 @@ state.settings.widgetPrivacy = normalizeWidgetPrivacy(state.settings.widgetPriva
 
 let route = "home"; // home | house | stock | cash | passive | settings | widget-lock | widget-home
 let editBucket = null; // null | house | stock | cash | passive
+let goalEdit = null; // null | "new" | goalId
 
 configureAdGate({ getBuyout: () => !!state.settings.buyout });
 
@@ -71,6 +84,7 @@ function applyTemplateAttr(root) {
 function go(name) {
   route = name;
   editBucket = null;
+  goalEdit = null;
   render();
 }
 
@@ -325,7 +339,228 @@ function openEdit(bucket) {
 
 function closeEdit() {
   editBucket = null;
+  goalEdit = null;
   render();
+}
+
+function openGoalEdit(idOrNew) {
+  goalEdit = idOrNew;
+  editBucket = null;
+  render();
+}
+
+function closeGoalEdit() {
+  goalEdit = null;
+  render();
+}
+
+function saveGoalFromForm(form) {
+  const name = String(form.elements.name?.value || "").trim().slice(0, 48) || t("goals.untitled");
+  const target = num(form, "target");
+  const align = GOAL_ALIGNS.includes(form.elements.align?.value)
+    ? form.elements.align.value
+    : "netWorth";
+  const onWidget = !!form.elements.onWidget?.checked;
+  if (!(target > 0)) {
+    form.elements.target?.focus();
+    return;
+  }
+  const editingId = goalEdit;
+  const prev = normalizeGoals(state.goals).find((g) => g.id === editingId);
+  const commit = () => commitGoal(editingId, { name, target, align, onWidget });
+  // Existing rule: ads only on editing numbers. Name / align / widget flag: no ad.
+  if (editingId === "new" || !prev || prev.target !== target) withEditAd("save", commit);
+  else commit();
+}
+
+function commitGoal(editingId, { name, target, align, onWidget }) {
+  let goals = normalizeGoals(state.goals);
+
+  if (editingId === "new") {
+    if (goals.length >= MAX_GOALS) return;
+    const g = { id: newGoalId(), name, target, align, onWidget: false };
+    goals.push(g);
+    if (onWidget) goals = withPrimaryOnWidget(goals, g.id);
+  } else {
+    goals = goals.map((g) =>
+      g.id === editingId ? { ...g, name, target, align, onWidget: g.onWidget } : g
+    );
+    if (onWidget) goals = withPrimaryOnWidget(goals, editingId);
+    else {
+      goals = goals.map((g) =>
+        g.id === editingId ? { ...g, onWidget: false } : g
+      );
+    }
+  }
+  state.goals = normalizeGoals(goals);
+  persist();
+  goalEdit = null;
+  render();
+}
+
+function deleteGoal(id) {
+  state.goals = normalizeGoals(state.goals.filter((g) => g.id !== id));
+  persist();
+  goalEdit = null;
+  render();
+}
+
+function formatGoalAmounts(prog, priv) {
+  const mode = priv?.displayMode || "exact";
+  if (mode === "rhythm") {
+    return { current: "", target: "", remaining: "", pctLabel: "" };
+  }
+  if (mode === "masked") {
+    return {
+      current: "NT$••••••",
+      target: "NT$••••••",
+      remaining: "••••",
+      pctLabel: "••••",
+    };
+  }
+  if (mode === "relative") {
+    const pct = prog.pct + "%";
+    return { current: pct, target: "100%", remaining: "", pctLabel: pct };
+  }
+  const current = formatWidgetMoney(prog.current, priv, { kind: "absolute", compact: true });
+  const target = formatWidgetMoney(prog.target, priv, { kind: "absolute", compact: true });
+  const remaining = formatWidgetMoney(prog.remaining, priv, { kind: "absolute", compact: true });
+  return {
+    current,
+    target,
+    remaining,
+    pctLabel: formatGoalProgressLabel(prog.pct, priv),
+  };
+}
+
+function goalsListHTML(d, { manage = false } = {}) {
+  const goals = normalizeGoals(state.goals);
+  const primaryId = primaryGoal(goals)?.id;
+  const rows = goals
+    .map((g) => {
+      const prog = goalProgress(g, state.assets, d);
+      const current = fmtNT(prog.current, true);
+      const target = fmtNT(prog.target, true);
+      const remaining =
+        prog.remaining > 0
+          ? " · " + t("goals.remaining", { amount: fmtNT(prog.remaining, true) })
+          : "";
+      const meta = `<span class="goal-meta" data-testid="goal-meta-${g.id}">${prog.pct}% · ${t("goals.currentOf", { current, target })}${remaining}</span>`;
+      const badge = primaryId === g.id ? `<span class="goal-badge">${t("goals.primary")}</span>` : "";
+      const del = manage
+        ? `<button type="button" class="btn btn-ghost btn-sm" data-goal-delete="${g.id}" data-testid="goal-delete-${g.id}">${t("goals.delete")}</button>`
+        : "";
+      return `
+        <div class="goal-row" data-testid="goal-row-${g.id}" data-goal-id="${g.id}">
+          <div class="goal-head">
+            <span class="goal-name">${escapeHtml(g.name)}</span>
+            ${badge}
+            <span class="goal-align">${t("goals.align." + g.align)}</span>
+          </div>
+          <div class="goal-bar" role="progressbar" aria-label="${escapeHtml(g.name)}" aria-valuenow="${Math.round(prog.barPct)}" aria-valuemin="0" aria-valuemax="100" data-testid="goal-bar-${g.id}">
+            <span class="goal-bar-fill" style="width:${prog.barPct}%"></span>
+          </div>
+          <div class="goal-foot">
+            ${meta}
+            <div class="goal-actions">
+              <button type="button" class="btn btn-ghost btn-sm" data-goal-edit="${g.id}" data-testid="goal-edit-${g.id}">${t("edit")}</button>
+              ${del}
+            </div>
+          </div>
+        </div>`;
+    })
+    .join("");
+
+  const full = goals.length >= MAX_GOALS;
+  const addBtn = full
+    ? ""
+    : `<button type="button" class="btn ${manage ? "" : "btn-ghost "}btn-sm" data-goal-edit="new" data-testid="goal-add">${t("goals.add")}</button>`;
+  const maxNote = full && manage ? `<p class="about goals-max">${t("goals.max")}</p>` : "";
+  const empty = !goals.length
+    ? `<p class="about goals-empty" data-testid="goals-empty">${t("goals.empty")}</p>`
+    : "";
+
+  return `
+    <div class="goals-section${manage ? " goals-manage" : ""}" data-testid="${manage ? "goals-manage" : "goals-section"}">
+      <div class="goals-header">
+        <h3 class="goals-title">${t("goals.title")}</h3>
+        ${addBtn}
+      </div>
+      ${empty}
+      <div class="goals-list">${rows}</div>
+      ${maxNote}
+    </div>`;
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function goalSheetHTML() {
+  if (!goalEdit) return "";
+  const isNew = goalEdit === "new";
+  const existing = isNew
+    ? null
+    : normalizeGoals(state.goals).find((g) => g.id === goalEdit);
+  if (!isNew && !existing) return "";
+  const g = existing || {
+    name: "",
+    target: 1_000_000,
+    align: "netWorth",
+    onWidget: normalizeGoals(state.goals).length === 0,
+  };
+  const isPrimary = existing ? !!existing.onWidget : g.onWidget;
+  const alignOpts = GOAL_ALIGNS.map(
+    (a) =>
+      `<option value="${a}" ${g.align === a ? "selected" : ""}>${t("goals.align." + a)}</option>`
+  ).join("");
+  const title = isNew ? t("goals.add") : t("goals.edit");
+  return `
+    <div class="sheet-backdrop" id="goal-backdrop" role="dialog" aria-modal="true" aria-label="${title}">
+      <form class="sheet" id="goal-form" data-testid="goal-form">
+        <h2>${title}</h2>
+        <div class="field"><label for="g-name">${t("goals.name")}</label>
+          <input id="g-name" name="name" type="text" maxlength="48" value="${escapeHtml(g.name)}" required data-testid="goal-name" /></div>
+        <div class="field"><label for="g-target">${t("goals.target")}</label>
+          <input id="g-target" name="target" type="number" inputmode="numeric" min="1" value="${g.target || ""}" required data-testid="goal-target" /></div>
+        <div class="field"><label for="g-align">${t("goals.align")}</label>
+          <select id="g-align" name="align" data-testid="goal-align">${alignOpts}</select></div>
+        <div class="toggle-row" style="margin:8px 0 4px">
+          <div>${t("goals.onWidget")}</div>
+          <label class="switch">
+            <input type="checkbox" name="onWidget" data-testid="goal-on-widget" ${isPrimary ? "checked" : ""} />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="sheet-actions">
+          ${isNew ? "" : `<button type="button" class="btn btn-ghost btn-danger" data-goal-delete="${existing.id}" data-testid="goal-sheet-delete">${t("goals.delete")}</button>`}
+          <button type="button" class="btn btn-ghost" id="goal-cancel">${t("cancel")}</button>
+          <button type="submit" class="btn btn-primary" data-testid="goal-save">${t("save")}</button>
+        </div>
+      </form>
+    </div>`;
+}
+
+function widgetGoalStripHTML(d, priv) {
+  if (!privacyFieldOn(priv, "goalProgress")) return "";
+  const g = primaryGoal(state.goals);
+  if (!g) return "";
+  const prog = goalProgress(g, state.assets, d);
+  const mode = priv.displayMode || "exact";
+  const label = formatGoalProgressLabel(prog, priv);
+  const fill = showGoalBarFill(priv) ? prog.barPct : 0;
+  const aria = showGoalBarFill(priv)
+    ? `role="progressbar" aria-valuenow="${Math.round(prog.barPct)}" aria-valuemin="0" aria-valuemax="100"`
+    : `aria-hidden="true"`;
+  return `
+    <div class="widget-goal" data-testid="widget-goal-progress" data-privacy-mode="${mode}">
+      <span class="widget-goal-label${label ? "" : " muted"}">${escapeHtml(g.name)}${label ? ` · <span data-testid="widget-goal-value">${label}</span>` : ""}</span>
+      <span class="widget-goal-bar" ${aria}><span class="widget-goal-fill" style="width:${fill}%"></span></span>
+    </div>`;
 }
 
 function saveEdit(bucket, values) {
@@ -507,6 +742,7 @@ function screenHome(d) {
         ${cashRow}
         ${passiveRow}
       </div>
+      ${goalsListHTML(d, { manage: false })}
     </div>`;
 }
 
@@ -629,6 +865,11 @@ function screenSettings() {
         <h3>${t("settings.aboutQuotes")}</h3>
         <p class="about">${t("settings.aboutQuotesBody")}</p>
       </div>
+      <div class="settings-block" data-testid="settings-goals">
+        <h3>${t("settings.goals")}</h3>
+        <p class="about">${t("goals.hint")}</p>
+        ${goalsListHTML(derive(state.assets), { manage: true })}
+      </div>
       <div class="settings-block">
         <h3>${t("settings.widgetTemplate")}</h3>
         <div class="template-picker" id="template-picker" data-testid="template-picker" role="listbox" aria-label="${t("settings.widgetTemplate")}">
@@ -750,6 +991,7 @@ function screenWidgetLock(d) {
       <div class="widget-stage">
         <div class="lock-widget tpl-${currentTemplate()}" data-template="${currentTemplate()}" data-rhythm="${rhythmVariant()}" data-privacy-mode="${priv.displayMode}" data-testid="lock-widget" aria-label="${t("widget.lockAria")}">
           ${body}
+          ${widgetGoalStripHTML(d, priv)}
         </div>
       </div>
       <p class="preview-note">${t("widget.previewNoteLock")}</p>
@@ -874,6 +1116,7 @@ function screenWidgetHome(d) {
           ${row("bucketPassive", t("widget.passive"), passiveAmt, passiveDelta)}
           </div>
           ${showRhythm ? `<div class="mw-rhythm">${rhythmHTML("strip")}</div>` : ""}
+          ${widgetGoalStripHTML(d, priv)}
         </div>
       </div>
       <p class="preview-note">${t("widget.previewNoteHome")}</p>
@@ -893,7 +1136,11 @@ function render() {
   else if (route === "widget-home") body = screenWidgetHome(d);
   else body = screenHome(d);
 
-  const sheet = editBucket ? editSheetHTML(editBucket) : "";
+  const sheet = editBucket
+    ? editSheetHTML(editBucket)
+    : goalEdit
+      ? goalSheetHTML()
+      : "";
 
   const leavingHome =
     lastRoute === "home" && route !== "home";
@@ -1049,6 +1296,33 @@ function bind() {
         values = { monthly: num(form, "monthly") };
       }
       saveEdit(bucket, values);
+    });
+  }
+
+
+  app.querySelectorAll("[data-goal-edit]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const id = el.getAttribute("data-goal-edit");
+      openGoalEdit(id);
+    });
+  });
+
+  app.querySelectorAll("[data-goal-delete]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const id = el.getAttribute("data-goal-delete");
+      if (id) deleteGoal(id);
+    });
+  });
+
+  const goalForm = document.getElementById("goal-form");
+  if (goalForm) {
+    document.getElementById("goal-cancel")?.addEventListener("click", closeGoalEdit);
+    document.getElementById("goal-backdrop")?.addEventListener("click", (ev) => {
+      if (ev.target.id === "goal-backdrop") closeGoalEdit();
+    });
+    goalForm.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      saveGoalFromForm(goalForm);
     });
   }
 

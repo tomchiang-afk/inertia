@@ -15,6 +15,7 @@ export const PRIVACY_FIELDS = [
   "bucketTwse",
   "bucketCash",
   "bucketPassive",
+  "goalProgress",
 ];
 
 export const DEFAULT_WIDGET_PRIVACY = {
@@ -27,6 +28,7 @@ export const DEFAULT_WIDGET_PRIVACY = {
     bucketTwse: true,
     bucketCash: true,
     bucketPassive: true,
+    goalProgress: true,
   },
 };
 
@@ -148,6 +150,27 @@ export function formatWidgetPace(amount, privacy, opts = {}) {
     compact: opts.compact,
     hideMaskedDelta: opts.hideMaskedDelta,
   });
+}
+
+/**
+ * Goal progress label for widget previews (privacy-aware).
+ * exact → "82% · NT$16.5M"; rounded → "82% · 約…萬"; relative → "82%";
+ * rhythm → "" (bar only); masked → "••••" (no amount, no ratio).
+ * @param {{ pct: number, current: number }} prog
+ */
+export function formatGoalProgressLabel(prog, privacy) {
+  const mode = privacy?.displayMode || "exact";
+  const pct = Math.round(Number(prog?.pct) || 0) + "%";
+  if (mode === "rhythm") return "";
+  if (mode === "masked") return "••••";
+  if (mode === "relative") return pct;
+  const amt = formatWidgetMoney(prog?.current, privacy, { kind: "absolute", compact: true });
+  return amt ? pct + " · " + amt : pct;
+}
+
+/** Whether the goal bar fill may be shown (masked hides the ratio too). */
+export function showGoalBarFill(privacy) {
+  return (privacy?.displayMode || "exact") !== "masked";
 }
 
 /** Whether rhythm visualization should show when monthPace field is off */

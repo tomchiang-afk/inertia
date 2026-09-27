@@ -4,6 +4,7 @@ import {
   DEFAULT_WIDGET_PRIVACY,
   normalizeWidgetPrivacy,
 } from "./widgetPrivacy.js";
+import { normalizeGoals } from "./goals.js";
 
 const KEY = "inertia.v1";
 const LEGACY_KEY = "jingchang.v1";
@@ -59,19 +60,22 @@ function migrateLegacyKey() {
   }
 }
 
+function emptyState() {
+  return {
+    assets: structuredClone(DEFAULT_ASSETS),
+    settings: {
+      ...DEFAULT_SETTINGS,
+      widgetPrivacy: normalizeWidgetPrivacy(DEFAULT_SETTINGS.widgetPrivacy),
+    },
+    goals: [],
+  };
+}
+
 export function loadState() {
   migrateLegacyKey();
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) {
-      return {
-        assets: structuredClone(DEFAULT_ASSETS),
-        settings: {
-          ...DEFAULT_SETTINGS,
-          widgetPrivacy: normalizeWidgetPrivacy(DEFAULT_SETTINGS.widgetPrivacy),
-        },
-      };
-    }
+    if (!raw) return emptyState();
     const parsed = JSON.parse(raw);
     const settings = { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) };
     settings.widgetTemplate = normalizeWidgetTemplate(settings.widgetTemplate);
@@ -86,15 +90,10 @@ export function loadState() {
         passive: { ...DEFAULT_ASSETS.passive, ...(parsed.assets?.passive || {}) },
       },
       settings,
+      goals: normalizeGoals(parsed.goals),
     };
   } catch {
-    return {
-      assets: structuredClone(DEFAULT_ASSETS),
-      settings: {
-        ...DEFAULT_SETTINGS,
-        widgetPrivacy: normalizeWidgetPrivacy(DEFAULT_SETTINGS.widgetPrivacy),
-      },
-    };
+    return emptyState();
   }
 }
 
@@ -104,6 +103,7 @@ export function saveState(state) {
     JSON.stringify({
       assets: state.assets,
       settings: state.settings,
+      goals: normalizeGoals(state.goals),
     })
   );
 }

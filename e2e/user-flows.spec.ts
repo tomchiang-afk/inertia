@@ -197,3 +197,116 @@ test("widget privacy — relative shows % / progress, not raw absolute", async (
   await expect(pace).toBeVisible();
   await expect(pace).toHaveText(/^[+−]?\d+(\.\d+)?%$/);
 });
+
+
+test("goals — create goal shows progress on Home; edit + delete", async ({ page }) => {
+  await gotoHome(page);
+  const section = page.getByTestId("goals-section");
+  await expect(section).toBeVisible();
+  await expect(page.getByTestId("goals-empty")).toBeVisible();
+
+  await section.getByTestId("goal-add").click();
+  await expect(page.getByTestId("goal-form")).toBeVisible();
+  await page.getByTestId("goal-name").fill("Emergency cash");
+  await page.getByTestId("goal-target").fill("2000000");
+  await page.getByTestId("goal-align").selectOption("cash");
+  await page.getByTestId("goal-on-widget").check();
+  await page.getByTestId("goal-save").click();
+  // New goal sets a number → existing edit ad rule applies (buyout off)
+  await dismissAdIfPresent(page);
+  await expect(page.getByTestId("goal-form")).toHaveCount(0);
+
+  const row = section.locator('[data-testid^="goal-row-"]');
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("Emergency cash");
+  // cash = 420k + 800k = 1.22M of 2M → 61%
+  const bar = section.locator('[data-testid^="goal-bar-"]');
+  await expect(bar).toHaveAttribute("aria-valuenow", "61");
+  await expect(row).toContainText("61%");
+  await expect(row).toContainText("NT$1.2M of NT$2M");
+
+  // Edit name only → no ad (ads only on editing numbers)
+  await section.locator('[data-testid^="goal-edit-"]').click();
+  await page.getByTestId("goal-name").fill("Cash buffer");
+  await page.getByTestId("goal-save").click();
+  await expect(page.getByTestId("ad-overlay")).toHaveCount(0);
+  await expect(section).toContainText("Cash buffer");
+
+  // Persisted in inertia.v1
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("inertia.v1") || "{}"));
+  expect(saved.goals).toHaveLength(1);
+  expect(saved.goals[0]).toMatchObject({ name: "Cash buffer", target: 2000000, align: "cash", onWidget: true });
+
+  // Delete from sheet
+  await section.locator('[data-testid^="goal-edit-"]').click();
+  await page.getByTestId("goal-sheet-delete").click();
+  await expect(section.locator('[data-testid^="goal-row-"]')).toHaveCount(0);
+  await expect(page.getByTestId("goals-empty")).toBeVisible();
+});
+
+test("goals — max 3 enforced (extra saved goals dropped, Add hidden)", async ({ page }) => {
+  await seedEnglish(page, {
+    force: true,
+    goals: [
+      { id: "a1", name: "One", target: 1, align: "netWorth" },
+      { id: "a2", name: "Two", target: 2, align: "housing" },
+      { id: "a3", name: "Three", target: 3, align: "passiveMonth" },
+      { id: "a4", name: "Four", target: 4, align: "cash" },
+    ],
+  });
+  await gotoHome(page);
+  const section = page.getByTestId("goals-section");
+  await expect(section.locator('[data-testid^="goal-row-"]')).toHaveCount(3);
+  await expect(section.getByTestId("goal-add")).toHaveCount(0);
+});
+
+test("goals — legacy save without goals key migrates safely", async ({ page }) => {
+  await seedEnglish(page, { force: true });
+  // Runs after the seed script: strip goals like a pre-goals save, plus a malformed variant check
+  await page.addInitScript(() => {
+    const s = JSON.parse(localStorage.getItem("inertia.v1") || "{}");
+    delete s.goals;
+    localStorage.setItem("inertia.v1", JSON.stringify(s));
+  });
+  await gotoHome(page);
+  await expect(page.getByTestId("net-worth")).toContainText("NT$");
+  await expect(page.getByTestId("goals-empty")).toBeVisible();
+  await expect(page.getByTestId("goals-section").getByTestId("goal-add")).toBeVisible();
+});
+
+test("goals — widget strip shows amount in exact; privacy masked hides goal amount", async ({ page }) => {
+  await seedEnglish(page, {
+    force: true,
+    goals: [
+      { id: "g_e2e1", name: "NW target", target: 20_000_000, align: "netWorth", onWidget: true },
+    ],
+  });
+  await gotoHome(page);
+  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByTestId("settings-goals")).toContainText("NW target");
+  await expect(page.getByTestId("privacy-field-goalProgress")).toBeChecked();
+
+  await page.getByRole("button", { name: "Lock small (preview)" }).click();
+  const strip = page.getByTestId("widget-goal-progress");
+  await expect(strip).toBeVisible();
+  // net worth 16.47M / 20M → 82%
+  await expect(page.getByTestId("widget-goal-value")).toHaveText("82% · NT$16M");
+
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByTestId("privacy-mode-masked").click();
+  await page.getByRole("button", { name: "Lock small (preview)" }).click();
+  const lock = page.getByTestId("lock-widget");
+  await expect(lock).toHaveAttribute("data-privacy-mode", "masked");
+  await expect(strip).toHaveAttribute("data-privacy-mode", "masked");
+  await expect(page.getByTestId("widget-goal-value")).toHaveText("••••");
+  await expect(strip).not.toContainText("NT$16");
+  await expect(strip).not.toContainText("82%");
+  await expect(lock).not.toContainText("16,470,000");
+
+  // Field toggle off → strip gone
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.locator('label.switch:has([data-testid="privacy-field-goalProgress"])').click();
+  await expect(page.getByTestId("privacy-field-goalProgress")).not.toBeChecked();
+  await page.getByRole("button", { name: "Home medium (preview)" }).click();
+  await expect(page.getByTestId("widget-goal-progress")).toHaveCount(0);
+});

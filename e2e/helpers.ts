@@ -3,6 +3,7 @@ import { Page } from "@playwright/test";
 type SeedExtra = {
   settings?: Record<string, unknown>;
   assets?: Record<string, unknown>;
+  goals?: unknown[];
   /** Re-seed even if already seeded this tab (e.g. buyout on). */
   force?: boolean;
 };
@@ -48,7 +49,8 @@ export async function seedEnglish(page: Page, overrides: SeedExtra = {}) {
     if (extra.assets) {
       Object.assign(base.assets, extra.assets);
     }
-    localStorage.setItem("inertia.v1", JSON.stringify(base));
+    const payload: Record<string, unknown> = { ...base, goals: extra.goals || [] };
+    localStorage.setItem("inertia.v1", JSON.stringify(payload));
   }, overrides);
 }
 
