@@ -38,7 +38,7 @@
         <receiver
             android:name=".widget.InertiaWidgetProvider"
             android:exported="false"
-            android:label="@string/widget_label">
+            android:label="@string/widget_label_small">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -50,7 +50,7 @@
         <receiver
             android:name=".widget.InertiaWidgetMediumProvider"
             android:exported="false"
-            android:label="@string/widget_label">
+            android:label="@string/widget_label_medium">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

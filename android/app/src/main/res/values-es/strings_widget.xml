@@ -4,4 +4,7 @@
     <string name="widget_description_medium">Patrimonio, ritmo del mes, categorías y meta. Sin anuncios; respeta tu modo de privacidad.</string>
     <string name="widget_placeholder">Abre Inertia una vez para sincronizar el widget.</string>
     <string name="widget_updated_fallback">Actualizado</string>
+    <!-- Picker labels: brand "Inertia" untranslated, size word localized. -->
+    <string name="widget_label_small">Inertia · Pequeño</string>
+    <string name="widget_label_medium">Inertia · Ancho</string>
 </resources>

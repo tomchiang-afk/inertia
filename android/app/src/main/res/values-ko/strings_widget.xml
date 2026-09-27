@@ -4,4 +4,7 @@
     <string name="widget_description_medium">순자산, 이번 달 페이스, 자산 항목과 목표. 광고 없음, 개인정보 모드를 따릅니다.</string>
     <string name="widget_placeholder">Inertia를 한 번 열면 위젯이 동기화됩니다.</string>
     <string name="widget_updated_fallback">업데이트</string>
+    <!-- Picker labels: brand "Inertia" untranslated, size word localized. -->
+    <string name="widget_label_small">Inertia · 소형</string>
+    <string name="widget_label_medium">Inertia · 와이드</string>
 </resources>

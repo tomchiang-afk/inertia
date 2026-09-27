@@ -13,6 +13,10 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- Match the web page background (bg-page token) so letterboxed insets, e.g. the
+             display-cutout band in landscape, don't show the default white window. -->
+        <item name="android:windowBackground">@color/inertia_window_bg</item>
+        <item name="android:colorBackground">@color/inertia_window_bg</item>
     </style>
 
 

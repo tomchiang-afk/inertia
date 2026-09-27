@@ -167,8 +167,10 @@ public final class WidgetRenderer {
         if (Double.isNaN(base) || at <= 0) return fallback;
         double value = WidgetFormat.extrapolate(base, perDay, at, now);
         String format = live.optString("format", "");
-        if ("exact".equals(format)) return full ? WidgetFormat.exact(value) : WidgetFormat.compact(value);
-        if ("wan".equals(format)) return WidgetFormat.wan(value, live.optString("unit", "萬"));
+        String prefix = live.optString("prefix", WidgetFormat.DEFAULT_PREFIX);
+        if ("exact".equals(format)) return full ? WidgetFormat.exact(value, prefix) : WidgetFormat.compact(value, prefix);
+        if ("wan".equals(format)) return WidgetFormat.wan(value, live.optString("unit", "萬"), prefix);
+        if ("round".equals(format)) return WidgetFormat.round(value, prefix);
         return fallback;
     }
 

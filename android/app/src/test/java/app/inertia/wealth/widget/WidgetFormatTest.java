@@ -5,7 +5,7 @@ import static org.junit.Assert.assertEquals;
 import java.util.Calendar;
 import org.junit.Test;
 
-/** Native formatter must match src/math.js fmtNT and widgetPrivacy formatRoundedWan. */
+/** Native formatter must match src/format.js (fmtMoney / fmtCompact / fmtRounded). */
 public class WidgetFormatTest {
 
     private static final long DAY = 86_400_000L;
@@ -33,6 +33,22 @@ public class WidgetFormatTest {
     public void wanMatchesFormatRoundedWan() {
         assertEquals("NT$1,647 萬", WidgetFormat.wan(16_470_000, "萬"));
         assertEquals("NT$5 萬", WidgetFormat.wan(51_600, "萬"));
+    }
+
+    @Test
+    public void prefixedFormatsMatchJsForOtherBases() {
+        // Same cases as tests/portfolio.test.mjs and tests/widgetSnapshotMulti.test.mjs
+        assertEquals("US$506,800", WidgetFormat.exact(506_800, "US$"));
+        assertEquals("US$507k", WidgetFormat.compact(506_800, "US$"));
+        assertEquals("US$9,999", WidgetFormat.compact(9_999, "US$"));
+        assertEquals("JP¥2.3B", WidgetFormat.compact(2_300_000_000.0, "JP¥"));
+        assertEquals("US$507k", WidgetFormat.round(506_800, "US$"));
+        assertEquals("US$1.2M", WidgetFormat.round(1_234_567, "US$"));
+        assertEquals("JP¥74.5M", WidgetFormat.round(74_529_412, "JP¥"));
+        assertEquals("€840", WidgetFormat.round(843, "€"));
+        assertEquals("\u2212US$3k", WidgetFormat.round(-2_500, "US$"));
+        assertEquals("NT$1,647 萬", WidgetFormat.wan(16_470_000, "萬", "NT$"));
+        assertEquals("NT$0", WidgetFormat.exact(-0.2));
     }
 
     @Test

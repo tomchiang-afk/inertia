@@ -3,7 +3,10 @@
     <!-- Brand name "Inertia" is never translated. -->
     <string name="widget_label" translatable="false">Inertia</string>
     <string name="widget_description_small">Net worth and month pace. Ad-free, follows your widget privacy mode.</string>
-    <string name="widget_description_medium">Net worth, month pace, buckets and goal. Ad-free, follows your widget privacy mode.</string>
+    <string name="widget_description_medium">Net worth, month pace, housing / stocks / cash / passive and goal. Ad-free, follows your widget privacy mode.</string>
     <string name="widget_placeholder">Open Inertia once to sync your widget.</string>
     <string name="widget_updated_fallback">Updated</string>
+    <!-- Picker labels: brand "Inertia" untranslated, size word localized. -->
+    <string name="widget_label_small">Inertia · Small</string>
+    <string name="widget_label_medium">Inertia · Wide</string>
 </resources>

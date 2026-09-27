@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_description_small">淨資產與月節奏。無廣告，依小工具隱私模式顯示。</string>
-    <string name="widget_description_medium">淨資產、月節奏、資產項目與目標。無廣告，依小工具隱私模式顯示。</string>
+    <string name="widget_description_medium">淨資產、月節奏、房產 / 股票 / 現金 / 被動收入與目標。無廣告，依小工具隱私模式顯示。</string>
     <string name="widget_placeholder">開啟 Inertia 一次即可同步小工具。</string>
     <string name="widget_updated_fallback">更新</string>
+    <!-- Picker labels: brand "Inertia" untranslated, size word localized. -->
+    <string name="widget_label_small">Inertia · 小</string>
+    <string name="widget_label_medium">Inertia · 寬</string>
 </resources>
