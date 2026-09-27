@@ -9,7 +9,6 @@ Thumbs.db
 .vscode/
 .idea/
 ios/
-android/
 docs/_rhythm-frames/
 *.local
 
@@ -18,3 +17,16 @@ playwright-report/
 test-results/
 blob-report/
 playwright/.cache/
+
+# Android (project source is committed; build outputs are not)
+dist-apk/
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/local.properties
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+*.apk
+*.aab
