@@ -18,12 +18,26 @@ localStorage inertia.v1 ─▶ src/widgetSnapshot.js  (derive + widgetPrivacy.js
   finance logic, with two small exceptions:
   - **Live quiet growth** (`snapshot.live`, exact / rounded modes only, where the absolute value
     is already visible): `base + perDay × days since snapshot`, capped at 45 days, then formatted
-    with `WidgetFormat` (mirrors `fmtNT` / `formatRoundedWan`, JVM unit-tested).
+    with `WidgetFormat` using `live.prefix` (the base-currency symbol) and `live.format`
+    (`exact`, or `wan` for a TWD base / `round` k/M/B for other bases in rounded mode). Mirrors
+    `fmtMoney` / `fmtRounded`, JVM unit-tested.
   - **Calendar**: the rhythm bar and the relative-mode "本月進度 N%" use today's date on the device.
 - `updatePeriodMillis = 30 min` redraws the widget (extrapolation + calendar); the "更新 HH:mm" label
   always shows when the app last pushed a snapshot (`M/d HH:mm` if not today).
 
+## Snapshot v2 (schema 2 assets)
+
+`buildWidgetSnapshot` emits `version: 2` with a `currency: { code, symbol }` block. All amounts are
+already converted to the **base currency** chosen in Settings → Currency & FX (items whose currency
+has no rate are left out, same as the app's totals). Buckets: `housing`, `stocks` (label
+`widget.stocks`: 股票 / Stocks / 株式 / 주식 / Acciones, formerly 台股), `cash`, `passive`. The privacy
+field key stays `bucketTwse` so saved toggles keep working; its label is now "Stocks bucket".
+Older native builds ignore the extra fields.
+
 ## Privacy modes
+
+Examples below use a TWD base. With another base the symbol follows (`US$745,566`, `€…`), and
+rounded mode uses k/M/B (`US$746k`) because 萬 only makes sense for TWD.
 
 | Mode | Net worth | Month pace | Goal strip | Buckets (4×2) | Live growth |
 | --- | --- | --- | --- | --- | --- |
@@ -39,7 +53,11 @@ Field toggles: `netWorth`, `monthPace` (also hides the rhythm bar unless mode is
 
 ## Sizes
 
-Two picker entries, both labelled **Inertia**, both resizable (`horizontal|vertical`):
+Two picker entries, both resizable (`horizontal|vertical`). They used to share the label
+"Inertia", which is ambiguous in the picker. They now use `@string/widget_label_small` /
+`widget_label_medium`: en "Inertia · Small" / "Inertia · Wide", zh-TW/zh "Inertia · 小" / "Inertia · 寬",
+ja "Inertia · 小" / "Inertia · ワイド", ko "Inertia · 소형" / "Inertia · 와이드", es "Inertia · Pequeño" /
+"Inertia · Ancho" (verified in the Pixel launcher picker, `validation/2026-09-27-v3/28-picker-search.png`):
 
 - `InertiaWidgetProvider`: 2×2 default (`minWidth/Height 110dp`, `targetCell 2×2`)
 - `InertiaWidgetMediumProvider`: 4×2 default (`minWidth 250dp`, `targetCell 4×2`)
@@ -79,8 +97,11 @@ picker previews `res/drawable-nodpi/widget_preview_{small,medium}.png`.
 
 - Home screen only. Stock Android phones have no lock-screen widgets (the `keyguard` category only
   works on Android 4.2–4.4 and some tablets/OEMs).
-- No runtime test on a device or emulator from this box (no KVM access). Checked instead: build,
-  `aapt` manifest/badging, unit and e2e tests, HTML layout mock.
-- The widget only changes when the app pushes a snapshot. Market-value (TWSE) moves aren't fetched
-  in the background.
+- Emulator validation (API 34, Pixel 7 AVD) is in `validation/2026-09-27/` (v0.2) and
+  `validation/2026-09-27-v3/` (v0.3: upgrade migration, multi-currency adds, USD base on the widget,
+  picker labels, landscape).
+- The widget only changes when the app pushes a snapshot. Prices and FX are user-entered; nothing
+  is fetched in the background (`src/quotes.js` is only a provider hook).
+- The 2×2 layout's empty band between header and net worth is left to the widget visual
+  redesign (`design/widget-v3/`).
 - iOS WidgetKit is not done yet.

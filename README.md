@@ -69,23 +69,34 @@ Config: `playwright.config.ts` — `baseURL` `http://127.0.0.1:5173`, `webServer
 
 | Area | Status |
 |------|--------|
-| App Home / 4 buckets / Edit / Settings | Working |
+| App Home / 4 categories with user-defined lists / add · edit · delete · reorder / Settings | Working (schema v2, see PRD §7) |
+| Multi-currency | Per-item currency, base currency + editable FX table (Settings → Currency & FX) |
 | UI i18n (zh-TW / en / es / ja / ko) | Working — Inertia name fixed |
 | Rhythm motion (metronome, live counter, spark playhead) | Working — Home + lock widget preview |
 | Quiet-day math | `dailyPrincipal + dailyTdInterest + dailyPassivePace` |
-| Persistence | `localStorage` key `inertia.v1` (migrates from `jingchang.v1`) |
-| Ad gate | **Edit only** — open Edit or Save when not bought out |
+| Persistence | `localStorage` key `inertia.v1`, `schemaVersion: 2` (schema-1 saves migrate automatically; raw copy kept in `inertia.v1.backup-schema1`) |
+| Ad gate | Only on saving a new item or a changed amount / rate / currency, when not bought out |
 | Buyout | Settings “Buyout unlock (mock)” |
-| Quotes | `src/quotes.js` mock delayed prices |
+| Quotes | `src/quotes.js` provider hook only (no UI button); prices are user-entered |
 | Widget pages | Static **preview** (lock + home medium); **no ads** |
 | Capacitor | Scaffold (`capacitor.config.json`); see Native steps |
 | LLM | None |
+
+## Screenshots (v0.3)
+
+`docs/shots/v3-home.png`, `v3-housing.png`, `v3-stocks.png`, `v3-cash.png`, `v3-passive.png`,
+`v3-sheet-{property,account,holding,cash,passive}.png`, `v3-fx.png`, `v3-home-en.png`, `v3-stocks-en.png`.
+Emulator run: `validation/2026-09-27-v3/REPORT.md`.
+
+Android: the app theme sets `windowBackground` to the app's paper colour (`@color/inertia_window_bg`),
+so the display-cutout band in landscape is no longer white. Widget details: `docs/ANDROID_WIDGET.md`.
 
 ## Ad rule (locked)
 
 - **NEVER** on widgets / widget preview.
 - **NEVER** on mere browse of Home or bucket detail.
-- **ONLY** when user taps Edit or Save (and delayed-quote confirm → save).
+- **ONLY** when the user saves a new item, or saves a changed money amount / rate / currency.
+- **NEVER** on opening a form, rename-only saves, reorder, delete, or FX-table / base-currency edits.
 - If buyout is on, never show.
 - Implementation: `src/adGate.js` → mock interstitial; Skip available immediately or after 1s.
 
@@ -125,10 +136,15 @@ vite.config.js
 capacitor.config.json  Capacitor (webDir: dist, appId: app.inertia.wealth)
 src/main.js            Screens, rhythm wiring, edit sheet, routing
 src/styles.css         Design tokens + rhythm animations
-src/math.js            Quiet-day / net worth / TWD format
+src/math.js            derive(): net worth / quiet-day math in the base currency
+src/portfolio.js       Schema v2 lists, normalizers, demo data, v1 → v2 migration, aggregate()
+src/currency.js        FX table (base, rates, anchor), conversion, symbols
+src/format.js          Money formatting in the display currency (萬 only for TWD)
+src/assetUI.js         Category lists + item sheets (forms, validation)
 src/store.js           localStorage load/save + seed + legacy migrate
 src/adGate.js          Edit-only ad gate
-src/quotes.js          Delayed quotes stub
+src/quotes.js          Quote provider hook (no UI yet)
+scripts/v3-shots.mjs   docs/shots/v3-*.png (npm run shots:v3, dev server on :5173)
 scripts/make-rhythm-gif.mjs
 ```
 
@@ -138,4 +154,4 @@ Light only · one accent · restrained borders · dense rows · no neon · no em
 
 ## Product decisions (do not reopen)
 
-Free download · one-time buyout removes ads · fully local-first · user-entered quotes primary · ads edit-only · no LLM · buckets: Housing / TWSE / Cash / Passive income · English product name **Inertia** only (never translate in any locale).
+Free download · one-time buyout removes ads · fully local-first · user-entered quotes primary · ads edit-only · no LLM · categories: Housing / Stocks / Cash / Passive income (user-defined lists inside each) · English product name **Inertia** only (never translate in any locale).

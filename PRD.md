@@ -55,7 +55,7 @@ On **flat or red market days**, Taiwanese households with Housing + TWSE + Cash 
 |----------|------|
 | Download | **Free** |
 | Monetization | **One-time buyout** removes ads (IAP later; simulated toggle in web MVP) |
-| Ads | **Edit-only.** NEVER on widgets. NEVER on mere browse/view of App Home or bucket detail. ONLY when user starts or commits editing numbers (open edit form / save). |
+| Ads | **Edit-only.** NEVER on widgets. NEVER on mere browse/view of App Home or category lists. ONLY when the user **saves** a new item or a changed money amount / rate / currency. Opening a form, renaming, reordering, deleting and FX-table edits never show an ad. |
 | Quotes | **User-entered primary.** Thin `/api/quotes` client stub for **delayed** quotes later (mock / canned offline). |
 | AI | **No LLM.** |
 | Data | LocalStorage or IndexedDB; no account required for MVP. Key: `inertia.v1`. |
@@ -79,7 +79,8 @@ On **flat or red market days**, Taiwanese households with Housing + TWSE + Cash 
 - App Home, bucket detail ×4 with Edit, Settings (honesty, period, buyout mock, quotes about)
 - Widget **preview** pages (lock + home medium) — labeled Preview; **no ads**
 - Local persistence; ad gate on edit open/save when not bought out
-- Quote stub: `fetchDelayedQuotes(symbols)` mock + optional confirm update on TWSE
+- User-defined lists per category, multi-currency with base currency + editable FX table
+- Quote hook only: `src/quotes.js` (`setQuoteProvider` / `fetchDelayedQuotes` / `diffQuotes`); no quote button in the UI until a provider exists
 
 ### Later
 - Native widgets, IAP buyout, AdMob edit interstitial
@@ -93,18 +94,34 @@ On **flat or red market days**, Taiwanese households with Housing + TWSE + Cash 
 
 ---
 
-## 7. Four buckets + fields
+## 7. Asset categories (schema v2, user-defined lists)
 
-| Bucket | Fields |
-|--------|--------|
-| Housing | `marketValue`, `mortgage`, netEquity = value − mortgage; `monthlyPrincipal` |
-| TWSE | `marketValue`, `dayPnL`, `periodPnL` |
-| Cash | `checking`, `timeDeposit`, `tdAnnualRate` (tdPrincipal = timeDeposit) |
-| Passive income | `monthly` |
+Four fixed **categories** on Home (Housing / Stocks / Cash / Passive income), each holding a
+user-editable list. Every item carries its own currency; totals are converted to the **base
+currency** (Settings → Currency & FX, default TWD).
 
-**Net worth** = housing equity + TWSE + checking + TD (passive is pace only — not in net worth).
+| Category | Items | Fields |
+|----------|-------|--------|
+| Housing | `properties[]` | `alias`, `currency`, `marketValue`, `mortgageBalance`, `monthlyPrincipal`, `interestRate?` → equity = value − mortgage |
+| Stocks | `brokerAccounts[]` → `holdings[]` | account: `alias`, `market`, `currency` (defaults from market), `dayPnL`, `periodPnL`; holding: `symbol`, `name?`, `shares`, `price`, `costBasis?` (value = shares × price, account currency) |
+| Cash | `cashAccounts[]` | `alias`, `institution?`, `country?`, `currency`, `type` checking/savings/timeDeposit, `balance`, `rate` + `maturity?` (time deposit only) |
+| Passive income | `passiveItems[]` | `name`, `tag?`, `currency`, `amount`, `frequency` monthly/quarterly/semiannual/yearly (normalized to a monthly pace) |
 
----
+**Net worth** = Σ property equity + Σ holdings + Σ cash (passive is pace only, not in net worth).
+Lists can be added to, edited, deleted (two-tap confirm) and reordered (↑/↓ mode).
+
+**FX** (`settings.fx`): `{ base, rates: { CODE: base units per 1 CODE }, updatedAt, edited, anchor? }`.
+Defaults are approximate reference rates dated 2026-09-27, clearly labelled and editable; never
+fetched. A currency with no rate is **excluded from totals and flagged** ("needs a rate"), never
+guessed. Changing the base re-derives the table from what the user last entered (no drift on
+round trips) and converts goal targets so goal progress is unchanged. Rounded privacy mode uses
+萬 only for TWD; other bases use k/M/B.
+
+**Migration (schema 1 → 2)**, on first load of v0.3: the raw old save is kept once under
+`inertia.v1.backup-schema1`, then housing → one property ("自住"/"Home", localized), TWSE bucket →
+one TW brokerage account with one holding (1 share × old market value, P&L carried over),
+checking + time deposit → two cash accounts (rate kept), passive monthly → one monthly item.
+Net worth is unchanged by the migration. Fresh installs get demo lists (zh or en names).
 
 ## 8. Quiet-day math
 
@@ -115,7 +132,9 @@ dailyPassivePace = monthlyPassive / daysInMonth
 quietDayGrowth   = dailyPrincipal + dailyTdInterest + dailyPassivePace
 ```
 
-Do **not** include TWSE mark-to-market in quiet growth.
+Summed across all items (converted to base): `monthlyPrincipal` over properties, `rate`
+over time-deposit accounts, monthly-normalized passive items. Do **not** include stock
+mark-to-market in quiet growth.
 
 ---
 
