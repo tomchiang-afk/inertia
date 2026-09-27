@@ -1999,3 +1999,5 @@ button.item-row:focus-visible { outline-offset: -2px; }
   .item-row, .icon-btn, .btn-link { transition: none; }
 }
 .field[hidden] { display: none; }
+.sheet h2:focus { outline: none; }
+.sheet h2:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

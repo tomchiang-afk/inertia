@@ -343,7 +343,7 @@ export function itemSheetHTML(state, edit, item) {
   return `
     <div class="sheet-backdrop" id="item-backdrop" role="dialog" aria-modal="true" aria-label="${esc(title)}">
       <form class="sheet" id="item-form" data-kind="${edit.kind}" data-testid="item-form" novalidate>
-        <h2>${esc(title)}</h2>
+        <h2 tabindex="-1">${esc(title)}</h2>
         ${acctNote}
         <div class="field-grid">${fields}</div>
         ${tags}

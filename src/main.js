@@ -640,8 +640,9 @@ function openItem(kind, id = null, accountId = null) {
   goalEdit = null;
   deleteArmed = false;
   render();
-  const first = document.querySelector("#item-form input, #item-form select");
-  first?.focus({ preventScroll: true });
+  // Focus the sheet title, not the first input: on phones an auto-focused input pops the soft
+  // keyboard over the sheet before the user chose a field. Screen readers still land in the sheet.
+  document.querySelector("#item-form h2")?.focus({ preventScroll: true });
 }
 
 function closeItem() {
