@@ -13,7 +13,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed --project=chromium",
     "test:unit": "node --test tests/",
-    "android:widget-shots": "node scripts/android-widget-shots.mjs"
+    "android:widget-shots": "node scripts/android-widget-shots.mjs",
+    "shots:v3": "node scripts/v3-shots.mjs"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.0.0",
