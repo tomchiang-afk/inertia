@@ -34,27 +34,32 @@ test("locale switch — Settings → zh-TW chrome → back to en", async ({ page
 test("browse bucket detail without edit — no ad overlay", async ({ page }) => {
   await gotoHome(page);
   await page.getByTestId("bucket-housing").click();
-  await expect(page.getByTestId("housing-market-value")).toBeVisible();
+  await expect(page.getByTestId("property-list")).toBeVisible();
+  await expect(page.getByTestId("housing-summary")).toContainText("NT$12,800,000");
   await expect(page.getByTestId("ad-overlay")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Edit" })).toBeVisible();
+  // Opening an item sheet is browsing too: no ad until a number is saved
+  await page.getByTestId("property-p_home").click();
+  await expect(page.getByTestId("item-form")).toBeVisible();
+  await expect(page.getByTestId("ad-overlay")).toHaveCount(0);
 });
 
-test("edit triggers ad when buyout off — dismiss then form usable", async ({ page }) => {
+test("saving a changed number triggers ad when buyout off — dismiss then saved", async ({ page }) => {
   await seedEnglish(page, { settings: { buyout: false }, force: true });
   await gotoHome(page);
   await page.getByTestId("bucket-housing").click();
-  await page.getByTestId("edit-housing").click();
+  await page.getByTestId("property-p_home").click();
+  await page.locator("#f-marketValue").fill("18500000");
+  await page.getByTestId("item-save").click();
 
   const ad = page.getByTestId("ad-overlay");
   await expect(ad).toBeVisible();
   await page.getByTestId("ad-skip").click();
   await expect(ad).toHaveCount(0);
-
-  await expect(page.getByTestId("edit-form")).toBeVisible();
-  await expect(page.locator("#f-mv")).toBeEnabled();
+  await expect(page.getByTestId("item-form")).toHaveCount(0);
+  await expect(page.getByTestId("housing-summary")).toContainText("NT$13,300,000");
 });
 
-test("buyout skips ad on Edit", async ({ page }) => {
+test("buyout skips ad on number save", async ({ page }) => {
   await seedEnglish(page, { settings: { buyout: true }, force: true });
   await gotoHome(page);
 
@@ -63,30 +68,32 @@ test("buyout skips ad on Edit", async ({ page }) => {
   await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Home" }).click();
 
   await page.getByTestId("bucket-housing").click();
-  await page.getByTestId("edit-housing").click();
-
+  await page.getByTestId("property-p_home").click();
+  await page.locator("#f-marketValue").fill("19000000");
+  await page.getByTestId("item-save").click();
   await expect(page.getByTestId("ad-overlay")).toHaveCount(0);
-  await expect(page.getByTestId("edit-form")).toBeVisible();
+  await expect(page.getByTestId("housing-summary")).toContainText("NT$13,800,000");
 });
 
 test("persist — change housing number, save (handle ad), reload keeps value", async ({ page }) => {
   // beforeEach seeds buyout:false once; do not force-reseed on reload
   await gotoHome(page);
   await page.getByTestId("bucket-housing").click();
-  await page.getByTestId("edit-housing").click();
-  await dismissAdIfPresent(page);
+  await page.getByTestId("property-p_home").click();
 
-  const input = page.locator("#f-mv");
+  const input = page.locator("#f-marketValue");
   await expect(input).toBeVisible();
   await input.fill("19000000");
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByTestId("item-save").click();
   await dismissAdIfPresent(page);
 
-  await expect(page.getByTestId("housing-market-value")).toContainText("NT$19,000,000");
+  await expect(page.getByTestId("property-p_home")).toContainText("NT$13,800,000");
 
   await page.reload();
   await page.getByTestId("bucket-housing").click();
-  await expect(page.getByTestId("housing-market-value")).toContainText("NT$19,000,000");
+  await expect(page.getByTestId("property-p_home")).toContainText("NT$13,800,000");
+  await page.getByTestId("property-p_home").click();
+  await expect(page.locator("#f-marketValue")).toHaveValue("19000000");
 });
 
 test("demo rhythm — ?demo=1 adds demo-rhythm class and hero rhythm", async ({ page }) => {
