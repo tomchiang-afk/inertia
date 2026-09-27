@@ -17,7 +17,7 @@ Glanceable **household asset pace** on lock/home widgets. Quiet growth (mortgage
 ### Gap A — Broker / securities apps (富邦、永豐、元大、國泰等)
 | They own | Inertia must own |
 |----------|------------------|
-| Live quotes, order entry, P&L red/green wall | **Pace**, not tick; honesty toggle *Today actual* vs *Month pace* |
+| Live quotes, order entry, P&L red/green wall | **Pace**, not tick; month rhythm only (v0.3.1: the *Today actual* toggle was removed) |
 | Account login, KYC, custody | **No account**; data on device |
 | Push: fills, price alerts, promo | **No spammy push**; widget glance is the loop |
 | “開戶 / 下單 / 存股” | “平盤日仍在動” / quiet contribution |
@@ -54,7 +54,7 @@ Missing until native widgets ship, but **design now**:
 | 1 | Lock + home widget on realistic iPhone home (TW wallpaper, NT$ amounts) | Quiet growth, at a glance | 平盤日也看得到進度 |
 | 2 | App Home — rhythm / month pace (not a KPI grid) | Your assets keep moving | 資產仍在默默前進 |
 | 3 | Four buckets row (Housing / TWSE / Cash / Passive) | Household, not day-trading | 家庭資產，不是當沖 |
-| 4 | Honesty toggle: Today actual vs Month pace | Never fake market gains | 不假裝市場有賺 |
+| 4 | Month rhythm only (today-actual toggle removed in v0.3.1) | Never fake market gains; never show daily market noise | 不假裝市場有賺，也不放大每日波動 |
 | 5 | Edit sheet + soft “ads only when you edit” cue | Free to browse; buy out once | 瀏覽免費；編輯才看廣告 |
 | 6 | Local-first / no account | Stays on your phone | 資料留在你的手機 |
 | 7 | Delayed quotes optional + confirm | You confirm every update | 報價更新需你確認 |

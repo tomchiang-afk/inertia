@@ -41,7 +41,7 @@ On **flat or red market days**, Taiwanese households with Housing + TWSE + Cash 
 ## 3. Product principles
 
 1. **Widget-first** — Lock small + Home medium are the product; full app is setup and depth.
-2. **Honesty** — Never invent TWSE gains. Toggle: **Today actual** vs **Month pace**.
+2. **Month rhythm only (v0.3.1)** — Inertia exists so long-term investors don't feel short-term volatility. It shows only the smooth **month rhythm** (月節奏): mortgage principal + deposit interest + passive income, spread evenly per day. No "today actual" mode, no daily market P&L on Home or widgets, and never invented market gains.
 3. **Quiet growth** — Celebrate principal / interest accrual / passive pace on flat days.
 4. **Calm / practical** — Soft neutrals, one muted green (`#2F5D4A`); no alert spam; no emoji chrome.
 5. **Manual truth (MVP)** — User-entered balances & rates are primary. Fully **local-first**.
@@ -76,7 +76,7 @@ On **flat or red market days**, Taiwanese households with Housing + TWSE + Cash 
 
 ### MVP (this web app)
 - Four buckets + net worth; quiet-day math
-- App Home, bucket detail ×4 with Edit, Settings (honesty, period, buyout mock, quotes about)
+- App Home, category detail ×4 with lists, Settings (language, currency & FX, period, month-rhythm explainer, buyout mock)
 - Widget **preview** pages (lock + home medium) — labeled Preview; **no ads**
 - Local persistence; ad gate on edit open/save when not bought out
 - User-defined lists per category, multi-currency with base currency + editable FX table
@@ -103,7 +103,7 @@ currency** (Settings → Currency & FX, default TWD).
 | Category | Items | Fields |
 |----------|-------|--------|
 | Housing | `properties[]` | `alias`, `currency`, `marketValue`, `mortgageBalance`, `monthlyPrincipal`, `interestRate?` → equity = value − mortgage |
-| Stocks | `brokerAccounts[]` → `holdings[]` | account: `alias`, `market`, `currency` (defaults from market), `dayPnL`, `periodPnL`; holding: `symbol`, `name?`, `shares`, `price`, `costBasis?` (value = shares × price, account currency) |
+| Stocks | `brokerAccounts[]` → `holdings[]` | account: `alias`, `market`, `currency` (defaults from market), holding: `symbol`, `name?`, `shares`, `price`, `costBasis?` (value = shares × price, account currency) |
 | Cash | `cashAccounts[]` | `alias`, `institution?`, `country?`, `currency`, `type` checking/savings/timeDeposit, `balance`, `rate` + `maturity?` (time deposit only) |
 | Passive income | `passiveItems[]` | `name`, `tag?`, `currency`, `amount`, `frequency` monthly/quarterly/semiannual/yearly (normalized to a monthly pace) |
 
@@ -119,9 +119,24 @@ round trips) and converts goal targets so goal progress is unchanged. Rounded pr
 
 **Migration (schema 1 → 2)**, on first load of v0.3: the raw old save is kept once under
 `inertia.v1.backup-schema1`, then housing → one property ("自住"/"Home", localized), TWSE bucket →
-one TW brokerage account with one holding (1 share × old market value, P&L carried over),
+one TW brokerage account with one holding (1 share × old market value; v1 day/period P&L are not carried over since v0.3.1),
 checking + time deposit → two cash accounts (rate kept), passive monthly → one monthly item.
 Net worth is unchanged by the migration. Fresh installs get demo lists (zh or en names).
+
+## 7b. Smooth accrual between edits (v0.3.1)
+
+`paceAnchorAt` (top-level in the save) is when the asset numbers were last entered. Displayed
+net worth = entered net worth + `quietDayGrowth` × days since the anchor, **capped at 45 days**
+(then Home asks for an update). Saving a changed amount / rate / currency, adding or deleting an
+item re-anchors to the typed values; renames, reorder and FX edits don't. Home's net worth and
+"today's rhythm so far" (quietDay × share of the day elapsed) tick forward live; the 30-day line
+is a smooth monotonic trend. The Android widget gets the same anchor (`live.base` = entered net
+worth, `live.at` = anchor) and extrapolates with the identical formula and cap, so app and widget
+always agree and never jump when the app re-pushes a snapshot.
+
+Settings migration: `settings.honesty` and the widget privacy field `todayActual` are dropped on
+load and the save is rewritten once; a missing or future anchor starts at "now" (no jump on upgrade).
+No hidden advanced option was kept: nothing depended on the switch.
 
 ## 8. Quiet-day math
 
@@ -165,7 +180,7 @@ Future:
 |--------|--------|
 | Widget add after onboarding | ≥ 60% |
 | Widget glances ≫ full-app opens | Yes |
-| Quiet-day retention (dayPnL ≤ 0) | Glance or open |
+| Quiet-day retention (red market days) | Glance or open |
 | Buyout after repeated edits | Soft, non-blocking on browse |
 
 ---

@@ -20,7 +20,10 @@ localStorage inertia.v1 ─▶ src/widgetSnapshot.js  (derive + widgetPrivacy.js
     is already visible): `base + perDay × days since snapshot`, capped at 45 days, then formatted
     with `WidgetFormat` using `live.prefix` (the base-currency symbol) and `live.format`
     (`exact`, or `wan` for a TWD base / `round` k/M/B for other bases in rounded mode). Mirrors
-    `fmtMoney` / `fmtRounded`, JVM unit-tested.
+    `fmtMoney` / `fmtRounded`, JVM unit-tested. Since v0.3.1 `live.base` / `live.at` are the
+    smooth-rhythm **anchor** (net worth as entered, and when), not the push time, so the widget and
+    the app's Home (`src/pace.js`) compute the same number and re-pushing never makes it jump.
+    There is no market P&L in the snapshot and no "today actual" privacy field any more.
   - **Calendar**: the rhythm bar and the relative-mode "本月進度 N%" use today's date on the device.
 - `updatePeriodMillis = 30 min` redraws the widget (extrapolation + calendar); the "更新 HH:mm" label
   always shows when the app last pushed a snapshot (`M/d HH:mm` if not today).

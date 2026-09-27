@@ -37,7 +37,7 @@ npm run preview  # serve dist/
 
 ### See rhythm animations
 
-- Default honesty is **Month pace** — Home shows metronome bars (4 beats, ~2s cycle), live **Pace running** counter, sparkline stroke draw + playhead within ~1s of load.
+- **Month rhythm only** (v0.3.1; no today-actual switch, no daily market P&L): Home shows metronome bars (4 beats, ~2s cycle), a live **Today's rhythm so far** counter, net worth that grows only by the smooth pace since your last edit (45-day cap), and a smooth 30-day trend line with playhead.
 - **Recording / clearer motion:** open `http://127.0.0.1:5173/?demo=1`  
   Adds `body.demo-rhythm` (taller/faster beats, faster playhead & counter).
 - Standalone full-bleed demo: `http://127.0.0.1:5173/rhythm-demo.html` (auto-cycles lock → home).
@@ -73,7 +73,7 @@ Config: `playwright.config.ts` — `baseURL` `http://127.0.0.1:5173`, `webServer
 | Multi-currency | Per-item currency, base currency + editable FX table (Settings → Currency & FX) |
 | UI i18n (zh-TW / en / es / ja / ko) | Working — Inertia name fixed |
 | Rhythm motion (metronome, live counter, spark playhead) | Working — Home + lock widget preview |
-| Quiet-day math | `dailyPrincipal + dailyTdInterest + dailyPassivePace` |
+| Quiet-day math | `dailyPrincipal + dailyTdInterest + dailyPassivePace`; the only source of movement between edits (`src/pace.js`, PRD §7b) |
 | Persistence | `localStorage` key `inertia.v1`, `schemaVersion: 2` (schema-1 saves migrate automatically; raw copy kept in `inertia.v1.backup-schema1`) |
 | Ad gate | Only on saving a new item or a changed amount / rate / currency, when not bought out |
 | Buyout | Settings “Buyout unlock (mock)” |
