@@ -2,7 +2,14 @@
  * Widget privacy — display modes + field visibility for lock/home widgets
  * (and App Home summary cards where fields apply).
  */
-import { fmtNT, fmtDelta } from "./math.js";
+import {
+  fmtMoney,
+  fmtCompact,
+  fmtMoneyDelta,
+  fmtRounded,
+  fmtMasked,
+  getDisplayCurrency,
+} from "./format.js";
 import { t } from "./i18n/index.js";
 
 export const DISPLAY_MODES = ["exact", "rounded", "relative", "rhythm", "masked"];
@@ -68,21 +75,15 @@ function formatPct(n, { signed = false, digits = 2 } = {}) {
 }
 
 /**
- * Round absolute TWD to 萬 (10,000) and format e.g. NT$1,647 萬
+ * Privacy "rounded" amount. TWD → 萬 (NT$1,647 萬); other base currencies → k/M (US$540k).
  * @param {number} n
- * @param {{ delta?: boolean }} [opts]
+ * @param {{ delta?: boolean, currency?: string }} [opts]
  */
 export function formatRoundedWan(n, opts = {}) {
-  const abs = Math.abs(Math.round(n));
-  const wan = Math.round(abs / 10_000);
-  const unit = t("privacy.unitWan");
-  const body = "NT$" + wan.toLocaleString("en-US") + " " + unit;
-  if (opts.delta) {
-    if (n > 0) return "+" + body;
-    if (n < 0) return "−" + body;
-    return body;
-  }
-  return (n < 0 ? "−" : "") + body;
+  return fmtRounded(n, opts.currency || getDisplayCurrency(), {
+    delta: !!opts.delta,
+    unitWan: t("privacy.unitWan"),
+  });
 }
 
 /**
@@ -96,6 +97,7 @@ export function formatRoundedWan(n, opts = {}) {
  *   base?: number,
  *   asMonthProgress?: boolean,
  *   hideMaskedDelta?: boolean,
+ *   currency?: string,   // defaults to the app display (base) currency
  * }} [opts]
  * @returns {string}
  */
@@ -104,6 +106,7 @@ export function formatWidgetMoney(amount, privacy, opts = {}) {
   const kind = opts.kind || "absolute";
   const compact = !!opts.compact;
   const n = Number(amount) || 0;
+  const ccy = opts.currency || getDisplayCurrency();
 
   if (mode === "rhythm") return "";
 
@@ -112,7 +115,7 @@ export function formatWidgetMoney(amount, privacy, opts = {}) {
       if (opts.hideMaskedDelta) return "";
       return n < 0 ? "−••••" : "+••••";
     }
-    return "NT$••••••";
+    return fmtMasked(ccy);
   }
 
   if (mode === "relative") {
@@ -132,11 +135,12 @@ export function formatWidgetMoney(amount, privacy, opts = {}) {
   }
 
   if (mode === "rounded") {
-    return formatRoundedWan(n, { delta: kind === "delta" });
+    return formatRoundedWan(n, { delta: kind === "delta", currency: ccy });
   }
 
   // exact
-  return kind === "delta" ? fmtDelta(n, compact) : fmtNT(n, compact);
+  if (kind === "delta") return fmtMoneyDelta(n, ccy, compact);
+  return compact ? fmtCompact(n, ccy) : fmtMoney(n, ccy);
 }
 
 /**
@@ -149,6 +153,7 @@ export function formatWidgetPace(amount, privacy, opts = {}) {
     base: opts.base,
     compact: opts.compact,
     hideMaskedDelta: opts.hideMaskedDelta,
+    currency: opts.currency,
   });
 }
 
@@ -158,13 +163,13 @@ export function formatWidgetPace(amount, privacy, opts = {}) {
  * rhythm → "" (bar only); masked → "••••" (no amount, no ratio).
  * @param {{ pct: number, current: number }} prog
  */
-export function formatGoalProgressLabel(prog, privacy) {
+export function formatGoalProgressLabel(prog, privacy, opts = {}) {
   const mode = privacy?.displayMode || "exact";
   const pct = Math.round(Number(prog?.pct) || 0) + "%";
   if (mode === "rhythm") return "";
   if (mode === "masked") return "••••";
   if (mode === "relative") return pct;
-  const amt = formatWidgetMoney(prog?.current, privacy, { kind: "absolute", compact: true });
+  const amt = formatWidgetMoney(prog?.current, privacy, { kind: "absolute", compact: true, currency: opts.currency });
   return amt ? pct + " · " + amt : pct;
 }
 

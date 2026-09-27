@@ -34,7 +34,38 @@ import {
 } from "./widgetPrivacy.js";
 import { configureAdGate, withEditAd } from "./adGate.js";
 import { syncNativeWidget, initNativeWidget } from "./nativeWidget.js";
-import { fetchDelayedQuotes, mockPortfolioFromQuotes } from "./quotes.js";
+import {
+  normalizeFx,
+  rebaseFx,
+  withRate,
+  withoutRate,
+  ensureCurrency,
+  normalizeCurrency,
+  rateToBase,
+  toBase,
+  currencySymbol,
+} from "./currency.js";
+import { setDisplayCurrency, fmtMoney, fmtMasked } from "./format.js";
+import {
+  MARKET_CURRENCY,
+  newId,
+  normalizeProperty,
+  normalizeBrokerAccount,
+  normalizeHolding,
+  normalizeCashAccount,
+  normalizePassiveItem,
+  monthlyAmount,
+  holdingValue,
+} from "./portfolio.js";
+import {
+  housingList,
+  stocksList,
+  cashList,
+  passiveList,
+  itemSheetHTML,
+  readItemForm,
+  numbersChanged,
+} from "./assetUI.js";
 import {
   t,
   setLocale,
@@ -45,6 +76,8 @@ import {
 
 const state = loadState();
 state.goals = normalizeGoals(state.goals);
+state.settings.fx = normalizeFx(state.settings.fx, "TWD");
+setDisplayCurrency(state.settings.fx.base);
 
 /* First launch: detect navigator.language; persist settings.locale */
 if (!state.settings.locale || !SUPPORTED.includes(state.settings.locale)) {
@@ -56,8 +89,11 @@ state.settings.widgetTemplate = normalizeWidgetTemplate(state.settings.widgetTem
 state.settings.widgetPrivacy = normalizeWidgetPrivacy(state.settings.widgetPrivacy);
 
 let route = "home"; // home | house | stock | cash | passive | settings | widget-lock | widget-home
-let editBucket = null; // null | house | stock | cash | passive
 let goalEdit = null; // null | "new" | goalId
+/** Item sheet: { kind: property|account|holding|cash|passive, id: string|null (null = new), accountId? } */
+let itemEdit = null;
+let reorderKind = null; // property | account | cash | passive while arranging
+let deleteArmed = false;
 
 configureAdGate({ getBuyout: () => !!state.settings.buyout });
 
@@ -85,8 +121,9 @@ function applyTemplateAttr(root) {
 
 function go(name) {
   route = name;
-  editBucket = null;
+  itemEdit = null;
   goalEdit = null;
+  reorderKind = null;
   render();
 }
 
@@ -95,7 +132,7 @@ function primaryPeriodDelta(d) {
   const q = Math.round(d.periodQuiet(days));
   if (state.settings.honesty === "pace") return q;
   const scale = days / 30;
-  const eq = Math.round(state.assets.equities.periodPnL * scale);
+  const eq = Math.round(d.periodPnL * scale);
   return eq + q;
 }
 
@@ -254,7 +291,7 @@ function startRhythmLive(quietDay) {
       rhythmRaf = null;
       return;
     }
-    const elapsed = (now - t0) % loopMs;
+    const elapsed = (((now - t0) % loopMs) + loopMs) % loopMs;
     const p = elapsed / loopMs;
     let eased;
     if (p < 0.88) {
@@ -290,7 +327,8 @@ function startPlayhead() {
       playheadRaf = null;
       return;
     }
-    const p = ((now - t0) % loopMs) / loopMs;
+    // rAF timestamps can precede t0 (performance.now()) on the first frame → keep p in [0,1).
+    const p = ((((now - t0) % loopMs) + loopMs) % loopMs) / loopMs;
     const f = p * (n - 1);
     const i = Math.floor(f);
     const tFrac = f - i;
@@ -332,22 +370,17 @@ function onEnterHome(quietDay) {
   });
 }
 
-function openEdit(bucket) {
-  withEditAd("edit", () => {
-    editBucket = bucket;
-    render();
-  });
+function fx() {
+  return state.settings.fx;
 }
 
-function closeEdit() {
-  editBucket = null;
-  goalEdit = null;
-  render();
+function d0() {
+  return derive(state.assets, fx());
 }
 
 function openGoalEdit(idOrNew) {
   goalEdit = idOrNew;
-  editBucket = null;
+  itemEdit = null;
   render();
 }
 
@@ -414,8 +447,8 @@ function formatGoalAmounts(prog, priv) {
   }
   if (mode === "masked") {
     return {
-      current: "NT$••••••",
-      target: "NT$••••••",
+      current: fmtMasked(),
+      target: fmtMasked(),
       remaining: "••••",
       pctLabel: "••••",
     };
@@ -527,7 +560,7 @@ function goalSheetHTML() {
         <h2>${title}</h2>
         <div class="field"><label for="g-name">${t("goals.name")}</label>
           <input id="g-name" name="name" type="text" maxlength="48" value="${escapeHtml(g.name)}" required data-testid="goal-name" /></div>
-        <div class="field"><label for="g-target">${t("goals.target")}</label>
+        <div class="field"><label for="g-target">${t("goals.target", { ccy: fx().base })}</label>
           <input id="g-target" name="target" type="number" inputmode="numeric" min="1" value="${g.target || ""}" required data-testid="goal-target" /></div>
         <div class="field"><label for="g-align">${t("goals.align")}</label>
           <select id="g-align" name="align" data-testid="goal-align">${alignOpts}</select></div>
@@ -565,89 +598,260 @@ function widgetGoalStripHTML(d, priv) {
     </div>`;
 }
 
-function saveEdit(bucket, values) {
-  withEditAd("save", () => {
-    if (bucket === "house") {
-      state.assets.housing.marketValue = values.marketValue;
-      state.assets.housing.mortgage = values.mortgage;
-      state.assets.housing.monthlyPrincipal = values.monthlyPrincipal;
-    } else if (bucket === "stock") {
-      state.assets.equities.marketValue = values.marketValue;
-      state.assets.equities.dayPnL = values.dayPnL;
-      state.assets.equities.periodPnL = values.periodPnL;
-    } else if (bucket === "cash") {
-      state.assets.cash.checking = values.checking;
-      state.assets.cash.timeDeposit = values.timeDeposit;
-      state.assets.cash.tdAnnualRate = values.tdAnnualRate;
-    } else if (bucket === "passive") {
-      state.assets.passive.monthly = values.monthly;
-    }
-    persist();
-    editBucket = null;
-    render();
-  });
-}
-
 function num(form, name) {
   const v = form.elements[name].value;
   const n = Number(String(v).replace(/,/g, ""));
   return Number.isFinite(n) ? n : 0;
 }
 
-function editSheetHTML(bucket) {
-  const h = state.assets.housing;
-  const e = state.assets.equities;
-  const c = state.assets.cash;
-  const p = state.assets.passive;
-  let title = t("edit");
-  let fields = "";
+/* —— v2 item lists: open / save / delete / reorder (ads only on number saves) —— */
 
-  if (bucket === "house") {
-    title = t("edit.housing");
-    fields = `
-      <div class="field"><label for="f-mv">${t("edit.marketValue")}</label>
-        <input id="f-mv" name="marketValue" type="number" inputmode="numeric" value="${h.marketValue}" /></div>
-      <div class="field"><label for="f-mort">${t("edit.mortgage")}</label>
-        <input id="f-mort" name="mortgage" type="number" inputmode="numeric" value="${h.mortgage}" /></div>
-      <div class="field"><label for="f-prin">${t("edit.monthlyPrincipal")}</label>
-        <input id="f-prin" name="monthlyPrincipal" type="number" inputmode="numeric" value="${h.monthlyPrincipal}" /></div>`;
-  } else if (bucket === "stock") {
-    title = t("edit.twse");
-    fields = `
-      <div class="field"><label for="f-smv">${t("edit.marketValue")}</label>
-        <input id="f-smv" name="marketValue" type="number" inputmode="numeric" value="${e.marketValue}" /></div>
-      <div class="field"><label for="f-day">${t("edit.todayPnL")}</label>
-        <input id="f-day" name="dayPnL" type="number" inputmode="numeric" value="${e.dayPnL}" /></div>
-      <div class="field"><label for="f-per">${t("edit.periodPnL")}</label>
-        <input id="f-per" name="periodPnL" type="number" inputmode="numeric" value="${e.periodPnL}" /></div>`;
-  } else if (bucket === "cash") {
-    title = t("edit.cash");
-    fields = `
-      <div class="field"><label for="f-chk">${t("edit.checking")}</label>
-        <input id="f-chk" name="checking" type="number" inputmode="numeric" value="${c.checking}" /></div>
-      <div class="field"><label for="f-td">${t("edit.timeDeposit")}</label>
-        <input id="f-td" name="timeDeposit" type="number" inputmode="numeric" value="${c.timeDeposit}" /></div>
-      <div class="field"><label for="f-rate">${t("edit.tdRate")}</label>
-        <input id="f-rate" name="tdAnnualRate" type="number" step="0.01" inputmode="decimal" value="${c.tdAnnualRate}" /></div>`;
-  } else if (bucket === "passive") {
-    title = t("edit.passive");
-    fields = `
-      <div class="field"><label for="f-pass">${t("edit.monthlyPassive")}</label>
-        <input id="f-pass" name="monthly" type="number" inputmode="numeric" value="${p.monthly}" /></div>`;
+const NORMALIZERS = {
+  property: (x) => normalizeProperty(x, fx().base),
+  account: (x) => normalizeBrokerAccount(x, fx().base),
+  holding: (x) => normalizeHolding(x),
+  cash: (x) => normalizeCashAccount(x, fx().base),
+  passive: (x) => normalizePassiveItem(x, fx().base),
+};
+
+const LIST_OF = {
+  property: () => state.assets.properties,
+  account: () => state.assets.brokerAccounts,
+  cash: () => state.assets.cashAccounts,
+  passive: () => state.assets.passiveItems,
+};
+
+function listFor(kind, accountId) {
+  if (kind === "holding") {
+    const acct = state.assets.brokerAccounts.find((a) => a.id === accountId);
+    return acct ? acct.holdings : null;
+  }
+  return LIST_OF[kind]?.() || null;
+}
+
+function findItem(edit) {
+  if (!edit?.id) return null;
+  const list = listFor(edit.kind, edit.accountId);
+  return list?.find((x) => x.id === edit.id) || null;
+}
+
+function openItem(kind, id = null, accountId = null) {
+  itemEdit = { kind, id, accountId };
+  goalEdit = null;
+  deleteArmed = false;
+  render();
+  const first = document.querySelector("#item-form input, #item-form select");
+  first?.focus({ preventScroll: true });
+}
+
+function closeItem() {
+  itemEdit = null;
+  deleteArmed = false;
+  render();
+}
+
+function saveItemFromForm(form) {
+  const edit = itemEdit;
+  if (!edit) return;
+  const res = readItemForm(form, edit.kind);
+  const err = document.getElementById("item-error");
+  if (res.error) {
+    if (err) {
+      err.textContent = t(res.error);
+      err.hidden = false;
+    }
+    form.elements[res.field]?.focus();
+    return;
+  }
+  const prev = findItem(edit);
+  const commit = () => {
+    const list = listFor(edit.kind, edit.accountId);
+    if (!list) return;
+    if (prev) {
+      const merged = NORMALIZERS[edit.kind]({ ...prev, ...res.values, id: prev.id });
+      const i = list.findIndex((x) => x.id === prev.id);
+      list[i] = merged;
+    } else {
+      const prefix = { property: "p", account: "b", holding: "h", cash: "c", passive: "r" }[edit.kind];
+      list.push(NORMALIZERS[edit.kind]({ ...res.values, id: newId(prefix), holdings: [] }));
+    }
+    if (res.values.currency) state.settings.fx = ensureCurrency(fx(), res.values.currency);
+    persist();
+    itemEdit = null;
+    render();
+  };
+  // Ad rule: new item, or a changed amount / shares / price / balance / rate / currency.
+  // Renames, tags, symbols, market labels, maturity dates and reordering never show an ad.
+  if (numbersChanged(edit.kind, prev, res.values)) withEditAd("save", commit);
+  else commit();
+}
+
+function deleteItem() {
+  const edit = itemEdit;
+  const list = edit && listFor(edit.kind, edit.accountId);
+  if (!list) return;
+  if (!deleteArmed) {
+    deleteArmed = true;
+    const btn = document.getElementById("item-delete");
+    if (btn) {
+      btn.textContent = t("form.confirmDelete");
+      btn.classList.add("is-armed");
+    }
+    return;
+  }
+  const i = list.findIndex((x) => x.id === edit.id);
+  if (i >= 0) list.splice(i, 1);
+  persist();
+  itemEdit = null;
+  deleteArmed = false;
+  render();
+}
+
+function moveItem(kind, id, dir, accountId) {
+  const list = listFor(kind, accountId);
+  if (!list) return;
+  const i = list.findIndex((x) => x.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  persist(); // no ad: order only
+  render();
+  document.querySelector(`[data-move="${kind}"][data-id="${id}"][data-dir="${dir}"]:not(:disabled)`)?.focus();
+}
+
+/** Base-currency preview under the form ("≈ NT$1,234,567"). */
+function updateItemPreview(form) {
+  const out = document.getElementById("item-preview");
+  if (!out || !itemEdit) return;
+  const kind = itemEdit.kind;
+  const val = (n) => Number(String(form.elements[n]?.value ?? "").replace(/,/g, "")) || 0;
+  let ccy = form.elements.currency?.value?.toUpperCase?.() || "";
+  let amount = null;
+  let suffix = "";
+  if (kind === "property") amount = val("marketValue") - val("mortgageBalance");
+  else if (kind === "cash") amount = val("balance");
+  else if (kind === "passive") {
+    amount = monthlyAmount({ amount: val("amount"), frequency: form.elements.frequency?.value });
+    suffix = t("perMo");
+  } else if (kind === "holding") {
+    const acct = state.assets.brokerAccounts.find((a) => a.id === itemEdit.accountId);
+    ccy = acct?.currency || fx().base;
+    amount = holdingValue({ shares: val("shares"), price: val("price") });
+  }
+  if (amount == null || !/^[A-Z]{3}$/.test(normalizeCurrency(ccy, ""))) {
+    out.textContent = "";
+    return;
+  }
+  const native = fmtMoney(amount, ccy);
+  const b = toBase(amount, ccy, fx());
+  const label =
+    kind === "property" ? t("field.netEquity") : kind === "passive" ? t("field.monthlyPace") : kind === "cash" ? t("form.balance") : t("form.value");
+  if (normalizeCurrency(ccy) === fx().base) out.textContent = `${label}: ${native}${suffix}`;
+  else if (b == null) out.textContent = `${label}: ${native}${suffix} · ${t("fx.needsRateHint", { code: normalizeCurrency(ccy) })}`;
+  else out.textContent = `${label}: ${native}${suffix} ≈ ${fmtMoney(b)}${suffix}`;
+}
+
+function changeBaseCurrency(code) {
+  const prev = fx();
+  const next = rebaseFx(prev, code);
+  if (next.base === prev.base) return;
+  // Goal targets are base-currency numbers: convert them so progress stays the same.
+  const factor = rateToBase(prev.base, next);
+  if (factor != null) {
+    state.goals = normalizeGoals(state.goals).map((g) => ({ ...g, target: Math.round(g.target * factor) }));
+  }
+  state.settings.fx = next;
+  setDisplayCurrency(next.base);
+  persist(); // settings only: no ad
+  render();
+}
+
+function bindItems() {
+  app.querySelectorAll("[data-open]").forEach((el) => {
+    el.addEventListener("click", () =>
+      openItem(el.getAttribute("data-open"), el.getAttribute("data-id"), el.getAttribute("data-account"))
+    );
+  });
+  app.querySelectorAll("[data-new]").forEach((el) => {
+    el.addEventListener("click", () => openItem(el.getAttribute("data-new"), null, el.getAttribute("data-account")));
+  });
+  app.querySelectorAll("[data-reorder]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const k = el.getAttribute("data-reorder");
+      reorderKind = reorderKind === k ? null : k;
+      render();
+    });
+  });
+  app.querySelectorAll("[data-move]").forEach((el) => {
+    el.addEventListener("click", () =>
+      moveItem(el.getAttribute("data-move"), el.getAttribute("data-id"), Number(el.getAttribute("data-dir")), el.getAttribute("data-account"))
+    );
+  });
+
+  const form = document.getElementById("item-form");
+  if (form) {
+    document.getElementById("item-cancel")?.addEventListener("click", closeItem);
+    document.getElementById("item-delete")?.addEventListener("click", deleteItem);
+    document.getElementById("item-backdrop")?.addEventListener("click", (ev) => {
+      if (ev.target.id === "item-backdrop") closeItem();
+    });
+    form.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") closeItem();
+    });
+    form.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      saveItemFromForm(form);
+    });
+    form.addEventListener("input", () => updateItemPreview(form));
+    form.addEventListener("change", (ev) => {
+      const target = ev.target;
+      if (target.name === "type") {
+        form.querySelectorAll("[data-when]").forEach((f) => {
+          const [k, v] = f.getAttribute("data-when").split(":");
+          f.hidden = form.elements[k]?.value !== v;
+        });
+      }
+      if (target.name === "market" && itemEdit?.kind === "account" && !itemEdit.id) {
+        const c = MARKET_CURRENCY[target.value];
+        if (c && form.elements.currency) form.elements.currency.value = c;
+      }
+      if (target.name === "currency") target.value = target.value.toUpperCase();
+      updateItemPreview(form);
+    });
+    updateItemPreview(form);
   }
 
-  return `
-    <div class="sheet-backdrop" id="edit-backdrop" role="dialog" aria-modal="true" aria-label="${title}">
-      <form class="sheet" id="edit-form" data-testid="edit-form">
-        <h2>${title}</h2>
-        ${fields}
-        <div class="sheet-actions">
-          <button type="button" class="btn btn-ghost" id="edit-cancel">${t("cancel")}</button>
-          <button type="submit" class="btn btn-primary">${t("save")}</button>
-        </div>
-      </form>
-    </div>`;
+  document.getElementById("fx-base-select")?.addEventListener("change", (ev) => changeBaseCurrency(ev.target.value));
+  document.querySelectorAll("input[data-fx-rate]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const code = input.getAttribute("data-fx-rate");
+      state.settings.fx = withRate(fx(), code, input.value);
+      persist(); // FX edits: no ad
+      render();
+    });
+  });
+  document.querySelectorAll("[data-fx-remove]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.settings.fx = withoutRate(fx(), btn.getAttribute("data-fx-remove"));
+      persist();
+      render();
+    });
+  });
+  const addForm = document.getElementById("fx-add-form");
+  addForm?.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const code = normalizeCurrency(addForm.elements.code.value, "");
+    if (!code || code === fx().base) {
+      addForm.elements.code.focus();
+      return;
+    }
+    state.settings.fx = withRate(fx(), code, addForm.elements.rate.value);
+    persist();
+    render();
+    document.getElementById("fx-" + code)?.focus();
+  });
 }
+
 
 function screenHome(d) {
   const priv = privacy();
@@ -657,7 +861,7 @@ function screenHome(d) {
     state.settings.honesty === "pace" ? t("honesty.pace") : t("honesty.actual");
   const spark = sparkPath(d.quietDay);
   const stockDeltaClass =
-    state.assets.equities.dayPnL < 0 ? "down" : "";
+    d.dayPnL < 0 ? "down" : "";
   const showNw = privacyFieldOn(priv, "netWorth");
   const showPace = privacyFieldOn(priv, "monthPace");
   const showToday = privacyFieldOn(priv, "todayActual");
@@ -670,7 +874,7 @@ function screenHome(d) {
     : "";
   const todayLine =
     state.settings.honesty === "actual" && showToday
-      ? `<p class="quiet-line" style="color:${state.assets.equities.dayPnL < 0 ? "var(--down)" : "var(--accent)"}">${t("twse.today", { delta: fmtDelta(state.assets.equities.dayPnL) })}</p>`
+      ? `<p class="quiet-line" style="color:${d.dayPnL < 0 ? "var(--down)" : "var(--accent)"}">${t("stocks.today", { delta: fmtDelta(d.dayPnL) })}</p>`
       : "";
   const paceBlock =
     state.settings.honesty === "pace"
@@ -681,37 +885,41 @@ function screenHome(d) {
       </div>`
       : todayLine;
 
+  const c = d.counts;
   const housingRow = privacyFieldOn(priv, "bucketHousing")
     ? `<button type="button" class="asset-row" data-go="house" data-testid="bucket-housing">
-          <span class="name">${t("asset.housingEquity")}</span>
+          <span class="name">${t("asset.housingEquity")}<span class="sub">${t("home.housingMeta", { n: c.properties })}</span></span>
           <span class="amt">${fmtNT(d.netEquity, true)}</span>
-          <span class="delta">${t("delta.principalMo", { amount: fmtNT(state.assets.housing.monthlyPrincipal, true) })}</span>
+          <span class="delta">${t("delta.principalMo", { amount: fmtNT(d.monthlyPrincipal, true) })}</span>
           <span class="chev">›</span>
         </button>`
     : "";
-  const twseRow = privacyFieldOn(priv, "bucketTwse")
-    ? `<button type="button" class="asset-row" data-go="stock" data-testid="bucket-twse">
-          <span class="name">${t("asset.twse")}</span>
-          <span class="amt">${fmtNT(state.assets.equities.marketValue, true)}</span>
-          <span class="delta ${stockDeltaClass}">${showToday ? t("delta.today", { delta: fmtDelta(state.assets.equities.dayPnL, true) }) : ""}</span>
+  const stocksRow = privacyFieldOn(priv, "bucketTwse")
+    ? `<button type="button" class="asset-row" data-go="stock" data-testid="bucket-stocks">
+          <span class="name">${t("asset.stocks")}<span class="sub">${t("home.stocksMeta", { a: c.accounts, h: c.holdings })}</span></span>
+          <span class="amt">${fmtNT(d.stocks, true)}</span>
+          <span class="delta ${stockDeltaClass}">${showToday ? t("delta.today", { delta: fmtDelta(d.dayPnL, true) }) : ""}</span>
           <span class="chev">›</span>
         </button>`
     : "";
   const cashRow = privacyFieldOn(priv, "bucketCash")
     ? `<button type="button" class="asset-row" data-go="cash" data-testid="bucket-cash">
-          <span class="name">${t("asset.cash")}</span>
+          <span class="name">${t("asset.cash")}<span class="sub">${t("home.cashMeta", { n: c.cash, c: c.cashCurrencies })}</span></span>
           <span class="amt">${fmtNT(d.cashTotal, true)}</span>
-          <span class="delta mute">${t("delta.checkingTd")}</span>
+          <span class="delta mute">${d.dailyTdInterest > 0 ? t("home.tdPerDay", { amount: fmtNT(Math.round(d.dailyTdInterest)) }) : ""}</span>
           <span class="chev">›</span>
         </button>`
     : "";
   const passiveRow = privacyFieldOn(priv, "bucketPassive")
     ? `<button type="button" class="asset-row" data-go="passive" data-testid="bucket-passive">
-          <span class="name">${t("asset.passive")}</span>
-          <span class="amt">${fmtNT(state.assets.passive.monthly, true)}${t("perMo")}</span>
+          <span class="name">${t("asset.passive")}<span class="sub">${t("home.passiveMeta", { n: c.passive })}</span></span>
+          <span class="amt">${fmtNT(d.passiveMonthly, true)}${t("perMo")}</span>
           <span class="delta mute">${t("delta.monthlyPace")}</span>
           <span class="chev">›</span>
         </button>`
+    : "";
+  const fxNote = d.missingFx.length
+    ? `<p class="fx-note" data-testid="fx-missing-note">${t("fx.missingNote", { codes: d.missingFx.join(", ") })}</p>`
     : "";
 
   return `
@@ -740,10 +948,11 @@ function screenHome(d) {
       </div>
       <div class="asset-list">
         ${housingRow}
-        ${twseRow}
+        ${stocksRow}
         ${cashRow}
         ${passiveRow}
       </div>
+      ${fxNote}
       ${goalsListHTML(d, { manage: false })}
     </div>`;
 }
@@ -751,69 +960,81 @@ function screenHome(d) {
 function screenBucket(kind, d) {
   const titles = {
     house: t("bucket.housing"),
-    stock: t("bucket.twse"),
+    stock: t("bucket.stocks"),
     cash: t("bucket.cash"),
     passive: t("bucket.passive"),
   };
+  const reorderFor = { house: "property", stock: "account", cash: "cash", passive: "passive" };
+  const reorder = reorderKind === reorderFor[kind];
   let body = "";
-  if (kind === "house") {
-    const h = state.assets.housing;
-    body = `
-      <div class="detail-card">
-        <div class="detail-row"><span class="k">${t("field.netEquity")}</span><span class="v">${fmtNT(d.netEquity)}</span></div>
-        <div class="detail-row"><span class="k">${t("field.marketValue")}</span><span class="v" data-testid="housing-market-value">${fmtNT(h.marketValue)}</span></div>
-        <div class="detail-row"><span class="k">${t("field.mortgage")}</span><span class="v">${fmtNT(h.mortgage)}</span></div>
-        <div class="detail-row"><span class="k">${t("field.monthlyPrincipal")}</span><span class="v">${fmtNT(h.monthlyPrincipal)}${t("perMo")}</span></div>
-        <p class="detail-note">${t("note.housing", { amount: fmtNT(Math.round(d.dailyPrincipal)) })}</p>
-      </div>
-      <div class="actions">
-        <button type="button" class="btn btn-primary" data-edit="house" data-testid="edit-housing">${t("edit")}</button>
-      </div>`;
-  } else if (kind === "stock") {
-    const e = state.assets.equities;
-    body = `
-      <div class="detail-card">
-        <div class="detail-row"><span class="k">${t("field.marketValue")}</span><span class="v">${fmtNT(e.marketValue)}</span></div>
-        <div class="detail-row"><span class="k">${t("field.todayPnL")}</span><span class="v ${e.dayPnL < 0 ? "down" : "up"}">${fmtDelta(e.dayPnL)}</span></div>
-        <div class="detail-row"><span class="k">${t("field.periodPnL")}</span><span class="v ${e.periodPnL < 0 ? "down" : "up"}">${fmtDelta(e.periodPnL)}</span></div>
-        <p class="detail-note">${t("note.twse")}</p>
-      </div>
-      <div class="actions">
-        <button type="button" class="btn btn-primary" data-edit="stock">${t("edit")}</button>
-        <button type="button" class="btn" id="btn-delayed-quote">${t("btn.delayedQuote")}</button>
-      </div>`;
-  } else if (kind === "cash") {
-    const c = state.assets.cash;
-    body = `
-      <div class="detail-card">
-        <div class="detail-row"><span class="k">${t("field.total")}</span><span class="v">${fmtNT(d.cashTotal)}</span></div>
-        <div class="detail-row"><span class="k">${t("field.checking")}</span><span class="v">${fmtNT(c.checking)}</span></div>
-        <div class="detail-row"><span class="k">${t("field.timeDeposit")}</span><span class="v">${fmtNT(c.timeDeposit)}</span></div>
-        <div class="detail-row"><span class="k">${t("field.tdAnnualRate")}</span><span class="v">${c.tdAnnualRate}%</span></div>
-        <p class="detail-note">${t("note.cash", { amount: fmtNT(Math.round(d.dailyTdInterest)) })}</p>
-      </div>
-      <div class="actions">
-        <button type="button" class="btn btn-primary" data-edit="cash">${t("edit")}</button>
-      </div>`;
-  } else if (kind === "passive") {
-    const p = state.assets.passive;
-    body = `
-      <div class="detail-card">
-        <div class="detail-row"><span class="k">${t("field.monthlyPace")}</span><span class="v">${fmtNT(p.monthly)}${t("perMo")}</span></div>
-        <div class="detail-row"><span class="k">${t("field.dailyPace")}</span><span class="v">${fmtNT(Math.round(d.dailyPassivePace))}</span></div>
-        <p class="detail-note">${t("note.passive")}</p>
-      </div>
-      <div class="actions">
-        <button type="button" class="btn btn-primary" data-edit="passive">${t("edit")}</button>
-      </div>`;
-  }
+  if (kind === "house") body = housingList(state, d, reorder);
+  else if (kind === "stock") body = stocksList(state, d, reorder);
+  else if (kind === "cash") body = cashList(state, d, reorder);
+  else if (kind === "passive") body = passiveList(state, d, reorder);
 
   return `
     <div class="topbar">
       <button type="button" class="back" data-go="home">${t("back")}</button>
       <div class="title">${titles[kind]}</div>
+      <span class="topbar-ccy" title="${t("fx.base")}">${escapeHtml(fx().base)}</span>
     </div>
-    <div class="screen active">${body}</div>`;
+    <div class="screen active list-screen" data-screen="${kind}">${body}</div>`;
+}
+
+/** Currency codes referenced by any item (used to flag rows that can't be removed silently). */
+function usedCurrencies() {
+  const a = state.assets;
+  return new Set([
+    ...a.properties.map((x) => x.currency),
+    ...a.brokerAccounts.map((x) => x.currency),
+    ...a.cashAccounts.map((x) => x.currency),
+    ...a.passiveItems.map((x) => x.currency),
+  ]);
+}
+
+function fxSettingsHTML() {
+  const table = fx();
+  const used = usedCurrencies();
+  const codes = Object.keys(table.rates);
+  const baseOpts = [table.base, ...codes]
+    .map((c) => {
+      const ok = c === table.base || rateToBase(c, table) != null;
+      return `<option value="${c}" ${c === table.base ? "selected" : ""} ${ok ? "" : "disabled"}>${c} · ${escapeHtml(currencySymbol(c).trim())}</option>`;
+    })
+    .join("");
+  const rows = codes
+    .map((c) => {
+      const r = table.rates[c];
+      const missing = r == null;
+      return `<div class="fx-row${missing ? " is-missing" : ""}" data-testid="fx-row-${c}">
+          <span class="fx-code">${c}</span>
+          <label class="fx-eq" for="fx-${c}">1 ${c} =</label>
+          <input id="fx-${c}" type="number" inputmode="decimal" step="any" min="0" value="${missing ? "" : r}" placeholder="${t("fx.needsRate")}" data-fx-rate="${c}" data-testid="fx-rate-${c}" />
+          <span class="fx-base">${table.base}</span>
+          ${used.has(c) ? `<span class="fx-used" title="${t("fx.inUse")}">${t("fx.inUse")}</span>` : `<button type="button" class="icon-btn" data-fx-remove="${c}" aria-label="${t("fx.remove")} ${c}" data-testid="fx-remove-${c}">×</button>`}
+        </div>`;
+    })
+    .join("");
+  const stamp = table.edited
+    ? t("fx.lastEdited", { date: table.updatedAt })
+    : t("fx.defaults", { date: table.updatedAt });
+  return `
+      <div class="settings-block" data-testid="settings-fx" id="settings-fx">
+        <h3>${t("settings.fx")}</h3>
+        <div class="field inline-field">
+          <label for="fx-base-select">${t("fx.base")}</label>
+          <select id="fx-base-select" data-testid="fx-base">${baseOpts}</select>
+        </div>
+        <p class="about">${t("fx.baseHint")}</p>
+        <h4 class="settings-sub">${t("fx.rates")} <span class="fx-stamp" data-testid="fx-stamp">${stamp}</span></h4>
+        <p class="about fx-approx">${t("fx.approx")}</p>
+        <div class="fx-table" data-testid="fx-table">${rows}</div>
+        <form class="fx-add" id="fx-add-form" data-testid="fx-add-form" novalidate>
+          <input name="code" type="text" maxlength="3" placeholder="${t("fx.code")}" aria-label="${t("fx.code")}" autocomplete="off" data-testid="fx-add-code" />
+          <input name="rate" type="number" step="any" min="0" placeholder="${t("fx.rateIn", { base: table.base })}" aria-label="${t("fx.rateIn", { base: table.base })}" data-testid="fx-add-rate" />
+          <button type="submit" class="btn btn-sm" data-testid="fx-add">${t("fx.add")}</button>
+        </form>
+      </div>`;
 }
 
 function screenSettings() {
@@ -836,6 +1057,7 @@ function screenSettings() {
           ${langButtons}
         </div>
       </div>
+      ${fxSettingsHTML()}
       <div class="settings-block">
         <h3>${t("settings.period")}</h3>
         <div class="seg" id="period-seg">
@@ -870,7 +1092,7 @@ function screenSettings() {
       <div class="settings-block" data-testid="settings-goals">
         <h3>${t("settings.goals")}</h3>
         <p class="about">${t("goals.hint")}</p>
-        ${goalsListHTML(derive(state.assets), { manage: true })}
+        ${goalsListHTML(d0(), { manage: true })}
       </div>
       <div class="settings-block">
         <h3>${t("settings.widgetTemplate")}</h3>
@@ -928,6 +1150,7 @@ function screenSettings() {
         <p class="about">${t("settings.aboutBody", {
           tagline: t("tagline"),
           lang: localeLabel(s.locale || "en"),
+          ccy: fx().base,
         })}</p>
       </div>
     </div>`;
@@ -1004,7 +1227,7 @@ function screenWidgetHome(d) {
   const priv = privacy();
   const pl = periodLabel(state.settings.period);
   const days = periodDays(state.settings.period);
-  const e = state.assets.equities;
+  const e = { dayPnL: d.dayPnL, periodPnL: d.periodPnL, marketValue: d.stocks };
   const dailyTd = d.dailyTdInterest;
   const base = d.netWorth;
   const moneyOpts = { compact: true, base };
@@ -1016,9 +1239,9 @@ function screenWidgetHome(d) {
     return formatWidgetPace(n, priv, { base, compact: true });
   }
 
-  const prinAmt = Math.round(state.assets.housing.monthlyPrincipal * (days / 30));
+  const prinAmt = Math.round(d.monthlyPrincipal * (days / 30));
   const tdAmt = Math.round(dailyTd * days);
-  const passAmt = Math.round(state.assets.passive.monthly * (days / 30));
+  const passAmt = Math.round(d.passiveMonthly * (days / 30));
 
   let stockDeltaText = "";
   let stockDeltaClass = "";
@@ -1091,10 +1314,10 @@ function screenWidgetHome(d) {
 
   const passiveAmt =
     priv.displayMode === "relative"
-      ? amt(state.assets.passive.monthly)
+      ? amt(d.passiveMonthly)
       : priv.displayMode === "rhythm"
       ? ""
-      : amt(state.assets.passive.monthly) + (priv.displayMode === "masked" ? "" : t("perMo"));
+      : amt(d.passiveMonthly) + (priv.displayMode === "masked" ? "" : t("perMo"));
 
   const showRhythm = privacyFieldOn(priv, "monthPace") || showRhythmWithoutPace(priv);
 
@@ -1113,7 +1336,7 @@ function screenWidgetHome(d) {
           </div>
           <div class="mw-body">
           ${row("bucketHousing", t("widget.housing"), amt(d.netEquity), housingDelta)}
-          ${row("bucketTwse", t("widget.twse"), amt(e.marketValue), stockDeltaText, stockDeltaClass)}
+          ${row("bucketTwse", t("widget.stocks"), amt(e.marketValue), stockDeltaText, stockDeltaClass)}
           ${row("bucketCash", t("widget.cash"), amt(d.cashTotal), cashDelta, "mute")}
           ${row("bucketPassive", t("widget.passive"), passiveAmt, passiveDelta)}
           </div>
@@ -1126,7 +1349,8 @@ function screenWidgetHome(d) {
 }
 
 function render() {
-  const d = derive(state.assets);
+  setDisplayCurrency(fx().base);
+  const d = d0();
   let body = "";
   if (route === "home") body = screenHome(d);
   else if (route === "house") body = screenBucket("house", d);
@@ -1138,8 +1362,8 @@ function render() {
   else if (route === "widget-home") body = screenWidgetHome(d);
   else body = screenHome(d);
 
-  const sheet = editBucket
-    ? editSheetHTML(editBucket)
+  const sheet = itemEdit
+    ? itemSheetHTML(state, itemEdit, findItem(itemEdit))
     : goalEdit
       ? goalSheetHTML()
       : "";
@@ -1156,7 +1380,7 @@ function render() {
     <nav class="nav-seg" aria-label="${t("nav.screens")}">
       <button type="button" data-go="home" class="${route === "home" ? "active" : ""}">${t("nav.home")}</button>
       <button type="button" data-go="house" class="${route === "house" ? "active" : ""}">${t("nav.housing")}</button>
-      <button type="button" data-go="stock" class="${route === "stock" ? "active" : ""}">${t("nav.twse")}</button>
+      <button type="button" data-go="stock" class="${route === "stock" ? "active" : ""}">${t("nav.stocks")}</button>
       <button type="button" data-go="cash" class="${route === "cash" ? "active" : ""}">${t("nav.cash")}</button>
       <button type="button" data-go="passive" class="${route === "passive" ? "active" : ""}">${t("nav.passive")}</button>
       <button type="button" data-go="settings" class="${route === "settings" ? "active" : ""}">${t("nav.settings")}</button>
@@ -1185,9 +1409,7 @@ function bind() {
     el.addEventListener("click", () => go(el.getAttribute("data-go")));
   });
 
-  app.querySelectorAll("[data-edit]").forEach((el) => {
-    el.addEventListener("click", () => openEdit(el.getAttribute("data-edit")));
-  });
+  bindItems();
 
   const honestyToggle = document.getElementById("honesty-toggle");
   if (honestyToggle) {
@@ -1266,42 +1488,6 @@ function bind() {
     });
   });
 
-  const form = document.getElementById("edit-form");
-  if (form) {
-    document.getElementById("edit-cancel")?.addEventListener("click", closeEdit);
-    document.getElementById("edit-backdrop")?.addEventListener("click", (ev) => {
-      if (ev.target.id === "edit-backdrop") closeEdit();
-    });
-    form.addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      const bucket = editBucket;
-      let values = {};
-      if (bucket === "house") {
-        values = {
-          marketValue: num(form, "marketValue"),
-          mortgage: num(form, "mortgage"),
-          monthlyPrincipal: num(form, "monthlyPrincipal"),
-        };
-      } else if (bucket === "stock") {
-        values = {
-          marketValue: num(form, "marketValue"),
-          dayPnL: num(form, "dayPnL"),
-          periodPnL: num(form, "periodPnL"),
-        };
-      } else if (bucket === "cash") {
-        values = {
-          checking: num(form, "checking"),
-          timeDeposit: num(form, "timeDeposit"),
-          tdAnnualRate: num(form, "tdAnnualRate"),
-        };
-      } else if (bucket === "passive") {
-        values = { monthly: num(form, "monthly") };
-      }
-      saveEdit(bucket, values);
-    });
-  }
-
-
   app.querySelectorAll("[data-goal-edit]").forEach((el) => {
     el.addEventListener("click", () => {
       const id = el.getAttribute("data-goal-edit");
@@ -1328,45 +1514,6 @@ function bind() {
     });
   }
 
-  const quoteBtn = document.getElementById("btn-delayed-quote");
-  if (quoteBtn) {
-    quoteBtn.addEventListener("click", async () => {
-      quoteBtn.disabled = true;
-      quoteBtn.textContent = t("btn.fetchingQuotes");
-      try {
-        const quotes = await fetchDelayedQuotes(["0050", "2330"]);
-        const next = mockPortfolioFromQuotes(
-          quotes,
-          state.assets.equities.marketValue
-        );
-        const summary = quotes
-          .map(
-            (q) =>
-              `${q.symbol} ${q.price} (${t("confirm.delayMin", { min: q.delayedMin })})`
-          )
-          .join(", ");
-        const ok = window.confirm(
-          t("confirm.delayedQuotes", {
-            summary,
-            value: fmtNT(next),
-          })
-        );
-        if (ok) {
-          withEditAd("save", () => {
-            state.assets.equities.marketValue = next;
-            persist();
-            render();
-          });
-        } else {
-          quoteBtn.disabled = false;
-          quoteBtn.textContent = t("btn.delayedQuote");
-        }
-      } catch {
-        quoteBtn.disabled = false;
-        quoteBtn.textContent = t("btn.delayedQuote");
-      }
-    });
-  }
 }
 
 /* ?demo=1 → body.demo-rhythm for clearer/faster motion (recording) */

@@ -63,7 +63,7 @@ test("exact: full amounts, compact short, live extrapolation data", () => {
   assert.equal(s.live.base, 16_470_000);
   assert.ok(s.live.perDay > 0);
   assert.equal(s.live.at, NOW.getTime());
-  assert.deepEqual(s.buckets.map((b) => b.key), ["housing", "twse", "cash", "passive"]);
+  assert.deepEqual(s.buckets.map((b) => b.key), ["housing", "stocks", "cash", "passive"]);
   assert.equal(s.buckets[3].text, "NT$28.5k/月");
   assert.equal(s.updatedAt, NOW.getTime());
   assert.equal(s.labels.updated, "更新");

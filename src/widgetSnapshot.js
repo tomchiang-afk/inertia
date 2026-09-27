@@ -21,8 +21,10 @@ import {
 } from "./widgetPrivacy.js";
 import { primaryGoal, goalProgress } from "./goals.js";
 import { t, getLocale } from "./i18n/index.js";
+import { normalizeFx, currencySymbol } from "./currency.js";
 
-export const WIDGET_SNAPSHOT_VERSION = 1;
+/** v2: multi-currency (currency block, live.prefix, "round" live format, bucket key "stocks"). */
+export const WIDGET_SNAPSHOT_VERSION = 2;
 
 const TEMPLATES = ["paper", "swiss", "sumi", "glass", "noir", "matrix"];
 const DARK_TEMPLATES = new Set(["noir"]);
@@ -51,8 +53,12 @@ export function buildWidgetSnapshot(state, opts = {}) {
   const priv = normalizeWidgetPrivacy(state?.settings?.widgetPrivacy);
   const mode = priv.displayMode;
   const template = templateOf(state);
-  const d = derive(state.assets);
+  const fx = normalizeFx(state?.settings?.fx, "TWD");
+  const ccy = fx.base;
+  const symbol = currencySymbol(ccy);
+  const d = derive(state.assets, fx);
   const base = d.netWorth;
+  const money = { currency: ccy };
   const pace30 = Math.round(d.periodQuiet(30));
   const noNumbers = mode === "rhythm";
 
@@ -63,12 +69,12 @@ export function buildWidgetSnapshot(state, opts = {}) {
   let monthProgressTemplate = null;
   if (!noNumbers) {
     if (mode === "relative") {
-      nwText = formatWidgetMoney(base, priv, { kind: "absolute", asMonthProgress: true });
+      nwText = formatWidgetMoney(base, priv, { ...money, kind: "absolute", asMonthProgress: true });
       nwShort = nwText;
       monthProgressTemplate = t("privacy.monthProgress", { pct: "{pct}" });
     } else {
-      nwText = formatWidgetMoney(base, priv, { kind: "absolute" });
-      nwShort = formatWidgetMoney(base, priv, { kind: "absolute", compact: true });
+      nwText = formatWidgetMoney(base, priv, { ...money, kind: "absolute" });
+      nwShort = formatWidgetMoney(base, priv, { ...money, kind: "absolute", compact: true });
     }
   }
   const netWorth = {
@@ -82,9 +88,12 @@ export function buildWidgetSnapshot(state, opts = {}) {
   /* Live quiet-growth extrapolation (exact / rounded only) --------------- */
   let live = null;
   if (netWorth.show && (mode === "exact" || mode === "rounded")) {
+    // exact → full amount; rounded → 萬 for TWD, k/M ("round") for every other base.
     live = {
-      format: mode === "exact" ? "exact" : "wan",
+      format: mode === "exact" ? "exact" : ccy === "TWD" ? "wan" : "round",
       unit: t("privacy.unitWan"),
+      prefix: symbol,
+      currency: ccy,
       base: Math.round(base),
       perDay: Math.round(d.quietDay * 100) / 100,
       at: now.getTime(),
@@ -94,7 +103,7 @@ export function buildWidgetSnapshot(state, opts = {}) {
   /* Month pace (quiet growth over 30 days) ------------------------------- */
   const paceOn = privacyFieldOn(priv, "monthPace");
   const paceText = paceOn && !noNumbers
-    ? formatWidgetPace(pace30, priv, { base, compact: true })
+    ? formatWidgetPace(pace30, priv, { ...money, base, compact: true })
     : "";
   const pace = {
     show: !!paceText,
@@ -118,7 +127,7 @@ export function buildWidgetSnapshot(state, opts = {}) {
     goal = {
       show: true,
       name: g.name,
-      text: formatGoalProgressLabel(prog, priv),
+      text: formatGoalProgressLabel(prog, priv, money),
       barPct: showGoalBarFill(priv) ? Math.round(prog.barPct * 10) / 10 : null,
     };
   }
@@ -126,14 +135,14 @@ export function buildWidgetSnapshot(state, opts = {}) {
   /* Buckets (medium size, dense right column) ---------------------------- */
   const buckets = [];
   if (!noNumbers) {
-    const amt = (n) => formatWidgetMoney(n, priv, { kind: "absolute", compact: true, base });
+    const amt = (n) => formatWidgetMoney(n, priv, { ...money, kind: "absolute", compact: true, base });
     const add = (field, key, label, text) => {
       if (privacyFieldOn(priv, field) && text) buckets.push({ key, label, text });
     };
     add("bucketHousing", "housing", t("widget.housing"), amt(d.netEquity));
-    add("bucketTwse", "twse", t("widget.twse"), amt(state.assets.equities.marketValue));
+    add("bucketTwse", "stocks", t("widget.stocks"), amt(d.stocks));
     add("bucketCash", "cash", t("widget.cash"), amt(d.cashTotal));
-    const passive = state.assets.passive.monthly;
+    const passive = d.passiveMonthly;
     const passiveText =
       mode === "relative"
         ? "" // share of net worth is meaningless for a monthly flow
@@ -151,6 +160,7 @@ export function buildWidgetSnapshot(state, opts = {}) {
     theme: DARK_TEMPLATES.has(template) ? "dark" : "light",
     mode,
     brand: "Inertia",
+    currency: { code: ccy, symbol },
     labels: {
       updated: t("widget.updated"),
     },

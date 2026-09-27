@@ -1,31 +1,28 @@
-/** Quiet-day / net-worth math — same as prototype */
+/** Quiet-day / net-worth math on top of the v2 multi-currency asset lists. */
 import { t } from "./i18n/index.js";
+import { aggregate, DAYS_IN_MONTH } from "./portfolio.js";
+import { defaultFx } from "./currency.js";
+import { fmtMoney, fmtCompact, fmtMoneyDelta } from "./format.js";
 
-export const DAYS_IN_MONTH = 30;
+export { DAYS_IN_MONTH };
 
-export function derive(assets) {
-  const housing = assets.housing;
-  const equities = assets.equities;
-  const cash = assets.cash;
-  const passive = assets.passive;
-
-  const netEquity = housing.marketValue - housing.mortgage;
-  const cashTotal = cash.checking + cash.timeDeposit;
-
-  const dailyPrincipal = housing.monthlyPrincipal / DAYS_IN_MONTH;
-  const dailyTdInterest =
-    (cash.timeDeposit * (cash.tdAnnualRate / 100)) / 365;
-  const dailyPassivePace = passive.monthly / DAYS_IN_MONTH;
+/**
+ * @param {object} assets v2 lists (v1 bucket objects are migrated on the fly)
+ * @param {object} [fx] settings.fx; defaults to the TWD reference table
+ */
+export function derive(assets, fx) {
+  const table = fx || defaultFx();
+  const agg = aggregate(assets, table);
+  const dailyPrincipal = agg.monthlyPrincipal / DAYS_IN_MONTH;
+  const dailyTdInterest = agg.annualTdInterest / 365;
+  const dailyPassivePace = agg.passiveMonthly / DAYS_IN_MONTH;
   const quietDay = dailyPrincipal + dailyTdInterest + dailyPassivePace;
-
   return {
-    netEquity,
-    cashTotal,
+    ...agg,
     dailyPrincipal,
     dailyTdInterest,
     dailyPassivePace,
     quietDay,
-    netWorth: netEquity + equities.marketValue + cashTotal,
     periodQuiet: (days) => quietDay * days,
   };
 }
@@ -43,27 +40,11 @@ export function periodLabel(period) {
   return t("period.30d");
 }
 
+/** Base-currency amount (name kept from v1; follows setDisplayCurrency). */
 export function fmtNT(n, compact = false) {
-  const abs = Math.abs(n);
-  const sign = n < 0 ? "−" : "";
-  if (compact) {
-    if (abs >= 1_000_000) {
-      const m = abs / 1_000_000;
-      const s = m >= 10 ? Math.round(m).toString() : (Math.round(m * 10) / 10).toFixed(1).replace(/\.0$/, "");
-      return sign + "NT$" + s + "M";
-    }
-    if (abs >= 10_000) {
-      const k = abs / 1_000;
-      const s = k >= 100 ? Math.round(k).toString() : (Math.round(k * 10) / 10).toFixed(1).replace(/\.0$/, "");
-      return sign + "NT$" + s + "k";
-    }
-    return sign + "NT$" + abs.toLocaleString("en-US");
-  }
-  return sign + "NT$" + Math.round(abs).toLocaleString("en-US");
+  return compact ? fmtCompact(n) : fmtMoney(n);
 }
 
 export function fmtDelta(n, compact = false) {
-  if (n > 0) return "+" + fmtNT(n, compact);
-  if (n < 0) return fmtNT(n, compact);
-  return fmtNT(0, compact);
+  return fmtMoneyDelta(n, undefined, compact);
 }

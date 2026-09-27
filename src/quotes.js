@@ -1,44 +1,43 @@
 /**
- * Thin delayed-quotes client stub.
- * Future: GET /api/quotes?symbols=2330,0050 → delayed TWSE prices.
- * Mock: returns canned delayed data offline; does not hit network.
+ * Delayed-quote hook (no network in this build).
+ *
+ * Holding prices are entered by hand and are the source of truth. A delayed-quote backend
+ * can be plugged in later with setQuoteProvider(); the UI would then offer an explicit
+ * "apply delayed prices" step (an edit path → ad rule applies) and never overwrite silently.
+ *
+ * Provider contract:
+ *   async (requests: Array<{ symbol: string, market: string }>) =>
+ *     Array<{ symbol, market, price, currency, delayedMin, asOf }>
  */
 
-const MOCK = {
-  "0050": { symbol: "0050", name: "元大台灣50", price: 178.5, delayedMin: 15 },
-  "2330": { symbol: "2330", name: "台積電", price: 980, delayedMin: 15 },
-  "006208": { symbol: "006208", name: "富邦台50", price: 92.3, delayedMin: 15 },
-};
+let provider = null;
 
-/**
- * @param {string[]} symbols
- * @returns {Promise<Array<{symbol:string,name:string,price:number,delayedMin:number}>>}
- */
-export function fetchDelayedQuotes(symbols) {
-  return new Promise((resolve) => {
-    const list = (symbols && symbols.length ? symbols : Object.keys(MOCK)).map(
-      (s) => {
-        const hit = MOCK[s] || {
-          symbol: s,
-          name: s,
-          price: 100,
-          delayedMin: 15,
-        };
-        // Slight canned jitter so “update” feels like a refresh
-        const jitter = Math.round((Math.random() - 0.5) * 4 * 10) / 10;
-        return { ...hit, price: Math.round((hit.price + jitter) * 10) / 10 };
-      }
-    );
-    setTimeout(() => resolve(list), 280);
-  });
+export function setQuoteProvider(fn) {
+  provider = typeof fn === "function" ? fn : null;
 }
 
-/** Suggest a mock portfolio market value from delayed quotes (demo only). */
-export function mockPortfolioFromQuotes(quotes, baseValue) {
-  if (!quotes.length) return baseValue;
-  const avg =
-    quotes.reduce((s, q) => s + q.price, 0) / quotes.length;
-  // Map average quote move into a small % nudge on portfolio MV
-  const factor = 1 + ((avg % 5) - 2.5) / 1000;
-  return Math.round(baseValue * factor);
+export function hasQuoteProvider() {
+  return !!provider;
+}
+
+/**
+ * @param {Array<{symbol:string, market:string}>} requests
+ * @returns {Promise<Array<{symbol:string, market:string, price:number, currency:string, delayedMin:number, asOf:number}>>}
+ */
+export async function fetchDelayedQuotes(requests) {
+  if (!provider || !Array.isArray(requests) || !requests.length) return [];
+  try {
+    const out = await provider(requests.filter((r) => r && r.symbol));
+    return Array.isArray(out) ? out.filter((q) => q && Number.isFinite(q.price) && q.price > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Pure helper: which holdings would change if the quotes were applied (for a confirm sheet). */
+export function diffQuotes(account, quotes) {
+  const bySym = new Map(quotes.filter((q) => q.market === account.market).map((q) => [q.symbol, q]));
+  return account.holdings
+    .filter((h) => bySym.has(h.symbol) && bySym.get(h.symbol).price !== h.price)
+    .map((h) => ({ id: h.id, symbol: h.symbol, from: h.price, to: bySym.get(h.symbol).price }));
 }

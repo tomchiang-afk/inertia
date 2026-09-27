@@ -58,14 +58,14 @@ export function primaryGoal(goals) {
 
 /**
  * Current value for a goal's align key from derive() + assets.
- * passiveMonth = existing passive.monthly pace (not transactions).
+ * All values are base-currency aggregates; passiveMonth = normalized monthly passive pace.
  */
 export function alignedValue(goal, assets, derived) {
   const a = goal?.align;
   if (a === "netWorth") return Number(derived?.netWorth) || 0;
   if (a === "housing") return Number(derived?.netEquity) || 0;
   if (a === "cash") return Number(derived?.cashTotal) || 0;
-  if (a === "passiveMonth") return Number(assets?.passive?.monthly) || 0;
+  if (a === "passiveMonth") return Number(derived?.passiveMonthly) || 0;
   return 0;
 }
 
