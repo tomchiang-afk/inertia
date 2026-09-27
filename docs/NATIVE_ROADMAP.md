@@ -20,7 +20,7 @@ Do not commit generated `ios/` / `android/` until first real store pass unless t
 ## Track A — WidgetKit / App Widgets
 
 - **iOS**: WidgetKit small (lock / home) + medium (4-bucket). Read App Group shared JSON written by the Capacitor app (same quiet-day math as `src/math.js`).
-- **Android**: App Widget provider mirroring lock + medium layouts.
+- **Android**: done. Native 2×2 + 4×2 App Widgets fed by a privacy-formatted snapshot from the web app. See [`ANDROID_WIDGET.md`](ANDROID_WIDGET.md).
 - **Rule**: widgets never show ads. Data is local snapshot only.
 
 ## Track B — AdMob (edit-only)

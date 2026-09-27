@@ -58,6 +58,7 @@ npx playwright install chromium
 npm run test:e2e          # headless
 npm run test:e2e:headed   # headed Chromium
 npm run test:e2e:ui       # Playwright UI mode
+npm run test:unit         # node:test (widget snapshot builder)
 ```
 
 Config: `playwright.config.ts` — `baseURL` `http://127.0.0.1:5173`, `webServer: npm run dev` with `reuseExistingServer`. Tests live in `e2e/`.
@@ -104,7 +105,7 @@ Details: [`docs/NATIVE_ROADMAP.md`](docs/NATIVE_ROADMAP.md) — WidgetKit, AdMob
 
 | Today (web) | Later (native / store) |
 |-------------|-------------------------|
-| Widget **preview** screens | iOS WidgetKit / Android App Widgets |
+| Widget **preview** screens | Android App Widgets **done** ([`docs/ANDROID_WIDGET.md`](docs/ANDROID_WIDGET.md)) · iOS WidgetKit next |
 | Buyout toggle in Settings | StoreKit / Play Billing one-time IAP |
 | Mock interstitial in `adGate.js` | AdMob edit interstitial only |
 | `fetchDelayedQuotes()` canned offline | Thin `GET /api/quotes?symbols=` delayed backend |
