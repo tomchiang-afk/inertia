@@ -41,7 +41,8 @@ test("migration — old fixed-bucket save becomes lists, totals unchanged, raw b
   expect(s.assets.properties).toEqual([
     expect.objectContaining({ alias: "Home", marketValue: 18_000_000, mortgageBalance: 5_200_000, monthlyPrincipal: 22_000, currency: "TWD" }),
   ]);
-  expect(s.assets.brokerAccounts[0]).toMatchObject({ market: "TW", currency: "TWD", dayPnL: -3_200, periodPnL: 186_000 });
+  expect(s.assets.brokerAccounts[0]).toMatchObject({ market: "TW", currency: "TWD" });
+  expect(s.assets.brokerAccounts[0].dayPnL).toBeUndefined(); // v0.3.1: no market P&L
   expect(s.assets.cashAccounts.map((c: any) => [c.type, c.balance])).toEqual([["checking", 420_000], ["timeDeposit", 800_000]]);
   expect(s.assets.passiveItems[0]).toMatchObject({ amount: 28_500, frequency: "monthly" });
   expect(s.assets.housing).toBeUndefined();

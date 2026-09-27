@@ -3,7 +3,7 @@
  *
  * assets = {
  *   properties:   [{ id, alias, marketValue, mortgageBalance, monthlyPrincipal, interestRate|null, currency }],
- *   brokerAccounts: [{ id, alias, market, currency, dayPnL, periodPnL,
+ *   brokerAccounts: [{ id, alias, market, currency,
  *                      holdings: [{ id, symbol, name, shares, price, costBasis|null }] }],
  *   cashAccounts: [{ id, alias, institution, country, currency, balance,
  *                    type: checking|savings|timeDeposit, rate|null, maturity|null }],
@@ -92,8 +92,6 @@ export function normalizeBrokerAccount(a, base = DEFAULT_BASE) {
     alias: str(a?.alias) || market,
     market,
     currency: normalizeCurrency(a?.currency, MARKET_CURRENCY[market] || base),
-    dayPnL: num(a?.dayPnL),
-    periodPnL: num(a?.periodPnL),
     holdings: Array.isArray(a?.holdings) ? a.holdings.filter(Boolean).map(normalizeHolding) : [],
   };
 }
@@ -147,7 +145,8 @@ export function migrationNames(locale) {
  * v1 fixed buckets → v2 lists. Every v1 number lands somewhere:
  *  housing.{marketValue,mortgage,monthlyPrincipal} → one property
  *  equities.marketValue → one TW account with one holding (shares 1 × price = market value);
- *  equities.{dayPnL,periodPnL} → that account's P&L
+ *  equities.{dayPnL,periodPnL} are dropped (v0.3.1: Inertia shows no market P&L; the raw v1
+ *  save is still kept in inertia.v1.backup-schema1)
  *  cash.checking → checking account; cash.{timeDeposit,tdAnnualRate} → time-deposit account
  *  passive.monthly → one monthly passive item
  */
@@ -174,8 +173,6 @@ export function migrateAssetsV1(v1, locale) {
         alias: n.tw,
         market: "TW",
         currency: "TWD",
-        dayPnL: e.dayPnL,
-        periodPnL: e.periodPnL,
         holdings: [{ id: "h_tw", symbol: "", name: n.portfolio, shares: 1, price: num(e.marketValue) }],
       }),
     ],
@@ -236,7 +233,7 @@ export function demoAssets(locale) {
     ],
     brokerAccounts: [
       {
-        id: "b_demo_tw", alias: L("國泰證券", "Cathay Securities"), market: "TW", currency: "TWD", dayPnL: -3_200, periodPnL: 142_000,
+        id: "b_demo_tw", alias: L("國泰證券", "Cathay Securities"), market: "TW", currency: "TWD",
         holdings: [
           { id: "h_2330", symbol: "2330", name: L("台積電", "TSMC"), shares: 1_000, price: 980, costBasis: 610 },
           { id: "h_0050", symbol: "0050", name: L("元大台灣50", "Yuanta Taiwan 50"), shares: 3_000, price: 178.5, costBasis: 142 },
@@ -244,7 +241,7 @@ export function demoAssets(locale) {
         ],
       },
       {
-        id: "b_demo_us", alias: "Firstrade", market: "US", currency: "USD", dayPnL: 85, periodPnL: 1_450,
+        id: "b_demo_us", alias: "Firstrade", market: "US", currency: "USD",
         holdings: [
           { id: "h_voo", symbol: "VOO", name: "Vanguard S&P 500 ETF", shares: 60, price: 540, costBasis: 455 },
           { id: "h_aapl", symbol: "AAPL", name: "Apple", shares: 40, price: 228, costBasis: 172 },
@@ -298,11 +295,9 @@ export function aggregate(assets, fx) {
     monthlyPrincipal += conv(p.monthlyPrincipal, p.currency);
   }
 
-  let stocks = 0, dayPnL = 0, periodPnL = 0, holdings = 0;
+  let stocks = 0, holdings = 0;
   for (const b of a.brokerAccounts) {
     stocks += conv(accountValue(b), b.currency);
-    dayPnL += conv(b.dayPnL, b.currency);
-    periodPnL += conv(b.periodPnL, b.currency);
     holdings += b.holdings.length;
   }
 
@@ -326,8 +321,6 @@ export function aggregate(assets, fx) {
     monthlyPrincipal,
     netEquity,
     stocks,
-    dayPnL,
-    periodPnL,
     cashTotal: cash,
     passiveMonthly,
     annualTdInterest,

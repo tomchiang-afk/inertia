@@ -4,6 +4,8 @@ type SeedExtra = {
   settings?: Record<string, unknown>;
   assets?: Record<string, unknown>;
   goals?: unknown[];
+  /** Extra top-level save keys (e.g. paceAnchorAt). */
+  top?: Record<string, unknown>;
   /** Re-seed even if already seeded this tab (e.g. buyout on). */
   force?: boolean;
 };
@@ -38,7 +40,6 @@ export async function seedEnglish(page: Page, overrides: SeedExtra = {}) {
         passive: { monthly: 28_500 },
       },
       settings: {
-        honesty: "pace",
         period: "30d",
         buyout: false,
         locale: "en",
@@ -49,7 +50,7 @@ export async function seedEnglish(page: Page, overrides: SeedExtra = {}) {
     if (extra.assets) {
       Object.assign(base.assets, extra.assets);
     }
-    const payload: Record<string, unknown> = { ...base, goals: extra.goals || [] };
+    const payload: Record<string, unknown> = { ...base, goals: extra.goals || [], ...(extra.top || {}) };
     localStorage.setItem("inertia.v1", JSON.stringify(payload));
   }, overrides);
 }

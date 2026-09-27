@@ -62,8 +62,7 @@ test("migration: v1 fixed buckets → v2 lists, every number preserved", () => {
   assert.equal(acct.market, "TW");
   assert.equal(acct.currency, "TWD");
   assert.equal(acct.alias, "台股");
-  assert.equal(acct.dayPnL, -3_200);
-  assert.equal(acct.periodPnL, 186_000);
+  assert.ok(!("dayPnL" in acct) && !("periodPnL" in acct), "v0.3.1: market P&L is not carried into v2");
   assert.equal(acct.holdings.length, 1);
   assert.equal(acct.holdings[0].shares * acct.holdings[0].price, 2_450_000);
   assert.deepEqual(
@@ -83,8 +82,7 @@ test("migration: aggregates equal the v1 math (net worth + quiet day)", () => {
   assert.equal(d.stocks, 2_450_000);
   assert.equal(d.cashTotal, 1_220_000);
   assert.equal(d.passiveMonthly, 28_500);
-  assert.equal(d.dayPnL, -3_200);
-  assert.equal(d.periodPnL, 186_000);
+  assert.equal(d.dayPnL, undefined, "no market P&L aggregate (month rhythm only)");
   assert.ok(Math.abs(d.quietDay - V1_QUIET_DAY) < 1e-9);
 });
 

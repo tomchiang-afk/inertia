@@ -64,6 +64,20 @@ public class WidgetFormatTest {
                 WidgetFormat.extrapolate(1000, 50, at, at + 400 * DAY), 1e-9);
     }
 
+    /** v0.3.1: live.base/at are the rhythm anchor; mirrors tests/pace.test.mjs (same seed). */
+    @Test
+    public void anchoredExtrapolationMatchesJsPace() {
+        long anchor = 1_790_000_000_000L;
+        double perDay = 1720.59; // snapshot rounds quietDay to 2 decimals
+        double tenDays = WidgetFormat.extrapolate(16_470_000, perDay, anchor, anchor + 10 * DAY);
+        assertEquals("NT$16,487,206", WidgetFormat.exact(tenDays, "NT$"));
+        // re-pushing a snapshot keeps the same anchor → value only moves forward with time
+        double elevenDays = WidgetFormat.extrapolate(16_470_000, perDay, anchor, anchor + 11 * DAY);
+        assertEquals(perDay, elevenDays - tenDays, 1e-6);
+        // JS PACE_MAX_DAYS == 45
+        assertEquals(45.0, WidgetFormat.MAX_EXTRAPOLATE_DAYS, 0);
+    }
+
     @Test
     public void monthProgressMatchesJs() {
         Calendar c = Calendar.getInstance();

@@ -21,7 +21,7 @@ export const DEFAULT_ASSETS = demoAssets("zh-TW");
 
 /** locale omitted until first launch → detect navigator.language */
 export const DEFAULT_SETTINGS = {
-  honesty: "pace", // pace | actual
+  // v0.3.1: the "today actual" / "month pace" honesty switch is gone — month rhythm only.
   period: "30d", // 7d | 30d | month
   buyout: false,
   widgetTemplate: "paper", // paper | swiss | sumi | glass | noir | matrix
@@ -48,9 +48,13 @@ function migrateLegacyKey() {
   }
 }
 
-function emptyState(locale) {
+/** Settings keys dropped in v0.3.1 (removed on load, then the save is rewritten once). */
+const RETIRED_SETTINGS = ["honesty"];
+
+function emptyState(locale, now = Date.now()) {
   return {
     schemaVersion: SCHEMA_VERSION,
+    paceAnchorAt: now,
     assets: normalizeAssets(demoAssets(locale || safeDetect()), { base: "TWD" }),
     settings: {
       ...DEFAULT_SETTINGS,
@@ -73,17 +77,33 @@ function safeDetect() {
  * Parse + migrate a raw saved object (exported for unit tests).
  * schemaVersion missing/1 → v1 fixed buckets → migrated to v2 lists (TWD base).
  */
-export function hydrateState(parsed) {
-  if (!parsed || typeof parsed !== "object") return emptyState();
+export function hydrateState(parsed, { now = Date.now() } = {}) {
+  if (!parsed || typeof parsed !== "object") return emptyState(undefined, now);
   const settings = { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) };
+  let cleaned = false;
+  for (const k of RETIRED_SETTINGS) {
+    if (k in settings) {
+      delete settings[k];
+      cleaned = true;
+    }
+  }
+  // Retired widget privacy field ("todayActual"): normalizeWidgetPrivacy drops unknown keys.
+  if (parsed.settings?.widgetPrivacy?.fields && "todayActual" in parsed.settings.widgetPrivacy.fields) cleaned = true;
   settings.widgetTemplate = normalizeWidgetTemplate(settings.widgetTemplate);
   settings.widgetPrivacy = normalizeWidgetPrivacy(settings.widgetPrivacy);
   settings.fx = normalizeFx(parsed.settings?.fx, "TWD");
   const locale = parsed.settings?.locale || safeDetect();
   const wasV1 = !isV2Assets(parsed.assets);
+  // Smooth-rhythm anchor: when the asset numbers were last entered. Missing (older saves) or
+  // in the future (clock change) → start accruing now, so nothing jumps on upgrade.
+  const anchor = Number(parsed.paceAnchorAt);
+  const anchorOk = Number.isFinite(anchor) && anchor > 0 && anchor <= now;
+  if (!anchorOk) cleaned = true;
   return {
     schemaVersion: SCHEMA_VERSION,
     migratedFrom: wasV1 && parsed.assets ? 1 : undefined,
+    needsSave: cleaned || undefined,
+    paceAnchorAt: anchorOk ? anchor : now,
     assets: normalizeAssets(parsed.assets, { base: settings.fx.base, locale }),
     settings,
     goals: normalizeGoals(parsed.goals),
@@ -104,7 +124,10 @@ export function loadState() {
         /* ignore quota */
       }
       saveState(state);
+    } else if (state.needsSave) {
+      saveState(state);
     }
+    delete state.needsSave;
     return state;
   } catch {
     return emptyState();
@@ -116,6 +139,7 @@ export function saveState(state) {
     KEY,
     JSON.stringify({
       schemaVersion: SCHEMA_VERSION,
+      paceAnchorAt: state.paceAnchorAt,
       assets: state.assets,
       settings: state.settings,
       goals: normalizeGoals(state.goals),

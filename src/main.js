@@ -33,6 +33,7 @@ import {
   showRhythmWithoutPace,
 } from "./widgetPrivacy.js";
 import { configureAdGate, withEditAd } from "./adGate.js";
+import { withPace, paceCapped, todaySoFar, PACE_MAX_DAYS } from "./pace.js";
 import { syncNativeWidget, initNativeWidget } from "./nativeWidget.js";
 import {
   normalizeFx,
@@ -129,25 +130,23 @@ function go(name) {
   render();
 }
 
+/** Period pill: smooth month rhythm over the chosen period (never market P&L). */
 function primaryPeriodDelta(d) {
-  const days = periodDays(state.settings.period);
-  const q = Math.round(d.periodQuiet(days));
-  if (state.settings.honesty === "pace") return q;
-  const scale = days / 30;
-  const eq = Math.round(d.periodPnL * scale);
-  return eq + q;
+  return Math.round(d.periodQuiet(periodDays(state.settings.period)));
 }
 
 function sparkPath(quietDay) {
-  // Ascending quiet-growth sparkline → path + coords for playhead
+  // Smooth 30-day trend of the month rhythm: net worth grows by the same amount every day, so
+  // the line is monotonic with no market wiggle. Slope scales gently with the daily pace so a
+  // bigger rhythm reads steeper (illustrative scale, not a price chart).
   const w = 360;
   const h = 56;
+  const rise = quietDay > 0 ? Math.min(h * 0.62, h * 0.22 + Math.log10(1 + quietDay) * 6) : 0;
   const pts = [];
   for (let i = 0; i < 30; i++) {
     const x = (i / 29) * w;
-    const bump = Math.sin(i / 4.2) * 3 + (i / 29) * (h * 0.35);
-    const y = h * 0.78 - bump - (quietDay / 2000) * 4;
-    pts.push([x, Math.max(8, Math.min(h - 6, y))]);
+    const y = h * 0.8 - rise * (i / 29);
+    pts.push([x, Math.max(6, Math.min(h - 6, y))]);
   }
   const d = pts
     .map((p, i) =>
@@ -269,42 +268,36 @@ function stopPlayhead() {
   }
 }
 
-function setRhythmLiveStatic(quietDay) {
-  const el = document.getElementById("rhythmLive");
-  if (el) el.textContent = fmtNT(Math.round(quietDay));
+/** Home live numbers: today's rhythm so far + net worth, both from the smooth pace only. */
+function paintRhythmLive() {
+  const d = d0();
+  const today = document.getElementById("rhythmLive");
+  if (today) {
+    const txt = fmtNT(Math.floor(todaySoFar(d.quietDay, new Date())));
+    if (today.textContent !== txt) today.textContent = txt;
+  }
+  const nw = document.querySelector('[data-testid="net-worth"]:not([hidden])');
+  if (nw) {
+    const txt = fmtNT(d.netWorth);
+    if (nw.textContent !== txt) nw.textContent = txt;
+  }
 }
 
-function startRhythmLive(quietDay) {
+function startRhythmLive() {
   stopRhythmLive();
-  const el = document.getElementById("rhythmLive");
-  if (!el) return;
-  if (prefersReducedMotion()) {
-    setRhythmLiveStatic(quietDay);
-    return;
-  }
-  const target = quietDay;
-  const floor = Math.round(target * 0.55);
-  const demo = document.body.classList.contains("demo-rhythm");
-  const loopMs = demo ? 7000 : 22000;
-  const t0 = performance.now();
-
+  paintRhythmLive();
+  if (prefersReducedMotion()) return; // static values, refreshed on every render
+  // The pace is tiny per second, so repaint ~4×/s and only touch the DOM when text changes.
+  let last = 0;
   function frame(now) {
     if (route !== "home") {
       rhythmRaf = null;
       return;
     }
-    const elapsed = (((now - t0) % loopMs) + loopMs) % loopMs;
-    const p = elapsed / loopMs;
-    let eased;
-    if (p < 0.88) {
-      const u = p / 0.88;
-      eased = u * u * (3 - 2 * u);
-    } else {
-      const u = (p - 0.88) / 0.12;
-      eased = 1 - u * u * (3 - 2 * u);
+    if (now - last > 250) {
+      last = now;
+      paintRhythmLive();
     }
-    const val = Math.round(floor + (target - floor) * eased);
-    el.textContent = fmtNT(Math.min(val, Math.round(target)));
     rhythmRaf = requestAnimationFrame(frame);
   }
   rhythmRaf = requestAnimationFrame(frame);
@@ -360,14 +353,10 @@ function onLeaveRhythmViews() {
   if (head) head.setAttribute("hidden", "");
 }
 
-function onEnterHome(quietDay) {
+function onEnterHome() {
   requestAnimationFrame(() => {
     animateSparkStroke();
-    if (state.settings.honesty === "pace") {
-      startRhythmLive(quietDay);
-    } else {
-      setRhythmLiveStatic(quietDay);
-    }
+    startRhythmLive();
     startPlayhead();
   });
 }
@@ -376,8 +365,14 @@ function fx() {
   return state.settings.fx;
 }
 
+/** Derived numbers with smooth-rhythm accrual since the last asset edit (see pace.js). */
 function d0() {
-  return derive(state.assets, fx());
+  return withPace(derive(state.assets, fx()), state.paceAnchorAt, Date.now());
+}
+
+/** Asset numbers were (re)entered: the typed values become the new rhythm anchor. */
+function reanchorPace() {
+  state.paceAnchorAt = Date.now();
 }
 
 function openGoalEdit(idOrNew) {
@@ -667,6 +662,7 @@ function saveItemFromForm(form) {
     return;
   }
   const prev = findItem(edit);
+  const changed = numbersChanged(edit.kind, prev, res.values);
   const commit = () => {
     const list = listFor(edit.kind, edit.accountId);
     if (!list) return;
@@ -679,13 +675,14 @@ function saveItemFromForm(form) {
       list.push(NORMALIZERS[edit.kind]({ ...res.values, id: newId(prefix), holdings: [] }));
     }
     if (res.values.currency) state.settings.fx = ensureCurrency(fx(), res.values.currency);
+    if (changed) reanchorPace();
     persist();
     itemEdit = null;
     render();
   };
   // Ad rule: new item, or a changed amount / shares / price / balance / rate / currency.
   // Renames, tags, symbols, market labels, maturity dates and reordering never show an ad.
-  if (numbersChanged(edit.kind, prev, res.values)) withEditAd("save", commit);
+  if (changed) withEditAd("save", commit);
   else commit();
 }
 
@@ -704,6 +701,7 @@ function deleteItem() {
   }
   const i = list.findIndex((x) => x.id === edit.id);
   if (i >= 0) list.splice(i, 1);
+  reanchorPace(); // totals changed by the user
   persist();
   itemEdit = null;
   deleteArmed = false;
@@ -860,14 +858,9 @@ function screenHome(d) {
   const priv = privacy();
   const pl = periodLabel(state.settings.period);
   const delta = primaryPeriodDelta(d);
-  const honesty =
-    state.settings.honesty === "pace" ? t("honesty.pace") : t("honesty.actual");
   const spark = sparkPath(d.quietDay);
-  const stockDeltaClass =
-    d.dayPnL < 0 ? "down" : "";
   const showNw = privacyFieldOn(priv, "netWorth");
   const showPace = privacyFieldOn(priv, "monthPace");
-  const showToday = privacyFieldOn(priv, "todayActual");
 
   const nwHtml = showNw
     ? `<div class="nw" data-testid="net-worth">${fmtNT(d.netWorth)}</div>`
@@ -875,18 +868,14 @@ function screenHome(d) {
   const pacePill = showPace
     ? `<span class="pill ${delta >= 0 ? "up" : "down"}">${pl} ${fmtDelta(delta)}</span>`
     : "";
-  const todayLine =
-    state.settings.honesty === "actual" && showToday
-      ? `<p class="quiet-line" style="color:${d.dayPnL < 0 ? "var(--down)" : "var(--accent)"}">${t("stocks.today", { delta: fmtDelta(d.dayPnL) })}</p>`
-      : "";
-  const paceBlock =
-    state.settings.honesty === "pace"
-      ? `<p class="rhythm-live-line" id="rhythmLiveLine">${t("rhythm.paceRunning")} <span id="rhythmLive">${fmtNT(Math.round(d.quietDay * 0.55))}</span></p>
+  const paceBlock = `<p class="rhythm-live-line" id="rhythmLiveLine">${t("rhythm.paceRunning")} <span id="rhythmLive" data-testid="rhythm-today">${fmtNT(Math.floor(todaySoFar(d.quietDay, new Date())))}</span></p>
       <div class="rhythm-hero" data-testid="rhythm-hero">
         <div class="cap">${t("rhythm.matrixCap")}</div>
         ${rhythmHTML("full")}
-      </div>`
-      : todayLine;
+      </div>`;
+  const capNote = paceCapped(state.paceAnchorAt)
+    ? `<p class="fx-note" data-testid="pace-capped-note">${t("pace.cappedNote", { days: PACE_MAX_DAYS })}</p>`
+    : "";
 
   const c = d.counts;
   const housingRow = privacyFieldOn(priv, "bucketHousing")
@@ -901,7 +890,7 @@ function screenHome(d) {
     ? `<button type="button" class="asset-row" data-go="stock" data-testid="bucket-stocks">
           <span class="name">${t("asset.stocks")}<span class="sub">${t("home.stocksMeta", { a: c.accounts, h: c.holdings })}</span></span>
           <span class="amt">${fmtNT(d.stocks, true)}</span>
-          <span class="delta ${stockDeltaClass}">${showToday ? t("delta.today", { delta: fmtDelta(d.dayPnL, true) }) : ""}</span>
+          <span class="delta mute">${t("home.stocksNotInPace")}</span>
           <span class="chev">›</span>
         </button>`
     : "";
@@ -935,12 +924,13 @@ function screenHome(d) {
         ${nwHtml}
         <div class="meta-row">
           ${pacePill}
-          <button type="button" class="pill accent ${state.settings.honesty === "pace" ? "pace-breathe" : ""}" id="honesty-toggle" aria-pressed="${state.settings.honesty === "pace"}">${honesty}</button>
-          ${state.settings.honesty === "pace" ? rhythmHTML("inline") : ""}
+          <span class="pill accent pace-breathe" data-testid="pace-badge">${t("home.paceBadge")}</span>
+          ${rhythmHTML("inline")}
         </div>
       </div>
       <p class="quiet-line">${t("quiet.line", { amount: `<strong>${fmtNT(Math.round(d.quietDay))}</strong>` })}</p>
       ${paceBlock}
+      ${capNote}
       <div class="spark-wrap spark-secondary">
         <div class="cap">${t("spark.cap")}</div>
         <svg viewBox="0 0 ${spark.w} ${spark.h}" preserveAspectRatio="none" aria-hidden="true">
@@ -1069,12 +1059,9 @@ function screenSettings() {
           <button type="button" data-period="month" class="${s.period === "month" ? "active" : ""}">${t("period.month.full")}</button>
         </div>
       </div>
-      <div class="settings-block">
-        <h3>${t("settings.honesty")}</h3>
-        <div class="seg" id="honesty-seg">
-          <button type="button" data-honesty="pace" class="${s.honesty === "pace" ? "active" : ""}">${t("honesty.pace")}</button>
-          <button type="button" data-honesty="actual" class="${s.honesty === "actual" ? "active" : ""}">${t("honesty.actual")}</button>
-        </div>
+      <div class="settings-block" data-testid="settings-rhythm">
+        <h3>${t("settings.rhythm")}</h3>
+        <p class="desc">${t("settings.rhythmBody", { days: PACE_MAX_DAYS })}</p>
       </div>
       <div class="settings-block">
         <div class="toggle-row">
@@ -1230,7 +1217,6 @@ function screenWidgetHome(d) {
   const priv = privacy();
   const pl = periodLabel(state.settings.period);
   const days = periodDays(state.settings.period);
-  const e = { dayPnL: d.dayPnL, periodPnL: d.periodPnL, marketValue: d.stocks };
   const dailyTd = d.dailyTdInterest;
   const base = d.netWorth;
   const moneyOpts = { compact: true, base };
@@ -1246,23 +1232,9 @@ function screenWidgetHome(d) {
   const tdAmt = Math.round(dailyTd * days);
   const passAmt = Math.round(d.passiveMonthly * (days / 30));
 
-  let stockDeltaText = "";
-  let stockDeltaClass = "";
-  if (state.settings.honesty === "actual") {
-    if (privacyFieldOn(priv, "todayActual")) {
-      const raw = deltaMoney(e.dayPnL);
-      stockDeltaText =
-        priv.displayMode === "relative" || priv.displayMode === "masked" || priv.displayMode === "rounded"
-          ? raw
-          : raw
-            ? t("delta.today", { delta: raw })
-            : "";
-      stockDeltaClass = e.dayPnL < 0 ? "down" : "";
-    }
-  } else if (privacyFieldOn(priv, "monthPace")) {
-    const raw = deltaMoney(e.periodPnL);
-    stockDeltaText = raw ? pl + " " + raw : "";
-  }
+  // Stocks never show market P&L (month rhythm only); the row just shows the holding value.
+  const stockDeltaText = "";
+  const stockDeltaClass = "";
 
   function row(fieldKey, tag, amountHtml, deltaHtml, deltaClass = "") {
     if (!privacyFieldOn(priv, fieldKey)) return "";
@@ -1339,7 +1311,7 @@ function screenWidgetHome(d) {
           </div>
           <div class="mw-body">
           ${row("bucketHousing", t("widget.housing"), amt(d.netEquity), housingDelta)}
-          ${row("bucketTwse", t("widget.stocks"), amt(e.marketValue), stockDeltaText, stockDeltaClass)}
+          ${row("bucketTwse", t("widget.stocks"), amt(d.stocks), stockDeltaText, stockDeltaClass)}
           ${row("bucketCash", t("widget.cash"), amt(d.cashTotal), cashDelta, "mute")}
           ${row("bucketPassive", t("widget.passive"), passiveAmt, passiveDelta)}
           </div>
@@ -1398,7 +1370,7 @@ function render() {
   if (route === "home") {
     const spark = sparkPath(d.quietDay);
     sparkCoords = spark.coords;
-    onEnterHome(d.quietDay);
+    onEnterHome();
   } else if (route === "widget-lock") {
     /* metronome CSS-only on lock preview; no ads */
   } else {
@@ -1414,15 +1386,6 @@ function bind() {
 
   bindItems();
 
-  const honestyToggle = document.getElementById("honesty-toggle");
-  if (honestyToggle) {
-    honestyToggle.addEventListener("click", () => {
-      state.settings.honesty =
-        state.settings.honesty === "pace" ? "actual" : "pace";
-      persist();
-      render();
-    });
-  }
 
   document.getElementById("locale-seg")?.querySelectorAll("[data-locale]").forEach((b) => {
     b.addEventListener("click", () => {
@@ -1443,13 +1406,6 @@ function bind() {
     });
   });
 
-  document.getElementById("honesty-seg")?.querySelectorAll("[data-honesty]").forEach((b) => {
-    b.addEventListener("click", () => {
-      state.settings.honesty = b.getAttribute("data-honesty");
-      persist();
-      render();
-    });
-  });
 
   const buyout = document.getElementById("buyout-toggle");
   if (buyout) {

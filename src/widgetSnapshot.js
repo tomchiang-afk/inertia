@@ -7,8 +7,14 @@
  * not show. The only numbers passed through are for optional "live" quiet
  * growth extrapolation, and only in exact / rounded modes where the absolute
  * value is already visible.
+ *
+ * Month rhythm only (v0.3.1): no market P&L anywhere. `live.base` / `live.at` are the
+ * smooth-rhythm anchor (net worth as entered + when it was entered, see pace.js), so the
+ * widget's extrapolation and the app's Home number are the same formula and never jump
+ * when the app re-pushes a snapshot.
  */
 import { derive } from "./math.js";
+import { withPace } from "./pace.js";
 import {
   normalizeWidgetPrivacy,
   privacyFieldOn,
@@ -56,8 +62,8 @@ export function buildWidgetSnapshot(state, opts = {}) {
   const fx = normalizeFx(state?.settings?.fx, "TWD");
   const ccy = fx.base;
   const symbol = currencySymbol(ccy);
-  const d = derive(state.assets, fx);
-  const base = d.netWorth;
+  const d = withPace(derive(state.assets, fx), state?.paceAnchorAt ?? now.getTime(), now);
+  const base = d.netWorth; // accrued by the smooth rhythm up to `now`
   const money = { currency: ccy };
   const pace30 = Math.round(d.periodQuiet(30));
   const noNumbers = mode === "rhythm";
@@ -94,9 +100,11 @@ export function buildWidgetSnapshot(state, opts = {}) {
       unit: t("privacy.unitWan"),
       prefix: symbol,
       currency: ccy,
-      base: Math.round(base),
+      // Anchor, not "now": native computes base + perDay × days since `at` (45-day cap),
+      // exactly like pace.js withPace(), so the number keeps growing smoothly between opens.
+      base: Math.round(d.netWorthEntered),
       perDay: Math.round(d.quietDay * 100) / 100,
-      at: now.getTime(),
+      at: d.paceAnchorAt ?? now.getTime(),
     };
   }
 

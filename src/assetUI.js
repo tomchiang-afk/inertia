@@ -13,7 +13,7 @@ import {
   accountValue,
 } from "./portfolio.js";
 import { toBase, COMMON_CURRENCIES, normalizeCurrency } from "./currency.js";
-import { fmtMoney, fmtCompact, fmtMoneyDelta, fmtNumber } from "./format.js";
+import { fmtMoney, fmtCompact, fmtNumber } from "./format.js";
 
 export function esc(str) {
   return String(str ?? "")
@@ -153,10 +153,8 @@ export function stocksList(state, d, reorder) {
         </section>`;
     })
     .join("");
-  const pnlLine =
-    state.settings.honesty === "actual"
-      ? t("stock.summaryPnl", { day: fmtMoneyDelta(d.dayPnL, undefined, true), period: fmtMoneyDelta(d.periodPnL, undefined, true) })
-      : t("stock.summary", { n: d.counts.accounts, h: d.counts.holdings });
+  // No market P&L (month rhythm only): the summary just counts accounts / holdings.
+  const pnlLine = t("stock.summary", { n: d.counts.accounts, h: d.counts.holdings });
   return `
     ${summary({ k: t("field.marketValue"), v: fmtMoney(d.stocks), sub: pnlLine }, "stocks-summary")}
     ${missingNote(d)}
@@ -237,8 +235,6 @@ export const FORM_SPECS = {
     { name: "alias", type: "text", label: "form.accountAlias", required: true },
     { name: "market", type: "market", label: "form.market" },
     { name: "currency", type: "currency", label: "form.currency" },
-    { name: "dayPnL", type: "number", label: "form.dayPnL", optional: true, money: true, allowNegative: true },
-    { name: "periodPnL", type: "number", label: "form.periodPnL", optional: true, money: true, allowNegative: true },
   ],
   holding: [
     { name: "symbol", type: "text", label: "form.symbol", max: 16, half: true },
@@ -277,7 +273,7 @@ export const SHEET_TITLES = {
 export function defaultsFor(kind, state, accountId) {
   const base = state.settings.fx.base;
   if (kind === "property") return { alias: "", currency: base, marketValue: "", mortgageBalance: 0, monthlyPrincipal: 0, interestRate: null };
-  if (kind === "account") return { alias: "", market: "TW", currency: "TWD", dayPnL: null, periodPnL: null };
+  if (kind === "account") return { alias: "", market: "TW", currency: "TWD" };
   if (kind === "holding") return { symbol: "", name: "", shares: "", price: "", costBasis: null };
   if (kind === "cash") return { alias: "", institution: "", country: "", currency: base, type: "checking", balance: "", rate: null, maturity: null };
   if (kind === "passive") return { name: "", tag: "", currency: base, amount: "", frequency: "monthly" };

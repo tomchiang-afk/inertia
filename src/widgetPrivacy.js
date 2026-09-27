@@ -17,7 +17,6 @@ export const DISPLAY_MODES = ["exact", "rounded", "relative", "rhythm", "masked"
 export const PRIVACY_FIELDS = [
   "netWorth",
   "monthPace",
-  "todayActual",
   "bucketHousing",
   "bucketTwse",
   "bucketCash",
@@ -30,7 +29,6 @@ export const DEFAULT_WIDGET_PRIVACY = {
   fields: {
     netWorth: true,
     monthPace: true,
-    todayActual: true,
     bucketHousing: true,
     bucketTwse: true,
     bucketCash: true,
