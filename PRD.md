@@ -138,6 +138,32 @@ Settings migration: `settings.honesty` and the widget privacy field `todayActual
 load and the save is rewritten once; a missing or future anchor starts at "now" (no jump on upgrade).
 No hidden advanced option was kept: nothing depended on the switch.
 
+## 7c. Widget styles, Widget tab and copy (v0.4.0 spec, 2026-09-27)
+
+- **Widget styles:** three user-selectable styles replace the 6 legacy templates.
+  - `rhythm`, Month Rhythm Minimal, is the default (design/widget-v3/B3-rhythm).
+  - `editorial`, Editorial (A-editorial).
+  - `sediment`, Sediment (C-sediment).
+  - Saved legacy templates migrate: paper/swiss/glass → rhythm, sumi → sediment,
+    noir/matrix → editorial.
+  - Every style supports the 5 privacy modes and the field toggles, keeps the dot-matrix month beat,
+    and shows only the month rhythm and a smooth trend. No daily P&L, no countdowns.
+- **Widget tab（小工具）:** a dedicated bottom tab.
+  - It shows the live preview inline (small + medium, optional lock screen).
+  - The style picker (tap to select, instant update) and privacy modes + field toggles are on the
+    same page.
+  - Widget settings no longer live in Settings. There is no separate preview window, sheet or modal.
+- **Copy:** only essential information: numbers, category names, necessary field labels, errors,
+  ad/buyout essentials and privacy mode names (at most one short line each). No explanatory
+  paragraphs, helper sentences, marketing lines or repeated hints. Applies to all 5 languages.
+- **Native widgets:**
+  - **Android:** all 3 styles in 2×2 and 4×2, following the app setting. The layout fills the cell
+    with no empty band, uses responsive layouts on API 31+, and draws bitmaps for the matrix, trend,
+    grain and serif numeral.
+  - **iOS:** WidgetKit extension sources read the shared snapshot via App Group
+    `group.app.inertia.wealth`, compiled by a macOS CI workflow.
+- **Version:** 0.4.0 (Android versionCode 5).
+
 ## 8. Quiet-day math
 
 ```

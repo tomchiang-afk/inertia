@@ -170,37 +170,58 @@ npm run android:widget-shots  # HTML mock of the RemoteViews layouts → docs/sh
 
 ## 9. Next plan (priority order)
 
-### P0: widget-v3 styles (in-app preview + Android native + iOS WidgetKit)
+### P0: v0.4.0, in progress (spec locked 2026-09-27)
 
-Implement **three user-selectable widget styles**, replacing the legacy template picker for widgets:
+**1. Three selectable widget styles.** These replace the 6 legacy templates everywhere: the in-app
+preview, Android and iOS.
 
-| Style | Design spec | Status |
+| Style id | Name（zh-TW） | Design spec |
 |---|---|---|
-| **Month Rhythm Minimal**（月節奏極簡） | [`design/widget-v3/B3-rhythm/DESIGN.md`](../design/widget-v3/B3-rhythm/DESIGN.md) | chosen (default candidate) |
-| **Editorial**（編輯風） | [`design/widget-v3/A-editorial/DESIGN.md`](../design/widget-v3/A-editorial/DESIGN.md) | chosen |
-| **Sediment**（沉積） | [`design/widget-v3/C-sediment/DESIGN.md`](../design/widget-v3/C-sediment/DESIGN.md) | chosen |
-| Instrument | [`design/widget-v3/B-instrument/DESIGN.md`](../design/widget-v3/B-instrument/DESIGN.md) | rejected, reference only |
-| Pure | [`design/widget-v3/B2-pure/DESIGN.md`](../design/widget-v3/B2-pure/DESIGN.md) | rejected, reference only |
+| `rhythm` (default) | Month Rhythm Minimal（月節奏極簡） | [`design/widget-v3/B3-rhythm/DESIGN.md`](../design/widget-v3/B3-rhythm/DESIGN.md) |
+| `editorial` | Editorial（編輯） | [`design/widget-v3/A-editorial/DESIGN.md`](../design/widget-v3/A-editorial/DESIGN.md) |
+| `sediment` | Sediment（沉積） | [`design/widget-v3/C-sediment/DESIGN.md`](../design/widget-v3/C-sediment/DESIGN.md) |
 
-Work items:
-1. **Snapshot:** add the fields the styles need, for example the month beat (days elapsed / in
-   month), the smoothed trend points, and the style id. Keep all privacy formatting in JS. Keep
-   `live.base` / `live.at` as the anchor (see PRD §7b), since every design assumes net worth grows
-   only by the smooth pace.
-2. **In-app:** a Settings style picker plus live previews per style, across the 5 privacy modes.
-   No market P&L and no countdowns.
-3. **Android native:** RemoteViews layouts per style (2×2 and 4×2). Use bitmaps for beat matrices
-   and trend lines where RemoteViews can't draw them. Keep `WidgetFormatTest` parity tests.
-4. **iOS WidgetKit extension:**
-   - Add the Capacitor iOS platform (`npx cap add ios`).
-   - Add an **App Group** (e.g. `group.app.inertia.wealth`), and have an iOS `InertiaWidget` plugin
-     write the same snapshot JSON to shared `UserDefaults`.
-   - Build SwiftUI widgets per DESIGN.md: small and medium, plus lock-screen accessory where the
-     specs define it, and a timeline every 15 min using `.contentTransition(.numericText())`.
-   - Handle light / dark / tinted / clear appearances. Call `WidgetCenter.reloadAllTimelines()` on
-     each push.
-   - Build via **macOS CI** (e.g. a GitHub Actions `macos` runner with Xcode, `xcodebuild` for the
-     app plus extension, and snapshot tests if feasible), since the build box is Linux.
+- B-instrument and B2-pure are rejected. Keep them as reference only.
+- Legacy template migration on load: paper / swiss / glass → `rhythm`; sumi → `sediment`;
+  noir / matrix → `editorial`. Anything unknown → `rhythm`.
+- All three styles keep the 5 privacy modes and the field toggles as their DESIGN.md defines them,
+  and keep the dot-matrix month beat.
+- Month rhythm and smooth trend only. No daily P&L, no countdowns.
+
+**2. New bottom tab「小工具」(Widget).** Localized in all 5 languages.
+- The tab shows the live widget preview inline on the same page (small + medium, optionally lock
+  screen).
+- The style picker sits on the same page: tap a style and the preview updates immediately.
+- Below it sit the privacy settings: the 5 modes plus the field toggles.
+- All widget settings move out of Settings, which keeps only non-widget items.
+- There is **no separate preview window, sheet or modal**; the old preview routes are removed.
+
+**3. Copy cleanup（精簡文案）.** Keep only essential information on every screen, in all 5
+languages.
+- Keep: numbers, category names, necessary field labels, errors, the ad/buyout essentials, and
+  privacy mode names (at most one short line each).
+- Remove: explanatory paragraphs, redundant labels, helper sentences, marketing-style lines and
+  repeated hints.
+- Before/after screenshots go in `docs/shots/v4-copy-{before,after}-*.png`.
+
+**4. Android native widget: all 3 styles in 2×2 and 4×2, following the app setting.**
+- Layouts must **fill the cell in a balanced, anchored way, with no empty band**. The old widget
+  left a large empty area on top in both sizes.
+- Reference cell sizes measured on a Pixel: ≈176×222 dp (2×2) and ≈368×222 dp (4×2).
+- Use responsive `RemoteViews` size maps on API 31+ and size buckets below that.
+- Render the dot matrix, trend line, grain and the Editorial serif numeral (bundled OFL Newsreader)
+  as bitmaps, within the RemoteViews bitmap memory limit.
+- Redraw every 30 min. Net worth keeps growing by the pace anchor (PRD §7b).
+
+**5. iOS WidgetKit extension sources** for the same 3 styles, reading the shared snapshot from App
+Group `group.app.inertia.wealth`.
+- Add the Capacitor iOS platform if it can be done on Linux. Otherwise ship `ios/` Swift sources and
+  a wiring README.
+- Add a **GitHub Actions macOS workflow** that runs `xcodebuild` for the simulator without signing.
+  It is committed but not pushed.
+
+**6. Version 0.4.0 (versionCode 5).** Validate on the emulator: all 3 styles on the home screen
+(2×2 + 4×2), each privacy mode for the default style, and the new Widget tab.
 
 ### P1: Capacitor iOS app shell + TestFlight
 App icons and launch screen, bundle id, signing via CI secrets (App Store Connect API key),
@@ -240,6 +261,10 @@ TestFlight internal testing, and a pass on the web UI inside WKWebView (safe are
 | 2026-09-27 | FX base switches derive from an anchor table (exact round trips). |
 | 2026-09-27 | **Month rhythm only** (v0.3.1): the today-actual switch and daily market P&L were removed from Home and widgets (and dropped from the data model). Net worth between edits grows only by the smooth pace from `paceAnchorAt` (45-day cap). App and widget share the anchor. No hidden advanced option was kept. |
 | 2026-09-27 | **iPhone is the primary target**, with a clean, minimal, Apple-native design. Widget-v3 explored 5 directions. **Chosen: B3-rhythm (Month Rhythm Minimal), A-editorial, C-sediment.** B-instrument and B2-pure were rejected (reference only). Widget-v3 work is committed in `design/widget-v3/`. |
+| 2026-09-27 | **v0.4.0 spec:** three selectable widget styles (Month Rhythm Minimal/B3 default, Editorial/A, Sediment/C). The 6 legacy templates are retired and migrated (paper/swiss/glass → rhythm, sumi → sediment, noir/matrix → editorial). |
+| 2026-09-27 | New bottom tab「小工具」holds the live preview, style picker and privacy settings inline on one page. Widget settings move out of Settings, and the separate preview window is removed. |
+| 2026-09-27 | Copy cleanup: only essential information on every screen, in all 5 languages, with no chatter（碎碎念）. |
+| 2026-09-27 | Android widget layouts must fill the cell (no empty band), with responsive layouts on API 31+ and bitmaps for the matrix, trend, grain and serif numeral. iOS WidgetKit sources plus a macOS CI compile workflow. Version 0.4.0. |
 
 ## 11. Links
 
