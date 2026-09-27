@@ -1,5 +1,7 @@
 # Inertia — Web MVP
 
+> **New engineers: start with [`docs/HANDOFF.md`](docs/HANDOFF.md)** (product intent, architecture, build/test, status, next plan, decisions log).
+
 Taiwan household asset app · local-first · multi-language UI · TWD.  
 Tagline: **Your assets keep moving.** (localizes; product name **Inertia** does not)  
 Design tokens from `/workspace/quiet-wealth-prototype/` (light `#F7F6F3`, accent `#2F5D4A`, dense rows).
