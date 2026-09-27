@@ -1,0 +1,128 @@
+/* Inertia widget v3 — Direction A "Editorial restraint" · iOS WidgetKit first
+   Mock stand-ins (open fonts): Newsreader ≈ New York (.fontDesign(.serif)); Inter ≈ SF Pro; Noto Sans TC ≈ PingFang TC */
+@font-face{font-family:"Newsreader";src:url(fonts/Newsreader-VF.woff2) format("woff2");font-weight:200 800}
+@font-face{font-family:"Newsreader";src:url(fonts/Newsreader-Italic-VF.woff2) format("woff2");font-weight:200 800;font-style:italic}
+@font-face{font-family:"Inter";src:url(fonts/Inter-VF.woff2) format("woff2");font-weight:100 900}
+@font-face{font-family:"Noto Sans TC";src:url(fonts/NotoSansTC-Regular.subset.woff2) format("woff2");font-weight:400}
+@font-face{font-family:"Noto Sans TC";src:url(fonts/NotoSansTC-Bold.subset.woff2) format("woff2");font-weight:600 700}
+@font-face{font-family:"Noto Serif TC";src:url(fonts/NotoSerifTC-Regular.subset.woff2) format("woff2");font-weight:400}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#1b1b1d;color:#eee;font-family:"Inter","Noto Sans TC",sans-serif;-webkit-font-smoothing:antialiased}
+body.capture{background:transparent}
+.page{display:flex;gap:44px;padding:32px;align-items:flex-start;flex-wrap:wrap}
+
+/* control panel */
+.panel{width:300px;font:13px/1.5 "Inter","Noto Sans TC";color:#c9c6c0}
+.panel h1{font:400 34px/1.02 "Newsreader";font-variation-settings:"opsz" 72;color:#f4f1ea;margin-bottom:8px;letter-spacing:-.01em}
+.panel h1 i{font-style:italic;color:#9c978d}
+.panel h2{font:600 10.5px/1 "Inter";letter-spacing:.12em;text-transform:uppercase;color:#7f7b74;margin:22px 0 8px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:500 12px "Inter","Noto Sans TC";background:#2a2a2d;border:0;color:#d8d5cf;padding:7px 10px;border-radius:8px;cursor:pointer}
+.seg button.on{background:#f4f1ea;color:#1d1b18}
+.note{font-size:11.5px;color:#8a867e;margin-top:10px;line-height:1.55}
+
+/* ---------- iPhone ---------- */
+.phone{position:relative;width:430px;height:932px;overflow:hidden;border-radius:56px;box-shadow:0 0 0 11px #0a0a0b,0 0 0 13px #2c2c2e,0 40px 90px rgba(0,0,0,.55);font-family:"Inter","Noto Sans TC",sans-serif;color:#fff}
+body.capture .phone{border-radius:0;box-shadow:none}
+.wall{position:absolute;inset:0;width:100%;height:100%}
+.island{position:absolute;left:50%;top:11px;width:126px;height:37px;margin-left:-63px;border-radius:19px;background:#000;z-index:5}
+.sb{position:absolute;top:0;left:0;right:0;height:54px;display:flex;justify-content:space-between;align-items:center;padding:4px 30px 0 44px;z-index:4;font:600 17px "Inter";letter-spacing:-.01em}
+.sb .r{display:flex;gap:6px;align-items:center}
+.home .wslot{position:absolute}
+.wlabel{position:absolute;width:170px;text-align:center;font:500 12px/1 "Inter","Noto Sans TC";color:rgba(255,255,255,.92);text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.app{position:absolute;width:64px;text-align:center;font:500 12px/1 "Inter","Noto Sans TC";color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+.app .ic{width:64px;height:64px;border-radius:15px;margin-bottom:6px;overflow:hidden;position:relative;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.app .ic svg{position:absolute;inset:0;width:100%;height:100%}
+.app span{white-space:nowrap;margin-left:-20px;margin-right:-20px;display:block}
+.dock{position:absolute;left:14px;right:14px;bottom:14px;height:94px;border-radius:36px;background:rgba(255,255,255,.22);backdrop-filter:blur(30px) saturate(1.4);-webkit-backdrop-filter:blur(30px) saturate(1.4)}
+.dock .app span{display:none}
+.searchpill{position:absolute;left:50%;bottom:124px;transform:translateX(-50%);height:30px;padding:0 13px;border-radius:15px;background:rgba(255,255,255,.2);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);font:500 13px/30px "Inter","Noto Sans TC";color:rgba(255,255,255,.95);display:flex;gap:5px;align-items:center}
+.homebar{position:absolute;bottom:8px;left:50%;width:140px;height:5px;margin-left:-70px;border-radius:3px;background:rgba(255,255,255,.9);z-index:6}
+body.m-light .homebar{background:rgba(0,0,0,.8)}
+/* tinted home: icons become monochrome tint */
+.tinted .app .ic{filter:grayscale(1) brightness(.9) sepia(1) hue-rotate(-12deg) saturate(1.5) brightness(.95);}
+.tinted .dock{background:rgba(40,36,30,.35)}
+
+/* ---------- WIDGET (iOS) ---------- */
+.wg{position:relative;overflow:hidden;border-radius:22px;
+  --bg:#F7F4EE;--t1:#1D1B18;--t2:#8B857A;--t3:#B9B2A6;--track:#E6E0D6;--acc:#C3402A;
+  background:var(--bg);color:var(--t1);font-family:"Inter","Noto Sans TC",sans-serif;font-size:12px;line-height:1.2}
+.wg.dark{--bg:#161513;--t1:#F3EFE7;--t2:#8F897E;--t3:#5E5951;--track:#2C2A26;--acc:#F0775E}
+.wg.tinted{--bg:rgba(30,26,20,.28);--t1:#F3D3A6;--t2:rgba(243,211,166,.58);--t3:rgba(243,211,166,.35);--track:rgba(243,211,166,.22);--acc:#F3D3A6;
+  backdrop-filter:blur(26px) saturate(1.2);-webkit-backdrop-filter:blur(26px) saturate(1.2)}
+.wg .grain{position:absolute;inset:0;background-size:100% 100%;pointer-events:none}
+.wg.tinted .grain{display:none}
+.wg .a{position:absolute}
+.lbl{font:400 12px/1 "Noto Sans TC","Inter";color:var(--t2);letter-spacing:.04em;white-space:nowrap}
+.hero{font-family:"Newsreader";font-weight:380;font-variation-settings:"opsz" 72;font-feature-settings:"lnum","tnum";letter-spacing:-.02em;line-height:1;white-space:nowrap;color:var(--t1)}
+.hero .cur{font:400 .34em/1 "Newsreader";font-variation-settings:"opsz" 16;letter-spacing:.02em;color:var(--t2);margin-right:.12em;vertical-align:.95em}
+.hero .unit{font:400 .38em/1 "Noto Sans TC";color:var(--t1);margin-left:.08em;letter-spacing:0}
+.hero .pct{font-size:.52em;margin-left:.03em;vertical-align:.62em;color:var(--t1)}
+.hero .dots{display:inline-flex;gap:.22em;vertical-align:.18em;padding-left:.04em}
+.hero .dots i{display:block;width:.17em;height:.17em;border-radius:50%;background:currentColor}
+.hero.words{font:400 26px/1.1 "Noto Serif TC";letter-spacing:.1em}
+.num{font-family:"Newsreader";font-variation-settings:"opsz" 16;font-feature-settings:"lnum","tnum";font-weight:450;white-space:nowrap}
+.pace{display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+.pace .num{font-size:15px;color:var(--acc)}
+.pace .lbl{font-size:11px}
+.row{display:flex;align-items:baseline;justify-content:space-between;white-space:nowrap}
+.row .lbl{font-size:11px}
+.row .num{font-size:13.5px;color:var(--t1)}
+.row .num small,.pace .num small{font:400 .72em "Noto Sans TC";margin-left:1px;color:var(--t2)}
+.hair{position:absolute;height:1px;background:var(--track);border-radius:1px;overflow:visible}
+.hair .fill{position:absolute;left:0;top:0;bottom:0;background:var(--t1);border-radius:1px}
+.hair .fill::after{content:"";position:absolute;right:-1.5px;top:-1.5px;width:4px;height:4px;border-radius:50%;background:var(--acc)}
+.foot{display:flex;justify-content:space-between;align-items:baseline;white-space:nowrap}
+.foot .lbl{font-size:11px}
+.foot .num{font-size:12.5px;color:var(--t1)}
+.ticks{display:flex;align-items:flex-end;justify-content:space-between}
+.ticks i{display:block;width:1.2px;background:var(--t1);opacity:.55;border-radius:1px}
+.ticks i.today{background:var(--acc);opacity:1;width:1.6px}
+.ticks i.fut{background:var(--t3);opacity:.6}
+.roll{display:inline-block;position:relative}
+.roll .o{position:absolute;left:0;top:0}
+.shimmer{animation:none}
+
+/* lock screen accessories (vibrant monochrome) */
+.acc{position:absolute;color:#fff}
+.acc .l2{color:rgba(255,255,255,.62)}
+.rect{width:172px;height:76px}
+.rect .lblx{font:600 12px/1 "Noto Sans TC","Inter";color:rgba(255,255,255,.62);letter-spacing:.04em}
+.rect .big{font-family:"Newsreader";font-weight:450;font-variation-settings:"opsz" 48;font-feature-settings:"lnum","tnum";font-size:30px;line-height:1;letter-spacing:-.015em;white-space:nowrap}
+.rect .big .unit{font:600 13px "Noto Sans TC";margin-left:2px}
+.rect .big .cur{font:500 11px "Newsreader";vertical-align:13px;margin-right:2px;color:rgba(255,255,255,.62)}
+.rect .ln{position:absolute;left:0;right:0;bottom:4px;display:flex;align-items:center;gap:6px;font:500 11px/1 "Inter","Noto Sans TC";white-space:nowrap}
+.rect .ln .tr{flex:1;height:1.5px;background:rgba(255,255,255,.28);border-radius:1px;position:relative}
+.rect .ln .tr b{position:absolute;left:0;top:0;bottom:0;background:#fff;border-radius:1px}
+.circ{width:76px;height:76px;border-radius:50%;background:rgba(255,255,255,.14)}
+.circ > svg{position:absolute;inset:0}
+.circ .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.circ .c .v{font-family:"Newsreader";font-weight:500;font-variation-settings:"opsz" 24;font-feature-settings:"lnum","tnum";font-size:14.5px;letter-spacing:-.02em}
+.circ .c .k{font:600 9px "Noto Sans TC";color:rgba(255,255,255,.65);margin-top:3px;letter-spacing:.06em}
+.inline{font:600 17px/1 "Inter","Noto Sans TC";color:rgba(255,255,255,.9);white-space:nowrap}
+.lockclock{position:absolute;left:0;right:0;text-align:center;font:600 104px/1 "Inter";letter-spacing:-.02em;color:rgba(255,255,255,.92);font-variation-settings:"opsz" 32}
+
+/* sheet */
+.sheet{background:#E9E5DD;color:#1d1b18;padding:30px 34px 36px;display:inline-block}
+.sheet h3{font:400 30px/1 "Newsreader";font-variation-settings:"opsz" 72;margin-bottom:6px}
+.sheet h3 i{color:#8b857a}
+.sheet .sub{font:400 12px/1.4 "Inter","Noto Sans TC";color:#6d675e;margin-bottom:22px}
+.sheet .grid{display:grid;grid-template-columns:110px auto auto auto auto 292px;gap:18px 20px;align-items:center}
+.sheet .colh{font:600 10px/1 "Inter";letter-spacing:.12em;text-transform:uppercase;color:#8b857a}
+.sheet .lab{font:400 13px/1.4 "Noto Sans TC"}
+.sheet .lab b{display:block;font:600 10px/1.6 "Inter";letter-spacing:.12em;text-transform:uppercase;color:#8b857a}
+.sheet .lockbg{position:relative;width:292px;height:96px;border-radius:18px;background:linear-gradient(135deg,#2b3a55,#6b5a70 60%,#b07a6a)}
+
+/* v3.1 month-rhythm additions */
+.pace .of{color:var(--t3);font-size:11px}
+.pace .lbl:first-child{margin-right:1px}
+.mx{position:relative}
+.mx i{position:absolute;border-radius:50%;background:var(--track);display:block}
+.mx i.on{background:var(--t1);opacity:.82}
+.mx i.lead{background:var(--acc)}
+.wg.tinted .mx i.on{opacity:1}
+.lockmx .mx i{background:rgba(255,255,255,.28)}
+.lockmx .mx i.on{background:#fff;opacity:.9}
+.lockmx .mx i.lead{background:#fff}
+.circ .c .v small{font:600 9px "Noto Sans TC";margin-left:1px}

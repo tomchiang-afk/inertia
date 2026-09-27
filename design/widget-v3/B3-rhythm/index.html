@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inertia widget v3 · B3 · Rhythm 節奏</title>
+<style>
+/* Mock stand-in for SF Pro (system): Inter (OFL). CJK: Noto Sans TC stands in for PingFang TC. */
+@font-face{font-family:"InterV";src:url(fonts/Inter-Variable.ttf);font-weight:100 900}
+:root{--sf:"InterV","Noto Sans TC","Noto Sans CJK TC",system-ui,sans-serif;--tc:"Noto Sans TC","Noto Sans CJK TC",sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#111;color:#ddd;font-family:var(--sf);-webkit-font-smoothing:antialiased}
+body.v-controls{display:flex;gap:32px;padding:24px;justify-content:center;align-items:flex-start;min-height:100vh}
+body.v-controls #root{display:contents}
+body:not(.v-controls){background:transparent}
+.num{font-feature-settings:"tnum" 1,"cv11" 1;font-variant-numeric:tabular-nums}
+
+/* ---------- controls ---------- */
+.panel{width:290px;font:13px/1.55 var(--sf);color:#c8c8cc}
+.panel h1{font:700 26px var(--sf);color:#fff;letter-spacing:-.4px}
+.panel h2{font:600 11px var(--sf);letter-spacing:.08em;color:#8e8e93;margin:18px 0 8px;text-transform:uppercase}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{background:#2c2c2e;color:#e5e5ea;border:0;border-radius:9px;padding:6px 11px;font:500 13px var(--sf);cursor:pointer}
+.seg button.on{background:#fff;color:#000}
+.panel p{color:#98989d;font-size:12px;margin-top:6px}
+.panel code{font:12px ui-monospace,monospace;color:#9fd4b5}
+
+/* ---------- phone ---------- */
+.phone{position:relative;width:430px;height:932px;border-radius:55px;overflow:hidden;flex:none;box-shadow:0 0 0 10px #0a0a0a,0 0 0 11px #3a3a3c,0 30px 90px rgba(0,0,0,.55)}
+body.v-home .phone,body.v-lock .phone{border-radius:0;box-shadow:none}
+.wall{position:absolute;inset:0}
+.wp-light{background:
+  radial-gradient(90% 55% at 15% 12%,#f6d9c8 0%,rgba(246,217,200,0) 60%),
+  radial-gradient(80% 60% at 95% 35%,#cfd8f2 0%,rgba(207,216,242,0) 60%),
+  radial-gradient(100% 60% at 30% 90%,#d7e8df 0%,rgba(215,232,223,0) 60%),
+  linear-gradient(180deg,#efe7e3,#e3e6ef 55%,#dfe8e3)}
+.wp-dark{background:
+  radial-gradient(90% 55% at 15% 10%,#3b2a3a 0%,rgba(59,42,58,0) 60%),
+  radial-gradient(80% 60% at 95% 40%,#1f2d4a 0%,rgba(31,45,74,0) 60%),
+  radial-gradient(100% 60% at 30% 95%,#16322b 0%,rgba(22,50,43,0) 60%),
+  linear-gradient(180deg,#171419,#101521 55%,#0d1614)}
+.wp-tinted{background:
+  radial-gradient(90% 55% at 20% 10%,#2a2319 0%,rgba(42,35,25,0) 60%),
+  radial-gradient(90% 60% at 90% 60%,#1d1a14 0%,rgba(29,26,20,0) 60%),linear-gradient(180deg,#14120f,#0d0c0a)}
+.wp-lock{background:
+  radial-gradient(70% 45% at 70% 18%,#5b6f8f 0%,rgba(91,111,143,0) 70%),
+  radial-gradient(90% 60% at 10% 70%,#6d5563 0%,rgba(109,85,99,0) 65%),
+  radial-gradient(100% 50% at 60% 100%,#2d4a44 0%,rgba(45,74,68,0) 70%),
+  linear-gradient(180deg,#26324a,#2b2533 55%,#1a2624)}
+.status{position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:4px 34px 0 50px;font:600 17px var(--sf);letter-spacing:-.2px}
+.island{position:absolute;top:11px;left:50%;width:126px;height:37px;margin-left:-63px;background:#000;border-radius:20px}
+.light-ui{color:#000}.dark-ui{color:#fff}
+.status .ic{display:flex;gap:6px;align-items:center}
+.app{position:absolute;width:64px;text-align:center}
+.app .i{width:64px;height:64px;border-radius:15px;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.app .l{font:500 12px var(--sf);margin-top:5px;white-space:nowrap;margin-left:-10px;margin-right:-10px}
+.light-ui .app .l{color:#1c1c1e}.dark-ui .app .l,.tint-ui .app .l{color:#fff}
+.tint-ui .app .i{background:#1d1b17 !important;color:#EBC98F}
+.clear-ui .app .i{background:rgba(255,255,255,.16) !important;backdrop-filter:blur(14px) saturate(1.4);box-shadow:inset 0 0 0 .6px rgba(255,255,255,.35)}
+.searchp{position:absolute;left:50%;top:770px;width:86px;height:30px;margin-left:-43px;border-radius:15px;display:flex;align-items:center;justify-content:center;gap:5px;font:500 13px var(--sf)}
+.light-ui .searchp{background:rgba(255,255,255,.45);color:#3a3a3c;backdrop-filter:blur(20px)}
+.dark-ui .searchp,.tint-ui .searchp,.clear-ui .searchp{background:rgba(255,255,255,.14);color:#f2f2f7;backdrop-filter:blur(20px)}
+.dock{position:absolute;left:14px;right:14px;top:814px;height:96px;border-radius:38px;backdrop-filter:blur(26px) saturate(1.6)}
+.light-ui .dock{background:rgba(255,255,255,.38)}
+.dark-ui .dock,.tint-ui .dock,.clear-ui .dock{background:rgba(255,255,255,.12)}
+.homebar{position:absolute;bottom:8px;left:50%;width:140px;height:5px;margin-left:-70px;border-radius:3px}
+.light-ui .homebar{background:#000}.dark-ui .homebar,.tint-ui .homebar,.clear-ui .homebar,.lock-ui .homebar{background:#fff}
+
+/* ---------- widget container (containerBackground) ---------- */
+.wg{position:absolute;border-radius:22px;overflow:hidden;font-family:var(--sf)}
+.wg.light{background:linear-gradient(180deg,#FFFFFF 0%,#F4F5F3 100%);color:#000;box-shadow:0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(40,40,60,.08)}
+.wg.dark{background:linear-gradient(180deg,#232325 0%,#161618 100%);color:#fff}
+.wg.tinted{background:linear-gradient(180deg,#1f1d19 0%,#171512 100%);color:#EBC98F}
+.wg.clear{background:rgba(255,255,255,.10);backdrop-filter:blur(22px) saturate(1.5);color:#fff;box-shadow:inset 0 0 0 .6px rgba(255,255,255,.34),inset 0 1px 0 rgba(255,255,255,.28)}
+.wg .pad{position:absolute;inset:16px;display:flex;flex-direction:column}
+/* semantic colours */
+.light{--p:#000;--s:rgba(60,60,67,.60);--t:rgba(60,60,67,.30);--track:rgba(60,60,67,.12);--acc:#2E7D5B;--sep:rgba(60,60,67,.12)}
+.dark{--p:#fff;--s:rgba(235,235,245,.60);--t:rgba(235,235,245,.30);--track:rgba(235,235,245,.14);--acc:#5DC596;--sep:rgba(235,235,245,.10)}
+.tinted{--p:#EBC98F;--s:rgba(235,201,143,.58);--t:rgba(235,201,143,.30);--track:rgba(235,201,143,.16);--acc:#EBC98F;--sep:rgba(235,201,143,.14)}
+.clear{--p:#fff;--s:rgba(255,255,255,.66);--t:rgba(255,255,255,.36);--track:rgba(255,255,255,.22);--acc:#fff;--sep:rgba(255,255,255,.16)}
+.vib{--p:rgba(255,255,255,.96);--s:rgba(255,255,255,.62);--t:rgba(255,255,255,.34);--track:rgba(255,255,255,.24);--acc:#fff;--sep:rgba(255,255,255,.18)}
+
+.lab{font:600 13px var(--sf);color:var(--s);letter-spacing:-.08px;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.lab .cur{font-weight:500;color:var(--t)}
+.hero{font-weight:600;color:var(--p);letter-spacing:-.6px;line-height:1.05;white-space:nowrap}
+.pace{font:600 13px var(--sf);color:var(--acc);display:flex;gap:4px;align-items:center;white-space:nowrap}
+.pace .n{color:var(--s);font-weight:500}
+.row{display:flex;justify-content:space-between;align-items:baseline;white-space:nowrap}
+.foot{font:600 12px var(--sf);color:var(--p)}
+.foot .k{color:var(--s);font-weight:500;margin-right:4px}
+.line{position:relative;height:2px;border-radius:1px;background:var(--track);margin-top:7px;overflow:hidden}
+.line i{position:absolute;left:0;top:0;bottom:0;background:var(--acc);border-radius:1px}
+.ticks{position:relative;height:4px;margin-top:3px}
+.ticks b{position:absolute;top:0;width:1px;height:3px;background:var(--t)}
+.cats{display:flex;flex-direction:column;justify-content:space-between;height:100%}
+.cat{display:flex;justify-content:space-between;align-items:baseline;white-space:nowrap}
+.cat .k{font:500 13px var(--sf);color:var(--s)}
+.cat .v{font:600 15px var(--sf);color:var(--p);letter-spacing:-.2px}
+.cat .v small{font-size:11px;color:var(--s);font-weight:500;margin-left:1px}
+.vsep{width:.5px;background:var(--sep);align-self:stretch;margin:2px 0}
+.days{display:flex;gap:2.2px;margin-top:10px}
+.days i{flex:1;height:14px;border-radius:2px;background:var(--track)}
+.days i.on{background:var(--s)}
+.days i.today{background:var(--acc)}
+/* rolling digits (.contentTransition(.numericText())) */
+.roll{display:inline-flex;align-items:baseline}
+.roll .d{position:relative;display:inline-block;overflow:visible}
+.roll .d .o{position:absolute;left:0;top:0}
+
+/* ---------- lock screen ---------- */
+.lockdate{position:absolute;top:78px;left:0;right:0;text-align:center;font:600 21px var(--sf);color:rgba(255,255,255,.92);letter-spacing:-.1px}
+.lockdate .inl{opacity:.92;font-weight:600}
+.locktime{position:absolute;top:92px;left:0;right:0;text-align:center;font:600 112px/1 var(--sf);color:rgba(255,255,255,.93);letter-spacing:-3px}
+.acc{position:absolute}
+.acc.circ{width:76px;height:76px;border-radius:50%;background:rgba(255,255,255,.14);backdrop-filter:blur(18px)}
+.acc.rect{width:172px;height:76px}
+.lbtn{position:absolute;top:824px;width:50px;height:50px;border-radius:25px;background:rgba(40,40,46,.45);backdrop-filter:blur(18px);display:flex;align-items:center;justify-content:center;color:#fff}
+
+/* sheet */
+.sheet{position:relative;display:inline-block;padding:30px 32px 36px;overflow:hidden}
+.sheet h3{position:relative;font:700 28px var(--sf);letter-spacing:-.5px}
+.sheet .sub{position:relative;font:500 13px var(--sf);opacity:.6;margin-top:3px}
+.sheet .mode{position:relative;display:flex;gap:10px;align-items:baseline;font:600 13px var(--sf);margin:22px 0 10px}
+.sheet .mode span{opacity:.55;font-weight:500}
+.sheet .r{position:relative;display:flex;gap:18px;align-items:center}
+.slot{position:relative;flex:none}
+.lockstrip{position:relative;border-radius:22px;overflow:hidden;width:374px;height:170px}
+.accel{position:absolute;top:700px;right:33px;font:600 11px var(--sf);padding:4px 8px;border-radius:8px;background:rgba(0,0,0,.55);color:#fff;letter-spacing:.02em;backdrop-filter:blur(10px)}
+
+/* ---------- B3 additions ---------- */
+.dots{display:grid;gap:var(--gy) var(--gx)}
+.dot{width:var(--ds);height:var(--ds);border-radius:50%;background:var(--track);position:relative}
+.dot.lit{background:var(--acc)}
+.dot .halo{position:absolute;inset:0;border-radius:50%;pointer-events:none}
+.sb{font:500 12px var(--sf);color:var(--s);white-space:nowrap}
+.sb b{font-weight:600;color:var(--p)}
+.tiny{font:500 11px var(--sf);color:var(--t);white-space:nowrap}
+.trend{position:relative}
+.trend svg{position:absolute;inset:0;overflow:visible}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+/* =====================================================================
+   Inertia widget v3 · B3 · Rhythm
+   Founding intent: long-term investors should feel the SMOOTH trend, never short-term moves.
+   No daily P&L, no countdowns, no market ticks. Motion = WidgetKit timeline transitions only:
+   [data-roll]  → Text(nw).contentTransition(.numericText(value: nw))   rolls on each 30-min entry
+   .dot.today   → today's dot: fill level + halo alternate per entry, animated with
+                  .animation(.easeInOut(duration: 1.2), value: entry.date)  (the "breath")
+   day change   → the 00:00 entry lights the next dot (.transition(.scale.combined(with: .opacity)))
+   trend        → Swift Charts LineMark/AreaMark .interpolationMethod(.monotone), static per day
+   ===================================================================== */
+const Q = new URLSearchParams(location.search);
+const S = { app: Q.get('app') || 'light', mode: Q.get('mode') || 'exact', view: Q.get('view') || 'controls', accel: +(Q.get('accel') || 1), capture: Q.has('capture') };
+const BASE = new Date(2026, 8, 27, 22, 7, 20).getTime();       // Sun 27 Sep 2026 22:07:20 Taipei
+const ANCHOR = new Date(2026, 8, 27, 22, 0, 0).getTime();       // net worth = 16,470,000 at this entry
+const ENTRY = 30 * 60 * 1000, ROLL_MS = 520, BREATH_MS = 1200;
+const D = { nw: 16470000, perDay: 1720, pace: 51600, days: 30,
+  goal: { name: '換屋頭期款', short: '換屋', pct: .82 },
+  src: '房貸還本 · 存款利息 · 被動收入',
+  // month-end net worth, smoothed (12-month), Oct 2025 → Sep 2026, in NT$M; monotone by construction
+  trend: [15.20, 15.30, 15.41, 15.51, 15.60, 15.71, 15.82, 15.94, 16.05, 16.18, 16.31, 16.47],
+  months: ['10月', '11月', '12月', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月'] };
+const n0 = v => Math.round(v).toLocaleString('en-US');
+const wan = v => (v >= 1e6 ? n0(v / 1e4) : (v / 1e4).toFixed(1)) + ' 萬';
+
+const entryStart = vt => Math.floor(vt / ENTRY) * ENTRY;
+function state(et) {           // everything the widget shows for a timeline entry at time et
+  const d = new Date(et), day = d.getDate(), frac = (d.getHours() * 60 + d.getMinutes()) / 1440;
+  return { et, nw: D.nw + D.perDay * (et - ANCHOR) / 86400e3, day, frac, breath: Math.round(et / ENTRY) % 2 };
+}
+function fmt(mode, v) {
+  return {
+    exact:    { lab: '本月節奏', hero: () => '+NT$51.6k', heroNote: '本月', nwLab: '淨資產', nw: () => n0(v.nw), nwCur: 'NT$', circ: '51.6k', inline: '本月 +NT$51.6k', goal: '82%', trendNote: '近 12 個月 · +8.4%' },
+    rounded:  { lab: '本月節奏', hero: () => '+5.2 萬', heroNote: '本月', nwLab: '淨資產', nw: () => wan(v.nw), nwCur: 'NT$', circ: '5 萬', inline: '本月 +5.2 萬', goal: '82%', trendNote: '近 12 個月 · +127 萬' },
+    relative: { lab: '本月節奏', hero: () => '+0.31%', heroNote: '本月', nwLab: '近 12 個月', nw: () => '+8.4%', nwCur: '', circ: '0.31%', inline: '本月 +0.31%', goal: '82%', trendNote: '近 12 個月 · +8.4%' },
+    rhythm:   { lab: '本月節奏', hero: null, heroNote: '', nwLab: '', nw: null, nwCur: '', circ: null, inline: '本月節奏 · 穩定前進', goal: null, trendNote: '近 12 個月' },
+    masked:   { lab: '本月節奏', hero: () => '+NT$••••', heroNote: '本月', nwLab: '淨資產', nw: () => '••••••', nwCur: 'NT$', circ: '••', inline: '本月 +NT$••••', goal: '••%', trendNote: '近 12 個月' },
+  }[mode];
+}
+const V0 = state(entryStart(BASE));
+
+/* ---------- pieces ---------- */
+const roll = (key, cls = '', style = '') => `<span class="roll num ${cls}" data-roll="${key}" style="${style}"></span>`;
+const glyph = s => `<svg width="${s}" height="${s}" viewBox="0 0 16 16" style="flex:none"><g fill="currentColor"><circle cx="3" cy="8" r="1.7"/><circle cx="8" cy="8" r="1.7"/><circle cx="13" cy="8" r="1.7" opacity=".4"/></g></svg>`;
+// month dot-matrix: one dot per day. cols×rows grid, filled in reading order
+const dotsHTML = (cols, rows, ds, gx, gy) => `<div class="dots" data-dots style="--ds:${ds}px;--gx:${gx}px;--gy:${gy}px;grid-template-columns:repeat(${cols},${ds}px)">${Array.from({ length: cols * rows }, (_, i) => `<i class="dot" data-d="${i + 1}"><span class="halo"></span></i>`).join('')}</div>`;
+
+function monotonePath(pts) {    // Fritsch–Carlson monotone cubic → SVG path (== Charts .monotone)
+  const n = pts.length, dx = [], m = [], t = [];
+  for (let i = 0; i < n - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; m[i] = (pts[i + 1][1] - pts[i][1]) / dx[i]; }
+  t[0] = m[0]; t[n - 1] = m[n - 2];
+  for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+  for (let i = 0; i < n - 1; i++) { if (m[i] === 0) { t[i] = t[i + 1] = 0; continue; } const a = t[i] / m[i], b = t[i + 1] / m[i], h = a * a + b * b; if (h > 9) { const s = 3 / Math.sqrt(h); t[i] = s * a * m[i]; t[i + 1] = s * b * m[i]; } }
+  let d = `M${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+  for (let i = 0; i < n - 1; i++) { const h = dx[i] / 3; d += ` C${(pts[i][0] + h).toFixed(2)} ${(pts[i][1] + t[i] * h).toFixed(2)} ${(pts[i + 1][0] - h).toFixed(2)} ${(pts[i + 1][1] - t[i + 1] * h).toFixed(2)} ${pts[i + 1][0].toFixed(2)} ${pts[i + 1][1].toFixed(2)}`; }
+  return d;
+}
+let gid = 0;
+function trendSVG(w, h, opts = {}) {
+  const lo = Math.min(...D.trend), hi = Math.max(...D.trend), pad = opts.pad ?? 4;
+  const pts = D.trend.map((v, i) => [i / (D.trend.length - 1) * (w - pad * 2) + pad, h - pad - (v - lo) / (hi - lo) * (h - pad * 2)]);
+  const line = monotonePath(pts), id = 'g' + (gid++), [ex, ey] = pts[pts.length - 1];
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--acc)" stop-opacity="${opts.area ?? .16}"/><stop offset="1" stop-color="var(--acc)" stop-opacity="0"/></linearGradient></defs>
+    ${opts.noArea ? '' : `<path d="${line} L${ex} ${h} L${pts[0][0]} ${h}Z" fill="url(#${id})"/>`}
+    <path d="${line}" fill="none" stroke="var(--acc)" stroke-width="${opts.sw ?? 1.8}" stroke-linecap="round"/>
+    <circle cx="${ex}" cy="${ey}" r="${opts.er ?? 3}" fill="var(--acc)"/><circle cx="${ex}" cy="${ey}" r="${(opts.er ?? 3) + 2.5}" fill="var(--acc)" opacity=".18"/>
+  </svg>`;
+}
+
+/* ---------- families ---------- */
+function small(app, mode, x, y) {
+  const f = fmt(mode, V0);
+  const top = `<div class="row"><div class="lab">${glyph(13)}<span>${f.lab}</span></div><span class="tiny num">9月</span></div>`;
+  const hero = f.hero
+    ? `<div class="hero num" style="font-size:25px;margin-top:7px;color:var(--acc)">${f.hero()}</div>
+       <div class="sb" style="margin-top:3px">${f.nw ? `${f.nwLab} <b>${f.nwCur ? '' : ''}${roll('nw')}</b>` : ''}</div>`
+    : `<div class="hero" style="font-size:22px;margin-top:7px;letter-spacing:-.3px">穩定前進</div><div class="sb" style="margin-top:3px">第 <span data-daynum>27</span> 天 · 共 30 天</div>`;
+  return `<div class="wg ${app}" data-mode="${mode}" style="left:${x}px;top:${y}px;width:170px;height:170px"><div class="pad">${top}${hero}<div style="flex:1"></div>${dotsHTML(10, 3, 8, 5.33, 5)}</div></div>`;
+}
+function medium(app, mode, x, y) {
+  const f = fmt(mode, V0);
+  const left = f.hero
+    ? `<div class="lab">${glyph(13)}<span>${f.lab}</span></div>
+       <div class="hero num" style="font-size:30px;margin-top:7px;color:var(--acc)">${f.hero()}</div>
+       <div class="tiny" style="margin-top:3px">${D.src}</div>
+       <div class="sb" style="margin-top:9px">${f.nwLab} ${f.nwCur ? `<span style="color:var(--t)">${f.nwCur}</span>` : ''}<b>${roll('nw')}</b></div>`
+    : `<div class="lab">${glyph(13)}<span>${f.lab}</span></div>
+       <div class="hero" style="font-size:26px;margin-top:7px;letter-spacing:-.3px">穩定前進</div>
+       <div class="tiny" style="margin-top:3px">${D.src}</div>
+       <div class="sb" style="margin-top:9px">第 <span data-daynum>27</span> 天 · 共 30 天</div>`;
+  const right = `<div class="row"><span class="tiny">${f.trendNote}</span></div>
+    <div class="trend" style="height:62px;margin-top:4px">${trendSVG(150, 62)}</div>
+    <div class="row" style="margin-top:2px"><span class="tiny" style="font-size:10px">${D.months[0]}</span><span class="tiny" style="font-size:10px">${D.months[11]}</span></div>`;
+  return `<div class="wg ${app}" data-mode="${mode}" style="left:${x}px;top:${y}px;width:364px;height:170px"><div class="pad">
+    <div style="display:flex;gap:16px"><div style="flex:1;min-width:0">${left}</div><div style="width:150px;flex:none">${right}</div></div>
+    <div style="flex:1"></div>${dotsHTML(30, 1, 7, 4.2, 0)}</div></div>`;
+}
+function accRect(mode, x, y) {
+  const f = fmt(mode, V0);
+  return `<div class="acc rect vib" data-mode="${mode}" style="left:${x}px;top:${y}px"><div style="display:flex;flex-direction:column;height:100%;justify-content:center">
+    <div class="lab" style="color:var(--p);font-size:13px">${glyph(12)}<span>${f.lab}</span></div>
+    <div class="hero num" style="font-size:${f.hero ? 21 : 18}px;margin-top:2px">${f.hero ? f.hero() : '穩定前進'}</div>
+    <div style="margin-top:6px">${dotsHTML(30, 1, 3.8, 2, 0)}</div></div></div>`;
+}
+function accDotRing(mode, x, y) {   // 30 dots around the circle, one per day
+  const f = fmt(mode, V0);
+  let dots = '';
+  for (let i = 0; i < 30; i++) { const a = (i / 30) * Math.PI * 2 - Math.PI / 2; dots += `<i class="dot" data-d="${i + 1}" style="position:absolute;left:${(38 + 30 * Math.cos(a) - 2.1).toFixed(2)}px;top:${(38 + 30 * Math.sin(a) - 2.1).toFixed(2)}px"><span class="halo"></span></i>`; }
+  return `<div class="acc circ vib" data-mode="${mode}" style="left:${x}px;top:${y}px;--ds:4.2px"><div data-dots style="position:absolute;inset:0">${dots}</div>
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+    <div style="font:600 10px var(--sf);color:var(--s)">${f.circ ? '本月' : '9月'}</div>
+    <div class="num" style="font:700 ${f.circ && f.circ.length > 4 ? 13 : 16}px var(--sf);color:var(--p);letter-spacing:-.3px">${f.circ || '<span data-daynum>27</span>'}</div></div></div>`;
+}
+function accTrend(mode, x, y) {     // circular: smooth 12-month trend
+  return `<div class="acc circ vib" data-mode="${mode}" style="left:${x}px;top:${y}px"><div style="position:absolute;left:14px;top:20px;width:48px;height:26px">${trendSVG(48, 26, { pad: 3, sw: 2, er: 2.2, noArea: true })}</div>
+    <div style="position:absolute;left:0;right:0;bottom:13px;text-align:center;font:600 10px var(--sf);color:var(--s)">12 個月</div></div>`;
+}
+
+/* ---------- screens ---------- */
+function homeHTML() {
+  const a = S.app, ui = a === 'light' ? 'light-ui' : a === 'dark' ? 'dark-ui' : a === 'tinted' ? 'tint-ui' : 'clear-ui';
+  const wp = a === 'light' ? 'wp-light' : a === 'dark' ? 'wp-dark' : a === 'tinted' ? 'wp-tinted' : 'wp-lock';
+  const X = [33, 133, 233, 333];
+  return `<div class="phone ${ui}"><div class="wall ${wp}"></div>${statusBar()}
+    ${small(a, S.mode, 33, 70)}
+    ${app(X[2], 72, 'cal', '行事曆')}${app(X[3], 72, 'photo', '照片')}
+    ${app(X[2], 170, 'bus', '台北等公車')}${app(X[3], 170, 'wallet', '錢包')}
+    ${medium(a, S.mode, 33, 272)}
+    ${app(X[0], 474, 'map', '地圖')}${app(X[1], 474, 'note', '備忘錄')}${app(X[2], 474, 'clock', '時鐘')}${app(X[3], 474, 'gear', '設定')}
+    ${app(X[0], 572, 'cam', '相機')}${app(X[1], 572, 'music', '音樂')}
+    <div class="searchp"><svg width="12" height="12" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="3"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>搜尋</div>
+    <div class="dock"></div>${app(X[0], 830, 'phone')}${app(X[1], 830, 'msg')}${app(X[2], 830, 'web')}${app(X[3], 830, 'cam')}
+    <div class="homebar"></div>${S.accel > 1 ? `<div class="accel">時間加速 ×${S.accel}</div>` : ''}</div>`;
+}
+function lockHTML() {
+  const f = fmt(S.mode, V0);
+  return `<div class="phone lock-ui"><div class="wall wp-lock"></div><div class="dark-ui">${statusBar()}</div>
+    <div class="lockdate"><span data-date>9月27日 星期日</span> <span class="inl">· ${glyph(15).replace('<svg', '<svg style="vertical-align:-2px"')} ${f.inline}</span></div>
+    <div class="locktime num" style="top:112px" data-clock>22:07</div>
+    ${accDotRing(S.mode, 40, 262)}${accTrend(S.mode, 128, 262)}${accRect(S.mode, 222, 262)}
+    <div class="lbtn" style="left:46px"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M9 2h6v5l-2 3v11h-2V10L9 7z" fill="currentColor"/></svg></div>
+    <div class="lbtn" style="right:46px"><svg width="22" height="22" viewBox="0 0 24 24">${GL.cam}</svg></div>
+    <div class="homebar"></div>${S.accel > 1 ? `<div class="accel" style="top:720px">時間加速 ×${S.accel}</div>` : ''}</div>`;
+}
+const MODES = [['exact', '精確', 'Exact'], ['rounded', '約略 萬', 'Rounded'], ['relative', '相對 %', 'Relative'], ['rhythm', '僅節奏', 'Rhythm-only'], ['masked', '遮蔽', 'Masked']];
+function sheetHTML() {
+  const a = S.app, dark = a !== 'light';
+  let rows = '';
+  for (const [m, zh, en] of MODES) {
+    rows += `<div class="mode">${en}<span>${zh}</span></div><div class="r">
+      <div class="slot" style="width:170px;height:170px">${small(a, m, 0, 0)}</div>
+      <div class="slot" style="width:364px;height:170px">${medium(a, m, 0, 0)}</div>
+      <div class="lockstrip"><div class="wall wp-lock"></div>${accDotRing(m, 16, 20)}${accTrend(m, 100, 20)}${accRect(m, 184, 20)}
+        <div style="position:absolute;left:18px;right:10px;top:118px;font:600 15px var(--sf);color:rgba(255,255,255,.92);white-space:nowrap">週日 27 · ${glyph(13).replace('<svg', '<svg style="vertical-align:-1px"')} ${fmt(m, V0).inline}</div></div>
+    </div>`;
+  }
+  return `<div class="sheet" style="color:${dark ? '#fff' : '#000'}"><div class="wall ${dark ? 'wp-dark' : 'wp-light'}"></div><h3>Inertia · Rhythm</h3><div class="sub" style="opacity:.6;font-size:13px;color:inherit">五種隱私模式 · systemSmall · systemMedium · 鎖定畫面 circular ×2 / rectangular / inline</div>${rows}</div>`;
+}
+function renderingsHTML() {
+  const keep = S.app; let out = '';
+  for (const [a, l] of [['light', '淺色'], ['dark', '深色'], ['tinted', '染色 · iOS 18'], ['clear', '透明 · iOS 26']]) {
+    S.app = a;
+    out += `<div style="position:relative;width:404px;height:440px;overflow:hidden;border-radius:28px"><div class="wall ${a === 'light' ? 'wp-light' : a === 'dark' ? 'wp-dark' : a === 'tinted' ? 'wp-tinted' : 'wp-lock'}"></div>
+      <div style="position:absolute;left:20px;top:16px;font:600 13px var(--sf);color:${a === 'light' ? '#000' : '#fff'};opacity:.7">${l}</div>
+      ${small(a, S.mode, 20, 46)}${medium(a, S.mode, 20, 250)}</div>`;
+  }
+  S.app = keep;
+  return `<div style="display:grid;grid-template-columns:404px 404px;gap:14px;padding:14px;background:#0c0c0d">${out}</div>`;
+}
+function controlsHTML() {
+  const b = (g, v, l) => `<button data-g="${g}" data-v="${v}" class="${String(S[g]) === String(v) ? 'on' : ''}">${l}</button>`;
+  return `<div class="panel"><h1>Inertia</h1><div>Widget v3 · B3 · Rhythm 節奏</div>
+    <h2>外觀</h2><div class="seg">${b('app', 'light', '淺色')}${b('app', 'dark', '深色')}${b('app', 'tinted', '染色 iOS 18')}${b('app', 'clear', '透明 iOS 26')}</div>
+    <h2>隱私模式</h2><div class="seg">${MODES.map(([m, zh]) => b('mode', m, zh)).join('')}</div>
+    <h2>畫面</h2><div class="seg">${b('view', 'controls', '主畫面')}${b('view', 'lockc', '鎖定畫面')}${b('view', 'sheet', '模式總表')}${b('view', 'renderings', '四種渲染')}</div>
+    <h2>時間</h2><div class="seg">${b('accel', 1, '實際')}${b('accel', 360, '×360')}${b('accel', 1440, '×1440')}</div>
+    <h2>WidgetKit 動態（沒有今日損益、沒有倒數）</h2>
+    <p><b>淨資產</b>：每 30 分鐘一筆 timeline entry，平滑外推（房貸還本＋利息＋被動收入平均到每天），<code>.numericText</code> 往上滾。</p>
+    <p><b>月點陣</b>：一天一顆點。今天這顆點的亮度隨每筆 entry 前進，光暈在相鄰 entry 之間一收一放（呼吸），用 <code>.animation(.easeInOut(1.2s), value: entry.date)</code>。00:00 那筆 entry 點亮下一顆。</p>
+    <p><b>趨勢</b>：近 12 個月平滑單調曲線，Swift Charts <code>.interpolationMethod(.monotone)</code>。</p></div>`;
+}
+function render() {
+  const root = document.getElementById('root'), v = S.view;
+  document.body.className = 'v-' + (v === 'lockc' ? 'controls' : v);
+  root.innerHTML = v === 'controls' ? controlsHTML() + homeHTML() : v === 'lockc' ? controlsHTML() + lockHTML() : v === 'home' ? homeHTML() : v === 'lock' ? lockHTML() : v === 'sheet' ? sheetHTML() : renderingsHTML();
+  document.querySelectorAll('[data-g]').forEach(el => el.onclick = () => { const g = el.dataset.g; S[g] = g === 'accel' ? +el.dataset.v : el.dataset.v; t0 = performance.now(); render(); });
+  tick(lastT);
+}
+
+/* ---------- motion ---------- */
+const GL = {
+  cal: '<rect x="4" y="5" width="16" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 10h16M9 3v4M15 3v4" stroke="currentColor" stroke-width="1.8"/>',
+  photo: '<circle cx="12" cy="7.5" r="3.2" fill="currentColor" opacity=".9"/><circle cx="16.5" cy="12" r="3.2" fill="currentColor" opacity=".7"/><circle cx="12" cy="16.5" r="3.2" fill="currentColor" opacity=".9"/><circle cx="7.5" cy="12" r="3.2" fill="currentColor" opacity=".7"/>',
+  cam: '<rect x="3" y="7" width="18" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="13.5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+  map: '<path d="M12 21s-6-6.1-6-11a6 6 0 0112 0c0 4.9-6 11-6 11z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.2" fill="currentColor"/>',
+  note: '<rect x="5" y="3.5" width="14" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  gear: '<circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M5.5 18.5l2.1-2.1M16.4 7.6l2.1-2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  clock: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  wallet: '<rect x="3" y="6" width="18" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 12.5h6" stroke="currentColor" stroke-width="1.8"/>',
+  phone: '<path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.25 1z" fill="currentColor"/>',
+  msg: '<path d="M12 4c5 0 9 3.1 9 7s-4 7-9 7c-1 0-2-.1-2.9-.4L5 19l1.1-3.3C4.2 14.4 3 12.8 3 11c0-3.9 4-7 9-7z" fill="currentColor"/>',
+  web: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 8.5l-2 5-5 2 2-5z" fill="currentColor"/>',
+  music: '<path d="M9 18V6l10-2v12" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="7" cy="18" r="2.4" fill="currentColor"/><circle cx="17" cy="16" r="2.4" fill="currentColor"/>',
+  bus: '<rect x="5" y="3.5" width="14" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 11h14M8 20v-2.5M16 20v-2.5" stroke="currentColor" stroke-width="1.8"/>',
+};
+const ICOL = { cal: '#F2F2F7;color:#E0433A', photo: 'linear-gradient(135deg,#f4b35e,#e0677a 50%,#6a8de0)', cam: '#8e8e93', map: 'linear-gradient(160deg,#9fd49a,#e9dfc1)', note: 'linear-gradient(180deg,#f9d86a,#f5c842)', gear: '#8e8e93', clock: '#1c1c1e', wallet: '#1c1c1e', phone: '#43c85f', msg: '#43c85f', web: 'linear-gradient(180deg,#5fb6f5,#2f7ee6)', music: 'linear-gradient(180deg,#fc5c7d,#f73a55)', bus: 'linear-gradient(180deg,#3aa0a0,#2a7c86)' };
+const app = (x, y, g, l) => `<div class="app" style="left:${x}px;top:${y}px"><div class="i" style="background:${ICOL[g]}"><svg width="30" height="30" viewBox="0 0 24 24">${GL[g]}</svg></div>${l ? `<div class="l">${l}</div>` : ''}</div>`;
+const statusBar = () => `<div class="island"></div><div class="status"><span class="num" data-clock>22:07</span><span class="ic">
+  <svg width="19" height="12" viewBox="0 0 19 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg>
+  <svg width="17" height="12" viewBox="0 0 17 12"><path d="M8.5 2.3c2.4 0 4.6.9 6.3 2.5l1.2-1.2A10.5 10.5 0 008.5.6 10.5 10.5 0 001 3.6l1.2 1.2a8.8 8.8 0 016.3-2.5zm0 3.4c1.5 0 2.9.6 3.9 1.5l1.2-1.2a7.3 7.3 0 00-10.2 0l1.2 1.2c1-.9 2.4-1.5 3.9-1.5zm0 3.4c.6 0 1.1.2 1.5.6L8.5 11.2 7 9.7c.4-.4.9-.6 1.5-.6z" fill="currentColor"/></svg>
+  <svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.8" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="9" rx="2.4" fill="currentColor"/><path d="M25 4.5v4c.8-.3 1.3-1.1 1.3-2s-.5-1.7-1.3-2z" fill="currentColor" opacity=".45"/></svg></span></div>`;
+
+
+const ease = p => 1 - Math.pow(1 - p, 3);
+function rollHTML(s0, s1, p) {
+  const L = Math.max(s0.length, s1.length); s0 = s0.padStart(L, ' '); s1 = s1.padStart(L, ' ');
+  let out = '';
+  for (let i = 0; i < L; i++) {
+    const a = s0[i], b = s1[i];
+    if (a === b || p >= 1) { out += `<span class="d">${b === ' ' ? '' : b}</span>`; continue; }
+    const e = ease(p);
+    out += `<span class="d"><span style="display:inline-block;transform:translateY(${((1 - e) * .72).toFixed(3)}em);opacity:${e.toFixed(3)};filter:blur(${((1 - e) * 1.6).toFixed(2)}px)">${b === ' ' ? '' : b}</span><span class="o" style="transform:translateY(${(-e * .72).toFixed(3)}em);opacity:${(1 - e).toFixed(3)};filter:blur(${(e * 1.6).toFixed(2)}px)">${a === ' ' ? '' : a}</span></span>`;
+  }
+  return out;
+}
+
+const inout = p => p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+const lerp = (a, b, p) => a + (b - a) * p;
+const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+let lastT = 0, t0 = performance.now();
+function dotLook(i, st) { // returns [fillOpacity, haloPx] for day i at entry state st
+  if (i < st.day) return [1, 0];
+  if (i > st.day) return [0, 0];
+  return [0.28 + 0.72 * st.frac, st.breath ? 4 : 1.2];
+}
+function tick(elapsed) {
+  lastT = elapsed;
+  const vt = BASE + elapsed * S.accel, et = entryStart(vt);
+  const cur = state(et), prev = state(et - ENTRY);
+  const since = (vt - et) / S.accel;
+  const pr = Math.min(1, since / ROLL_MS), pb = inout(Math.min(1, since / BREATH_MS));
+  document.querySelectorAll('[data-roll]').forEach(el => {
+    const mode = el.closest('[data-mode]').dataset.mode, k = el.dataset.roll;
+    const s1 = fmt(mode, cur)[k](), s0 = fmt(mode, prev)[k]();
+    el.innerHTML = rollHTML(s0, s1, pr);
+  });
+  document.querySelectorAll('[data-dots]').forEach(box => {
+    const mode = box.closest('[data-mode]').dataset.mode, masked = mode === 'masked';
+    box.querySelectorAll('.dot').forEach(dot => {
+      const i = +dot.dataset.d; if (i > D.days) { dot.style.visibility = 'hidden'; return; }
+      const [o0, h0] = dotLook(i, prev), [o1, h1] = dotLook(i, cur);
+      const o = lerp(o0, o1, pb), h = lerp(h0, h1, pb);
+      dot.style.background = `color-mix(in srgb, var(--acc) ${(o * 100).toFixed(1)}%, var(--track))`;
+      if (i === cur.day && masked) dot.style.background = 'var(--s)';
+      dot.firstChild.style.boxShadow = h > .05 ? `0 0 0 ${h.toFixed(2)}px color-mix(in srgb, var(--acc) 22%, transparent)` : 'none';
+    });
+  });
+  const d = new Date(vt);
+  const hhmm = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  document.querySelectorAll('[data-clock]').forEach(el => el.textContent = hhmm);
+  document.querySelectorAll('[data-daynum]').forEach(el => el.textContent = cur.day);
+  document.querySelectorAll('[data-date]').forEach(el => el.textContent = `${d.getMonth() + 1}月${d.getDate()}日 星期${WEEK[d.getDay()]}`);
+}
+window.__setT = ms => tick(ms);
+window.__ready = document.fonts.ready;
+render();
+if (!S.capture) { const loop = () => { tick(performance.now() - t0); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+</script>
+</body>
+</html>

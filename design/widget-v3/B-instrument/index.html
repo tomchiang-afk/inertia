@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inertia widget v3 · B · Instrument 儀表</title>
+<style>
+@font-face{font-family:"BSC";src:url(fonts/BarlowSemiCondensed-Light.ttf);font-weight:300}
+@font-face{font-family:"BSC";src:url(fonts/BarlowSemiCondensed-Regular.ttf);font-weight:400}
+@font-face{font-family:"BSC";src:url(fonts/BarlowSemiCondensed-Medium.ttf);font-weight:500}
+@font-face{font-family:"BSC";src:url(fonts/BarlowSemiCondensed-SemiBold.ttf);font-weight:600}
+@font-face{font-family:"BC";src:url(fonts/BarlowCondensed-Regular.ttf);font-weight:400}
+@font-face{font-family:"BC";src:url(fonts/BarlowCondensed-Medium.ttf);font-weight:500}
+@font-face{font-family:"ISerif";src:url(fonts/InstrumentSerif-Italic.ttf);font-style:italic}
+:root{--tc:"Noto Sans TC","Noto Sans CJK TC",sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#1b1c1e;color:#ddd;font-family:var(--tc)}
+body.v-controls{display:flex;gap:28px;padding:24px;align-items:flex-start;justify-content:center;min-height:100vh}
+body.v-phone,body.v-sheet,body.v-crop{background:transparent}
+
+/* ---------- controls ---------- */
+.panel{width:300px;font-size:13px;line-height:1.5;color:#c9c6bf}
+.panel h1{font:italic 28px ISerif;color:#eee;margin-bottom:2px}
+.panel h2{font-size:12px;letter-spacing:.12em;color:#8b8880;margin:18px 0 8px;font-weight:500}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{background:#2a2b2e;color:#d8d4cc;border:1px solid #3a3b3f;border-radius:8px;padding:6px 10px;font:13px var(--tc);cursor:pointer}
+.seg button.on{background:#e9e4d8;color:#141517;border-color:#e9e4d8}
+.panel p{color:#8f8b83;font-size:12px;margin-top:6px}
+.panel code{font-family:"BC";color:#b9c9bd}
+
+/* ---------- phone / wallpaper ---------- */
+.phone{position:relative;width:412px;height:915px;border-radius:34px;overflow:hidden;flex:none;
+  box-shadow:0 0 0 8px #0b0b0c,0 0 0 9px #333,0 30px 80px rgba(0,0,0,.5)}
+body.v-phone .phone{box-shadow:none;border-radius:0}
+.wall{position:absolute;inset:0}
+.dark .wall{background:
+  radial-gradient(120% 70% at 85% 8%,#3b4a57 0%,rgba(59,74,87,0) 55%),
+  radial-gradient(90% 60% at 10% 55%,#4a3f36 0%,rgba(74,63,54,0) 60%),
+  radial-gradient(120% 80% at 70% 95%,#1f3a37 0%,rgba(31,58,55,0) 60%),
+  linear-gradient(170deg,#1c2229 0%,#15191d 50%,#101416 100%)}
+.light .wall{background:
+  radial-gradient(110% 70% at 90% 5%,#d9e2e4 0%,rgba(217,226,228,0) 55%),
+  radial-gradient(90% 60% at 5% 50%,#e8d7c1 0%,rgba(232,215,193,0) 60%),
+  radial-gradient(120% 80% at 75% 100%,#b9cbbf 0%,rgba(185,203,191,0) 60%),
+  linear-gradient(170deg,#e7e3dc 0%,#d9d6cf 55%,#c9cdc6 100%)}
+.wall::after{content:"";position:absolute;inset:0;opacity:.22;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+/* soft wave shapes in wallpaper */
+.wave{position:absolute;border-radius:50%;filter:blur(2px)}
+.dark .wave{border:1px solid rgba(255,255,255,.05)}
+.light .wave{border:1px solid rgba(40,50,45,.06)}
+.status{position:absolute;top:0;left:0;right:0;height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 22px 0 26px;font:500 14px "Noto Sans","Noto Sans TC",sans-serif}
+.dark .status,.dark .glance,.dark .lbl{color:#eef0ee}
+.light .status,.light .glance,.light .lbl{color:#1d2320}
+.status .ic{display:flex;gap:6px;align-items:center}
+.glance{position:absolute;left:26px;top:66px}
+.glance .d{font:400 24px "Noto Sans TC",sans-serif;letter-spacing:.01em}
+.glance .wx{font:400 14px "Noto Sans TC",sans-serif;opacity:.85;margin-top:4px}
+.app{position:absolute;width:88px;text-align:center}
+.app .i{width:56px;height:56px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center}
+.dark .app .i{background:#2b332f;color:#c8d5cb}
+.light .app .i{background:#dbe4dc;color:#27352c}
+.lbl{font:400 12px "Noto Sans TC",sans-serif;margin-top:7px;text-shadow:0 1px 2px rgba(0,0,0,.15)}
+.search{position:absolute;left:16px;right:16px;top:846px;height:52px;border-radius:26px;display:flex;align-items:center;padding:0 18px;gap:12px}
+.dark .search{background:#262d2a;color:#b9c4bd}
+.light .search{background:#e4ebe5;color:#44524a}
+.navh{position:absolute;bottom:8px;left:50%;width:108px;height:4px;margin-left:-54px;border-radius:2px}
+.dark .navh{background:#eee}.light .navh{background:#222}
+
+/* ---------- widget shell ---------- */
+.w{position:absolute;border-radius:24px;overflow:hidden}
+.w .case{position:absolute;inset:0}
+.w svg{position:absolute;inset:0;overflow:visible}
+.w .disc{position:absolute;border-radius:50%}
+/* dark: brushed graphite case, sunburst lacquer dial */
+.dark-w .case{background:
+   repeating-linear-gradient(0deg,rgba(255,255,255,.014) 0 1px,rgba(0,0,0,0) 1px 2px,rgba(0,0,0,.03) 2px 3px),
+   linear-gradient(160deg,#202327 0%,#16181b 55%,#121416 100%);
+   box-shadow:inset 0 1px 0 rgba(255,255,255,.07),inset 0 -1px 0 rgba(0,0,0,.5)}
+.dark-w .disc{background:
+   radial-gradient(circle at 34% 26%,rgba(255,255,255,.07) 0%,rgba(255,255,255,0) 46%),
+   repeating-conic-gradient(from 0deg,rgba(255,255,255,.028) 0deg .45deg,rgba(0,0,0,0) .45deg 1.2deg),
+   radial-gradient(circle,#121417 0%,#0c0e10 70%,#090a0c 100%);
+   box-shadow:0 0 0 .6px rgba(255,255,255,.10),0 0 0 2.2px #0a0b0d,inset 0 1px 1px rgba(0,0,0,.6),inset 0 0 16px rgba(0,0,0,.55)}
+/* light: porcelain / grand-feu enamel dial in a satin steel case */
+.light-w .case{background:
+   repeating-linear-gradient(0deg,rgba(255,255,255,.12) 0 1px,rgba(0,0,0,0) 1px 2px,rgba(0,0,0,.012) 2px 3px),
+   linear-gradient(160deg,#ebe7df 0%,#dfdad0 60%,#d6d0c5 100%);
+   box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 -1px 0 rgba(0,0,0,.06)}
+.light-w .disc{background:
+   radial-gradient(circle at 32% 24%,rgba(255,255,255,.95) 0%,rgba(255,255,255,0) 50%),
+   radial-gradient(circle,#f8f5ee 0%,#f3efe6 70%,#ece6db 100%);
+   box-shadow:0 0 0 .6px rgba(0,0,0,.10),0 0 0 2.2px #d2ccc1,inset 0 1px 2px rgba(0,0,0,.10),inset 0 0 14px rgba(120,100,70,.10)}
+.grain{position:absolute;inset:0;pointer-events:none;opacity:.35;mix-blend-mode:soft-light;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.3' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.w .shadow{position:absolute;inset:0;border-radius:24px;pointer-events:none}
+.dark .w{box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.light .w{box-shadow:0 6px 18px rgba(60,50,30,.16)}
+
+/* aperture (ViewFlipper) */
+.ap{position:absolute;overflow:hidden;border-radius:3px}
+.dark-w .ap{background:#08090a;box-shadow:inset 0 1px 2px rgba(0,0,0,.9),0 0 0 .6px rgba(255,255,255,.09)}
+.light-w .ap{background:#fbf9f4;box-shadow:inset 0 1px 2px rgba(80,60,30,.22),0 0 0 .6px rgba(0,0,0,.12)}
+.ap .fr{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;will-change:transform}
+.ap .k{font:400 6.6px var(--tc);letter-spacing:.02em}
+.ap .v{font:500 8.6px BSC;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.dark-w .ap .k{color:#8f8b82}.dark-w .ap .v{color:#e9e3d6}
+.light-w .ap .k{color:#6a655c}.light-w .ap .v{color:#17191b}
+
+/* sheet */
+body.v-sheet .sheet{padding:28px 30px 34px;display:inline-block;position:relative;overflow:hidden}
+.sheet .wallpad{position:absolute;inset:0}
+.sheet .row{position:relative;display:flex;gap:20px;align-items:flex-start;margin-top:14px}
+.sheet .tag{position:relative;font:500 12px var(--tc);letter-spacing:.08em;margin:18px 0 0 2px;display:flex;gap:10px;align-items:baseline}
+.sheet .tag b{font:500 12px BC;letter-spacing:.16em;text-transform:uppercase}
+.sheet h3{position:relative;font:italic 30px ISerif;font-weight:400}
+.sheet .sub{position:relative;font:12px var(--tc);opacity:.7;margin-top:2px}
+.sheet.dark h3,.sheet.dark .tag,.sheet.dark .sub{color:#e9e6de}
+.sheet.light h3,.sheet.light .tag,.sheet.light .sub{color:#202421}
+.slot{position:relative;flex:none}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+/* =====================================================================
+   Inertia widget v3 · Direction B · Instrument
+   Everything static here is what the app would paint into ONE Bitmap
+   (Canvas + bundled OFL fonts). The only things that move are the parts
+   Android can move by itself inside RemoteViews:
+     - .hand  → AnalogClock hour hand drawable  (floating growth index)
+     - .sec   → AnalogClock second hand drawable (rim escapement, 1 Hz step)
+     - .ap    → ViewFlipper, autoStart, flipInterval 6000, slide-up in/out 600ms
+   ===================================================================== */
+const Q = new URLSearchParams(location.search);
+const S = {
+  theme: Q.get('theme') || 'dark',
+  mode: Q.get('mode') || 'exact',
+  view: Q.get('view') || 'controls',
+  size: Q.get('size') || '4x2',
+  capture: Q.has('capture'),
+};
+// fixed "now": Sun 27 Sep 2026 22:07:20 (Asia/Taipei); widget bitmap last redrawn 22:00 by periodic work
+const BASE = new Date(2026, 8, 27, 22, 7, 20).getTime();
+const D = {
+  nw: 16470000, pace: 51600, perDay: 1720,
+  day: 27, days: 30, redraw: 22 + 0/60, updated: '20:13',
+  goal: { name: '換屋頭期款', short: '換屋', pct: 0.82 },
+  cats: [
+    { k: '房產', v: 12380000, sub: '市值 − 房貸' },
+    { k: '股票', v: 2540000, sub: '台股 · 美股' },
+    { k: '現金', v: 1550000, sub: 'TWD · USD · JPY' },
+    { k: '被動', v: 28500, per: '/月', sub: '股息 · 利息 · 租金' },
+  ],
+  src: [ { k: '房貸還本', v: 32400 }, { k: '存款利息', v: 2100 }, { k: '股息', v: 17100 } ],
+};
+D.today = D.perDay * D.redraw / 24;                 // value printed at last redraw
+D.monthFrac = (D.day - 1 + 22.1 / 24) / D.days;     // 0.897
+
+const T = {
+  dark:  { ink: '#ECE6D8', ink2: '#A29E94', ink3: '#6B6861', tick: '#8E8A81', hair: 'rgba(236,230,216,.16)', accent: '#9CC3A8', accentDim: 'rgba(156,195,168,.22)', lance: '#9CC3A8', dot: '#ECE6D8' },
+  light: { ink: '#17191B', ink2: '#5F5B53', ink3: '#8F897E', tick: '#3B3D3F', hair: 'rgba(23,25,27,.16)', accent: '#2F5D4A', accentDim: 'rgba(47,93,74,.18)', lance: '#2F5D4A', dot: '#17191B' },
+};
+
+/* ---------- privacy formatting (mirrors widgetPrivacy.js semantics) ---------- */
+const n0 = v => Math.round(v).toLocaleString('en-US');
+const wan = v => (v >= 1e6 ? n0(v / 1e4) : (v / 1e4).toFixed(1)) + ' 萬';
+function F(mode) {
+  const share = v => (v / D.nw * 100).toFixed(1) + '%';
+  return {
+    exact:    { nwLabel: '淨資產', nwCur: 'NT$', nw: n0(D.nw), pace: '+NT$51.6k', paceNote: '本月', today: '+' + n0(D.today), todayUnit: 'NT$', cat: c => (c.per ? n0(c.v) : n0(c.v)), catCur: 'NT$', src: s => '+NT$' + (s.v / 1000).toFixed(1) + 'k', goal: '82%', scale: 'ntd', month: '90%' },
+    rounded:  { nwLabel: '淨資產', nwCur: 'NT$', nw: wan(D.nw), pace: '+NT$5.2 萬', paceNote: '本月', today: '約 +' + n0(Math.round(D.today / 100) * 100), todayUnit: 'NT$', cat: c => wan(c.v), catCur: 'NT$', src: s => '+' + wan(s.v), goal: '82%', scale: 'ntd', month: '90%' },
+    relative: { nwLabel: '本月進度', nwCur: '', nw: '90%', pace: '+0.31%', paceNote: '淨值', today: '+0.010%', todayUnit: '淨值', cat: c => (c.per ? '—' : share(c.v)), catCur: '', src: s => Math.round(s.v / D.pace * 100) + '%', goal: '82%', scale: 'pct', month: '90%' },
+    rhythm:   { nwLabel: '本月節奏', nwCur: '', nw: null, pace: null, paceNote: '', today: null, todayUnit: '', cat: null, catCur: '', src: null, goal: null, scale: 'none', month: null },
+    masked:   { nwLabel: '淨資產', nwCur: 'NT$', nw: '••••••', pace: '+••••', paceNote: '本月', today: '+••••', todayUnit: 'NT$', cat: () => '••••••', catCur: 'NT$', src: () => '+••••', goal: '••%', scale: 'mask', month: '••%', noGoalFill: true },
+  }[mode];
+}
+
+/* ---------- geometry helpers ---------- */
+const rad = a => (a - 90) * Math.PI / 180;
+const P = (r, a) => [r * Math.cos(rad(a)), r * Math.sin(rad(a))];
+const f2 = x => x.toFixed(2);
+function arc(r, a0, a1) {
+  const [x0, y0] = P(r, a0), [x1, y1] = P(r, a1);
+  return `M${f2(x0)} ${f2(y0)} A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${f2(x1)} ${f2(y1)}`;
+}
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+/* ---------- the dial (bitmap layer) ---------- */
+// all radii designed for R = 86dp; k scales
+function dialSVG(k, t, fm, opts = {}) {
+  const c = T[S.theme === 'dark' ? 'dark' : 'light'];
+  let s = '';
+  // rim: 60-step escapement track
+  for (let i = 0; i < 60; i++) {
+    const a = i * 6, big = i % 5 === 0;
+    const [x0, y0] = P((big ? 80.2 : 81.6) * k, a), [x1, y1] = P(84.2 * k, a);
+    s += `<line x1="${f2(x0)}" y1="${f2(y0)}" x2="${f2(x1)}" y2="${f2(y1)}" stroke="${big ? c.tick : c.ink3}" stroke-width="${big ? .9 : .5}"/>`;
+  }
+  s += `<circle r="${85 * k}" fill="none" stroke="${c.hair}" stroke-width=".5"/>`;
+  s += `<circle r="${78.6 * k}" fill="none" stroke="${c.hair}" stroke-width=".5"/>`;
+  // growth scale (tachymeter-like, non-uniform labels). Active half = PM (bitmap re-rendered at 00:00/12:00)
+  const pm = true, lo = pm ? D.perDay / 2 : 0, hi = pm ? D.perDay : D.perDay / 2;
+  const angOf = v => (v - lo) / (hi - lo) * 360;
+  if (fm.scale === 'ntd' || fm.scale === 'mask') {
+    for (let v = Math.ceil(lo / 20) * 20; v < hi; v += 20) {
+      const a = angOf(v), maj = v % 100 === 0, lab = v % 200 === 0;
+      const [x0, y0] = P((lab ? 71.5 : maj ? 73.5 : 75.5) * k, a), [x1, y1] = P(78.6 * k, a);
+      s += `<line x1="${f2(x0)}" y1="${f2(y0)}" x2="${f2(x1)}" y2="${f2(y1)}" stroke="${maj ? c.ink : c.ink3}" stroke-width="${lab ? 1.1 : maj ? .8 : .45}"/>`;
+      if (lab) {
+        const [tx, ty] = P(65.2 * k, a);
+        const txt = fm.scale === 'mask' ? '••' : (fm.mode === 'rounded' ? (v / 1000).toFixed(1) + 'k' : n0(v));
+        s += `<text x="${f2(tx)}" y="${f2(ty)}" dy="2.3" text-anchor="middle" transform="rotate(${f2(a > 90 && a < 270 ? a - 180 : a)} ${f2(tx)} ${f2(ty)})" font-family="BC" font-weight="500" font-size="${6.6 * k}" fill="${c.ink2}" letter-spacing=".2">${txt}</text>`;
+      }
+    }
+  } else if (fm.scale === 'pct') {
+    for (let p = 51; p < 100; p++) {
+      const a = (p - 50) / 50 * 360, lab = p % 10 === 0, maj = p % 5 === 0;
+      const [x0, y0] = P((lab ? 71.5 : maj ? 73.5 : 75.5) * k, a), [x1, y1] = P(78.6 * k, a);
+      s += `<line x1="${f2(x0)}" y1="${f2(y0)}" x2="${f2(x1)}" y2="${f2(y1)}" stroke="${maj ? c.ink : c.ink3}" stroke-width="${lab ? 1.1 : maj ? .8 : .45}"/>`;
+      if (lab) {
+        const [tx, ty] = P(65.2 * k, a);
+        s += `<text x="${f2(tx)}" y="${f2(ty)}" dy="2.3" text-anchor="middle" transform="rotate(${f2(a > 90 && a < 270 ? a - 180 : a)} ${f2(tx)} ${f2(ty)})" font-family="BC" font-weight="500" font-size="${6.6 * k}" fill="${c.ink2}">${p}%</text>`;
+      }
+    }
+  } else { // rhythm: uniform engraved minute-style ticks only
+    for (let i = 0; i < 120; i++) {
+      const a = i * 3, maj = i % 10 === 0;
+      const [x0, y0] = P((maj ? 72 : 75.5) * k, a), [x1, y1] = P(78.6 * k, a);
+      s += `<line x1="${f2(x0)}" y1="${f2(y0)}" x2="${f2(x1)}" y2="${f2(y1)}" stroke="${maj ? c.ink : c.ink3}" stroke-width="${maj ? 1 : .45}"/>`;
+    }
+  }
+  // 12 o'clock index: marks start of the half-day
+  const [ix, iy] = P(78.6 * k, 0);
+  s += `<path d="M${f2(ix - 2.2 * k)} ${f2(iy)} L${f2(ix + 2.2 * k)} ${f2(iy)} L${f2(ix)} ${f2(iy + 4 * k)}Z" fill="${c.ink}"/>`;
+  // month ring (accent) & goal ring
+  const mr = 57 * k, gr = 52.4 * k;
+  s += `<circle r="${mr}" fill="none" stroke="${c.accentDim}" stroke-width="${2.2 * k}"/>`;
+  for (let d = 0; d < D.days; d++) { // day notches on the month ring
+    const [x0, y0] = P(mr + 1.8 * k, d / D.days * 360), [x1, y1] = P(mr + 3.2 * k, d / D.days * 360);
+    s += `<line x1="${f2(x0)}" y1="${f2(y0)}" x2="${f2(x1)}" y2="${f2(y1)}" stroke="${c.ink3}" stroke-width=".45"/>`;
+  }
+  s += `<path d="${arc(mr, 0, D.monthFrac * 360)}" fill="none" stroke="${c.accent}" stroke-width="${2.2 * k}" stroke-linecap="butt"/>`;
+  s += `<circle r="${gr}" fill="none" stroke="${c.hair}" stroke-width="${1.1 * k}"/>`;
+  if (!fm.noGoalFill) s += `<path d="${arc(gr, 0, D.goal.pct * 360)}" fill="none" stroke="${c.ink2}" stroke-width="${1.1 * k}"/>`;
+  // goal end marker (small diamond)
+  if (!fm.noGoalFill) { const [gx, gy] = P(gr, D.goal.pct * 360); s += `<rect x="${f2(gx - 1.6 * k)}" y="${f2(gy - 1.6 * k)}" width="${3.2 * k}" height="${3.2 * k}" transform="rotate(${D.goal.pct * 360 + 45} ${f2(gx)} ${f2(gy)})" fill="${c.ink}"/>`; }
+  return s;
+}
+// floating growth index = AnalogClock hour hand drawable (transparent except the index)
+function handSVG(k) {
+  const c = T[S.theme];
+  return `<line x1="0" y1="${-60 * k}" x2="0" y2="${-70.5 * k}" stroke="${c.lance}" stroke-width="${1.1 * k}"/>
+    <path d="M0 ${-79.4 * k} L${2.1 * k} ${-71 * k} L0 ${-69.4 * k} L${-2.1 * k} ${-71 * k}Z" fill="${c.lance}"/>
+    <circle cy="${-60 * k}" r="${1.25 * k}" fill="${c.lance}"/>`;
+}
+// escapement = AnalogClock second hand drawable (a single bead on the rim)
+function secSVG(k) {
+  const c = T[S.theme];
+  return `<circle cy="${-82.6 * k}" r="${1.55 * k}" fill="${c.dot}"/>`;
+}
+
+/* ---------- widget builders ---------- */
+function flipFrames(fm) {
+  if (fm.src === null) return D.src.map(s => ({ k: s.k, v: '' }));
+  return D.src.map(s => ({ k: s.k, v: fm.src(s) }));
+}
+function apHTML(x, y, w, h, frames) {
+  return `<div class="ap" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px">` +
+    frames.map((f, i) => `<div class="fr" data-i="${i}"><span class="k">${esc(f.k)}</span>${f.v ? `<span class="v">${esc(f.v)}</span>` : ''}</div>`).join('') + `</div>`;
+}
+function text(x, y, str, o = {}) {
+  return `<text x="${x}" y="${y}" ${o.anchor ? `text-anchor="${o.anchor}"` : ''} font-family="${o.ff || 'BSC'}" font-weight="${o.fw || 400}" font-size="${o.fs || 10}" fill="${o.fill}" ${o.ls ? `letter-spacing="${o.ls}"` : ''} ${o.fst ? `font-style="${o.fst}"` : ''} style="font-variant-numeric:tabular-nums">${esc(str)}</text>`;
+}
+const TC = '"Noto Sans TC","Noto Sans CJK TC",sans-serif';
+
+function widget2x2(fm, x = 0, y = 0) {
+  const W = 180, H = 190, cx = 90, cy = 98, k = 0.955, R = 85.4 * k;
+  const c = T[S.theme];
+  let g = '';
+  // corners
+  g += text(13, 19, 'Inertia', { ff: 'ISerif', fst: 'italic', fs: 13, fill: c.ink });
+  g += text(W - 14, 19, '更新 ' + D.updated, { ff: TC, fs: 7, fill: c.ink3, anchor: 'end', ls: .3 });
+  if (fm.today !== null) {
+    g += text(14, H - 25, '今日', { ff: TC, fs: 6.5, fill: c.ink3, ls: .5 });
+    g += text(14, H - 13, fm.today, { fs: 9.5, fw: 500, fill: c.accent });
+  } else g += text(14, H - 13, '靜默成長', { ff: TC, fs: 7, fill: c.ink3 });
+  g += text(W - 14, H - 25, D.goal.short, { ff: TC, fs: 6.5, fill: c.ink3, anchor: 'end', ls: .5 });
+  if (fm.goal) g += text(W - 14, H - 13, fm.goal, { fs: 9.5, fw: 500, fill: c.ink, anchor: 'end' });
+  else g += `<g transform="translate(${W - 20} ${H - 16})"><circle r="3.2" fill="none" stroke="${c.ink3}" stroke-width=".7"/><path d="${arc(3.2, 0, 295)}" fill="none" stroke="${c.ink}" stroke-width=".9"/></g>`;
+  // centre
+  let ctr = '';
+  ctr += text(0, -23, fm.nwLabel, { ff: TC, fs: 7.2, fill: c.ink2, anchor: 'middle', ls: 1.2 });
+  if (fm.nw !== null) {
+    if (fm.nwCur) ctr += text(0, -12.5, fm.nwCur, { ff: 'BC', fw: 500, fs: 6.8, fill: c.ink3, anchor: 'middle', ls: 1 });
+    const big = fm.mode === 'relative' ? 22 : 18;
+    ctr += text(0, 4.5, fm.nw, { fs: big, fw: 500, fill: c.ink, anchor: 'middle', ls: fm.nw.includes('•') ? 1.5 : .2 });
+    if (fm.pace) ctr += `<text x="0" y="16" text-anchor="middle" font-size="7.6" style="font-variant-numeric:tabular-nums"><tspan font-family=${JSON.stringify(TC)} fill="${c.ink3}">${fm.paceNote} </tspan><tspan font-family="BSC" font-weight="500" fill="${c.accent}">${esc(fm.pace)}</tspan></text>`;
+  } else {
+    ctr += text(0, 3, D.day + ' / ' + D.days, { fs: 20, fw: 400, fill: c.ink, anchor: 'middle', ls: .5 });
+    ctr += text(0, 15, '持續中', { ff: TC, fs: 7, fill: c.ink3, anchor: 'middle', ls: 1.5 });
+  }
+  const frames = flipFrames(fm);
+  return shell(x, y, W, H, cx, cy, R, k, fm, `<g transform="translate(${cx} ${cy})">${ctr}</g>` + g,
+    apHTML(cx - 37, cy + 21, 74, 12.5, frames));
+}
+
+function widget4x2(fm, x = 0, y = 0) {
+  const W = 380, H = 190, cx = 95, cy = 95, k = 1.0, R = 85.4;
+  const c = T[S.theme];
+  let ctr = '', g = '';
+  // dial centre: today's quiet growth
+  ctr += text(0, -22, fm.today !== null ? '今日靜默成長' : '今日', { ff: TC, fs: 6.8, fill: c.ink2, anchor: 'middle', ls: 1.2 });
+  if (fm.today !== null) {
+    ctr += text(0, 1, fm.today, { fs: 19, fw: 500, fill: c.accent, anchor: 'middle', ls: .3 });
+    ctr += text(0, 12, fm.todayUnit + (fm.mode === 'relative' ? '' : ' · 22:00'), { ff: 'BC', fw: 500, fs: 6.6, fill: c.ink3, anchor: 'middle', ls: 1 });
+  } else {
+    ctr += text(0, 1, '靜默', { ff: TC, fs: 14, fw: 400, fill: c.ink, anchor: 'middle', ls: 3 });
+    ctr += text(0, 12, 'IN MOTION', { ff: 'BC', fw: 500, fs: 6.4, fill: c.ink3, anchor: 'middle', ls: 1.6 });
+  }
+  // right panel
+  const X = 198, XR = W - 16;
+  g += text(X, 24, 'Inertia', { ff: 'ISerif', fst: 'italic', fs: 15, fill: c.ink });
+  g += text(XR, 22, '更新 ' + D.updated, { ff: TC, fs: 7, fill: c.ink3, anchor: 'end', ls: .3 });
+  g += `<line x1="${X}" y1="31.5" x2="${XR}" y2="31.5" stroke="${c.hair}" stroke-width=".5"/>`;
+  g += text(X, 45, fm.nwLabel, { ff: TC, fs: 7.4, fill: c.ink2, ls: 1.2 });
+  if (fm.nw !== null) {
+    let nx = X;
+    if (fm.nwCur) { g += text(X, 67, fm.nwCur, { ff: 'BC', fw: 500, fs: 9, fill: c.ink3, ls: .6 }); nx = X + 17; }
+    g += text(nx, 69, fm.nw, { fs: 27, fw: 500, fill: c.ink, ls: fm.nw.includes('•') ? 2 : .1 });
+    g += `<text x="${X}" y="83" font-size="8" style="font-variant-numeric:tabular-nums"><tspan font-family=${JSON.stringify(TC)} fill="${c.ink3}">${fm.paceNote} </tspan><tspan font-family="BSC" font-weight="500" fill="${c.accent}">${esc(fm.pace)}</tspan></text>`;
+  } else {
+    g += `<text x="${X}" y="69"><tspan font-family=${JSON.stringify(TC)} font-size="22" fill="${c.ink}" letter-spacing="1">第 ${D.day} 日</tspan><tspan font-family="BSC" font-size="14" fill="${c.ink3}"> / ${D.days}</tspan></text>`;
+    g += text(X, 83, '靜默成長 · 持續中', { ff: TC, fs: 7.6, fill: c.ink3, ls: .6 });
+  }
+  g += text(XR, 83, fm.month ? `月 ${fm.month} · ${D.day}/${D.days}` : '', { ff: TC, fs: 7, fill: c.ink3, anchor: 'end' });
+  // month ruler (vernier-like)
+  const ry = 92, rw = XR - X;
+  for (let d = 0; d <= D.days; d++) {
+    const xx = X + rw * d / D.days, maj = d % 5 === 0;
+    g += `<line x1="${f2(xx)}" y1="${ry}" x2="${f2(xx)}" y2="${ry + (maj ? 5 : 3)}" stroke="${maj ? c.ink2 : c.ink3}" stroke-width="${maj ? .7 : .45}"/>`;
+  }
+  g += `<line x1="${X}" y1="${ry + 6.5}" x2="${f2(X + rw * D.monthFrac)}" y2="${ry + 6.5}" stroke="${c.accent}" stroke-width="1.6"/>`;
+  g += `<line x1="${f2(X + rw * D.monthFrac)}" y1="${ry + 6.5}" x2="${XR}" y2="${ry + 6.5}" stroke="${c.hair}" stroke-width="1.6"/>`;
+  g += `<path d="M${f2(X + rw * D.monthFrac)} ${ry + 8} l2.2 4 h-4.4z" fill="${c.accent}"/>`;
+  // categories: 2 x 2 registers
+  if (fm.cat) {
+    const cw = (rw - 12) / 2;
+    D.cats.forEach((ct, i) => {
+      const cx0 = X + (i % 2) * (cw + 12), cy0 = 118 + Math.floor(i / 2) * 27;
+      g += text(cx0, cy0, ct.k, { ff: TC, fs: 7, fill: c.ink2, ls: .8 });
+      g += text(cx0 + 18, cy0, ct.sub, { ff: TC, fs: 5.6, fill: c.ink3 });
+      const val = fm.cat(ct), cur = fm.catCur && val !== '—' ? fm.catCur : '';
+      g += `<text x="${f2(cx0 + cw)}" y="${cy0 + 12}" text-anchor="end" style="font-variant-numeric:tabular-nums"><tspan font-family="BC" font-weight="500" font-size="6.6" fill="${c.ink3}">${cur} </tspan><tspan font-family="BSC" font-weight="500" font-size="11.5" fill="${c.ink}">${esc(val)}</tspan>${ct.per && val !== '—' ? `<tspan font-family=${JSON.stringify(TC)} font-size="6.4" fill="${c.ink3}">${ct.per}</tspan>` : ''}</text>`;
+      // share gauge: engraved hairline + index
+      const share = ct.per ? null : ct.v / D.nw;
+      g += `<line x1="${f2(cx0)}" y1="${cy0 + 16.5}" x2="${f2(cx0 + cw)}" y2="${cy0 + 16.5}" stroke="${c.hair}" stroke-width=".6"/>`;
+      if (share !== null && fm.mode !== 'masked') g += `<line x1="${f2(cx0)}" y1="${cy0 + 16.5}" x2="${f2(cx0 + cw * share)}" y2="${cy0 + 16.5}" stroke="${c.ink2}" stroke-width="1.1"/>`;
+      if (ct.per && fm.mode !== 'masked') for (let m = 0; m < 12; m++) g += `<line x1="${f2(cx0 + cw * (m + .5) / 12)}" y1="${cy0 + 14.8}" x2="${f2(cx0 + cw * (m + .5) / 12)}" y2="${cy0 + 18.2}" stroke="${m < 9 ? c.ink2 : c.ink3}" stroke-width=".7"/>`;
+    });
+  } else {
+    // rhythm-only: calendar escapement band (no amounts, no shares)
+    g += text(X, 118, '本月每日節拍', { ff: TC, fs: 7, fill: c.ink2, ls: .8 });
+    for (let d = 0; d < D.days; d++) {
+      const xx = X + (rw) * (d + .5) / D.days, on = d < D.day - 1, today = d === D.day - 1;
+      const h = 14 + 6 * Math.sin(d * 1.7) * Math.sin(d * .37);
+      g += `<line x1="${f2(xx)}" y1="${f2(150 - h)}" x2="${f2(xx)}" y2="150" stroke="${today ? c.accent : on ? c.ink2 : c.ink3}" stroke-width="${today ? 1.6 : .9}" ${on || today ? '' : 'stroke-dasharray="1 1.6"'}/>`;
+    }
+  }
+  // goal line
+  const gy = 176;
+  g += text(X, gy - 5, D.goal.name, { ff: TC, fs: 7, fill: c.ink2, ls: .8 });
+  if (fm.goal) g += text(XR, gy - 4.5, fm.goal, { fs: 9, fw: 500, fill: c.ink, anchor: 'end' });
+  g += `<line x1="${X}" y1="${gy}" x2="${XR}" y2="${gy}" stroke="${c.hair}" stroke-width="1.1"/>`;
+  if (!fm.noGoalFill) g += `<line x1="${X}" y1="${gy}" x2="${f2(X + rw * D.goal.pct)}" y2="${gy}" stroke="${c.ink2}" stroke-width="1.1"/><rect x="${f2(X + rw * D.goal.pct - 1.6)}" y="${gy - 1.6}" width="3.2" height="3.2" transform="rotate(45 ${f2(X + rw * D.goal.pct)} ${gy})" fill="${c.ink}"/>`;
+  for (let q = 0; q <= 10; q++) g += `<line x1="${f2(X + rw * q / 10)}" y1="${gy + 2}" x2="${f2(X + rw * q / 10)}" y2="${gy + (q % 5 ? 3.5 : 5)}" stroke="${c.ink3}" stroke-width=".45"/>`;
+  return shell(x, y, W, H, cx, cy, R, k, fm, `<g transform="translate(${cx} ${cy})">${ctr}</g>` + g,
+    apHTML(cx - 38, cy + 20, 76, 13, flipFrames(fm)));
+}
+
+function shell(x, y, W, H, cx, cy, R, k, fm, overlay, ap) {
+  return `<div class="w ${S.theme}-w" style="left:${x}px;top:${y}px;width:${W}px;height:${H}px">
+    <div class="case"></div>
+    <div class="disc" style="left:${cx - R}px;top:${cy - R}px;width:${2 * R}px;height:${2 * R}px"></div>
+    <div class="grain"></div>
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+      <g transform="translate(${cx} ${cy})">${dialSVG(k, 0, fm)}</g>
+      ${overlay}
+      <g class="hand" transform="translate(${cx} ${cy}) rotate(0)">${handSVG(k)}</g>
+      <g class="sec" transform="translate(${cx} ${cy}) rotate(0)">${secSVG(k)}</g>
+    </svg>
+    ${ap}
+  </div>`;
+}
+
+/* ---------- home screen ---------- */
+const GL = {
+  phone: '<path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.25 1z" fill="currentColor"/>',
+  msg: '<path d="M4 4h16a1 1 0 011 1v11a1 1 0 01-1 1H8l-4 4V5a1 1 0 011-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  cam: '<rect x="3" y="7" width="18" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="13.5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 7l1.5-2.5h4L15.5 7" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+  web: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  clock: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  cal: '<rect x="4" y="5" width="16" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 10h16M9 3v4M15 3v4" stroke="currentColor" stroke-width="1.8"/>',
+  map: '<path d="M12 21s-6-6.1-6-11a6 6 0 0112 0c0 4.9-6 11-6 11z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.2" fill="currentColor"/>',
+  photo: '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 17l4.5-5 3.5 3.5 2.5-2.5 3.5 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  gear: '<circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M5.5 18.5l2.1-2.1M16.4 7.6l2.1-2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  mail: '<rect x="3" y="5.5" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+  bus: '<rect x="5" y="3.5" width="14" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 11h14M8 20v-2.5M16 20v-2.5" stroke="currentColor" stroke-width="1.8"/><circle cx="8.5" cy="14.3" r="1" fill="currentColor"/><circle cx="15.5" cy="14.3" r="1" fill="currentColor"/>',
+  wallet: '<rect x="3" y="6" width="18" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 12.5h5" stroke="currentColor" stroke-width="1.8"/><path d="M5 6l10-3 1 3" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+};
+const icon = (g, sz = 24) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24">${GL[g]}</svg>`;
+function app(x, y, g, l) { return `<div class="app" style="left:${x}px;top:${y}px"><div class="i">${icon(g)}</div>${l ? `<div class="lbl">${l}</div>` : ''}</div>`; }
+
+function phoneHTML(fm) {
+  const colX = [10, 113, 216, 319]; // 4-column grid, 103dp pitch
+  return `<div class="phone ${S.theme}">
+    <div class="wall"></div>
+    <div class="wave" style="width:760px;height:760px;left:-300px;top:420px"></div>
+    <div class="wave" style="width:620px;height:620px;left:120px;top:-260px"></div>
+    <div class="status"><span>22:07</span><span class="ic">
+      <svg width="16" height="14" viewBox="0 0 16 14"><path d="M8 13L0 3.5a12 12 0 0116 0z" fill="currentColor"/></svg>
+      <svg width="14" height="14" viewBox="0 0 14 14"><path d="M0 14L14 0v14z" fill="currentColor"/></svg>
+      <svg width="24" height="12" viewBox="0 0 24 12"><rect x=".5" y=".5" width="20" height="11" rx="3" fill="none" stroke="currentColor" opacity=".6"/><rect x="2" y="2" width="14" height="8" rx="1.6" fill="currentColor"/><rect x="21.5" y="4" width="1.6" height="4" rx=".6" fill="currentColor" opacity=".6"/></svg>
+      <span style="font-size:13px">78%</span></span></div>
+    <div class="glance"><div class="d">9月27日 週日</div><div class="wx">台北 · 24°C 多雲時晴</div></div>
+    ${widget2x2(fm, 16, 146)}
+    ${app(colX[2] + 4, 150, 'cal', '日曆')}${app(colX[3] - 4, 150, 'map', '地圖')}
+    ${app(colX[2] + 4, 246, 'bus', '台北等公車')}${app(colX[3] - 4, 246, 'wallet', '錢包')}
+    ${widget4x2(fm, 16, 360)}
+    ${app(colX[0] + 4, 588, 'clock', '時鐘')}${app(colX[1] + 4, 588, 'photo', '相簿')}${app(colX[2] + 4, 588, 'mail', '郵件')}${app(colX[3] - 4, 588, 'gear', '設定')}
+    ${app(colX[0] + 4, 752, 'phone')}${app(colX[1] + 4, 752, 'msg')}${app(colX[2] + 4, 752, 'web')}${app(colX[3] - 4, 752, 'cam')}
+    <div class="search"><svg width="22" height="22" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="font:15px 'Noto Sans TC'">搜尋</span><span style="flex:1"></span><svg width="20" height="20" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></div>
+    <div class="navh"></div>
+  </div>`;
+}
+
+const MODES = [['exact', '精確', 'Exact'], ['rounded', '約略', 'Rounded'], ['relative', '相對', 'Relative'], ['rhythm', '僅節奏', 'Rhythm-only'], ['masked', '遮蔽', 'Masked']];
+function sheetHTML() {
+  const keep = S.mode; let rows = '';
+  for (const [m, zh, en] of MODES) {
+    S.mode = m; const fm = Object.assign({ mode: m }, F(m));
+    rows += `<div class="tag"><b>${en}</b><span>${zh}</span></div><div class="row"><div class="slot" style="width:180px;height:190px">${widget2x2(fm, 0, 0)}</div><div class="slot" style="width:380px;height:190px">${widget4x2(fm, 0, 0)}</div></div>`;
+  }
+  S.mode = keep;
+  return `<div class="sheet ${S.theme}"><div class="wall wallpad"></div><h3>Inertia · Instrument</h3><div class="sub">五種隱私模式 · 2×2 與 4×2 · ${S.theme === 'dark' ? '漆面深色錶盤' : '瓷白錶盤'}</div>${rows}</div>`;
+}
+
+/* ---------- render + motion ---------- */
+function fmNow() { return Object.assign({ mode: S.mode }, F(S.mode)); }
+function render() {
+  const root = document.getElementById('root');
+  document.body.className = 'v-' + S.view;
+  if (S.view === 'sheet') { root.innerHTML = sheetHTML(); }
+  else if (S.view === 'crop') {
+    const fm = fmNow(); const w = S.size === '2x2' ? 180 : 380;
+    root.innerHTML = `<div class="phone ${S.theme}" style="width:${w + 48}px;height:238px;border-radius:0;box-shadow:none"><div class="wall"></div>${S.size === '2x2' ? widget2x2(fm, 24, 24) : widget4x2(fm, 24, 24)}</div>`;
+  } else {
+    const ph = phoneHTML(fmNow());
+    root.innerHTML = S.view === 'controls' ? controlsHTML() + ph : ph;
+    root.style.display = S.view === 'controls' ? 'contents' : '';
+  }
+  bind(); tick(lastT);
+}
+function controlsHTML() {
+  const b = (grp, v, l) => `<button data-g="${grp}" data-v="${v}" class="${S[grp] === v ? 'on' : ''}">${l}</button>`;
+  return `<div class="panel"><h1>Inertia</h1><div>Widget v3 · B · Instrument 儀表</div>
+    <h2>主題</h2><div class="seg">${b('theme', 'dark', '漆面 Dark')}${b('theme', 'light', '瓷白 Light')}</div>
+    <h2>隱私模式</h2><div class="seg">${MODES.map(([m, zh]) => b('mode', m, zh)).join('')}</div>
+    <h2>檢視</h2><div class="seg">${b('view', 'controls', '主畫面')}<button data-g="view" data-v="sheet">模式總表</button></div>
+    <h2>裝置上的動態（皆為 RemoteViews 原生能力）</h2>
+    <p><b>懸浮指針</b>：AnalogClock 時針 drawable，只畫外圈的指標。時針隨時間連續前進，外圈刻度是「今日靜默成長」，所以指針本身就在讀出今天長了多少。</p>
+    <p><b>擒縱珠</b>：AnalogClock 秒針 drawable（API 31+），錶緣上一顆珠子每秒跳一格。</p>
+    <p><b>窺窗</b>：ViewFlipper，autoStart，<code>flipInterval=6000</code>，上滑進出 600ms，輪播本月成長來源。</p>
+    <p>其餘都是 app 每 30 分鐘或資料變動時重畫的一張 Bitmap。</p>
+    <h2>Pixel 7 格子</h2><p>2×2 ≈ 180×190dp · 4×2 ≈ 380×190dp（實際依啟動器 cell 而定）</p></div>`;
+}
+function bind() {
+  document.querySelectorAll('[data-g]').forEach(el => el.onclick = () => { S[el.dataset.g] = el.dataset.v; render(); });
+}
+const decel = p => 1 - (1 - p) * (1 - p);            // android DecelerateInterpolator(1.0)
+const FLIP = 6000, ANIM = 600;
+let lastT = 0;
+function tick(elapsed) {
+  lastT = elapsed;
+  const now = new Date(BASE + elapsed);
+  const h = now.getHours() % 12, m = now.getMinutes(), s = now.getSeconds();
+  // AnalogClock: hour angle = (h + (m + s/60)/60) * 30 ; second hand steps once per second
+  const ha = (h + (m + s / 60) / 60) * 30, sa = s * 6;
+  document.querySelectorAll('.w').forEach(w => {
+    const hand = w.querySelector('.hand'), sec = w.querySelector('.sec');
+    const tr = hand.getAttribute('transform').replace(/rotate\([^)]*\)/, '');
+    hand.setAttribute('transform', tr + `rotate(${ha.toFixed(3)})`);
+    sec.setAttribute('transform', tr + `rotate(${sa})`);
+    const frs = w.querySelectorAll('.ap .fr'); const N = frs.length;
+    const n = Math.floor(elapsed / FLIP), ph = elapsed - n * FLIP, cur = n % N, prev = (n - 1 + N) % N;
+    frs.forEach((f, i) => {
+      let y = 100, a = 0;
+      if (i === cur) { if (n > 0 && ph < ANIM) { const p = decel(ph / ANIM); y = (1 - p) * 100; a = p; } else { y = 0; a = 1; } }
+      else if (i === prev && n > 0 && ph < ANIM) { const p = decel(ph / ANIM); y = -p * 100; a = 1 - p; }
+      f.style.transform = `translateY(${y.toFixed(2)}%)`; f.style.opacity = a.toFixed(3);
+    });
+  });
+}
+window.__setT = ms => tick(ms);
+window.__ready = document.fonts.ready;
+render();
+if (!S.capture) { const t0 = performance.now(); const loop = () => { tick(performance.now() - t0); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+</script>
+</body>
+</html>

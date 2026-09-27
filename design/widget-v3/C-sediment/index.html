@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inertia widget v3 · C · Sediment 沉積 (iOS first)</title>
+<!--
+  Direction C — Sediment / 沉積, revised: iOS WidgetKit first, restrained.
+  1 CSS px = 1 pt. Device: iPhone 6.7"/6.9" class (430 x 932 pt) → systemSmall 170x170, systemMedium 364x170,
+  accessoryRectangular 172x76, accessoryCircular 76x76, accessoryInline 1 line.
+  Motion is limited to what WidgetKit does:
+    - a new TimelineEntry every 15 min (here time-lapsed: one entry every 2.5 s)
+    - on each entry the grain field crossfades (.transition(.opacity) on an .id(entry.date) Canvas):
+      the month-rhythm grain sinks toward its slot (4 grains/day, even pace), suspended grains drift
+    - the number rolls by the even quiet pace (.contentTransition(.numericText(value:)))
+    - nothing reflects market moves; no daily P&L; no timers
+  Query: view=home|lock|sheet|small|medium|video  theme=dark|light|tinted  mode=exact|rounded|relative|rhythm|masked
+         controls=0  t=<ms> freeze time.
+-->
+<style>
+@font-face{font-family:"Inter";src:url(fonts/inter-400.woff2) format("woff2");font-weight:400}
+@font-face{font-family:"Inter";src:url(fonts/inter-500.woff2) format("woff2");font-weight:500}
+@font-face{font-family:"Inter";src:url(fonts/inter-600.woff2) format("woff2");font-weight:600}
+@font-face{font-family:"Inter";src:url(fonts/inter-700.woff2) format("woff2");font-weight:700}
+@font-face{font-family:"Noto TC";src:url(fonts/notosanstc-400.woff2) format("woff2");font-weight:400}
+@font-face{font-family:"Noto TC";src:url(fonts/notosanstc-500.woff2) format("woff2");font-weight:500}
+:root{--f:"Inter","Noto TC",-apple-system,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:#161718;color:#ddd;font-family:var(--f)}
+body{display:flex;gap:32px;padding:28px;align-items:flex-start;min-height:100vh}
+body.bare{padding:0;gap:0;background:transparent;min-height:0}
+.num{font-feature-settings:"tnum" 1,"cv01" 1,"ss01" 1}
+/* controls */
+#controls{width:250px;flex:none;font:12px/1.55 var(--f);color:#b9b5ad}
+#controls h1{font:600 15px/1.3 var(--f);color:#efebe4;margin:0 0 2px}
+#controls h1 small{display:block;font:500 10px var(--f);color:#86827a;letter-spacing:.12em;margin-top:3px}
+#controls .grp{margin:16px 0 0}
+#controls .grp b{display:block;font:600 10px var(--f);letter-spacing:.12em;color:#77736b;margin-bottom:6px}
+#controls button{font:12px var(--f);background:#262729;color:#d2cdc3;border:0;border-radius:8px;padding:6px 10px;margin:0 4px 4px 0;cursor:pointer}
+#controls button.on{background:#c98a4b;color:#161310}
+#controls p{margin:4px 0;color:#8a867e}
+/* phone */
+.phone{position:relative;width:430px;height:932px;overflow:hidden;border-radius:56px;flex:none;background:#000;box-shadow:0 0 0 10px #0b0b0c,0 0 0 11px #2a2a2c}
+body.bare .phone{border-radius:0;box-shadow:none}
+.wall{position:absolute;inset:0;width:430px;height:932px}
+.island{position:absolute;left:152px;top:11px;width:126px;height:37px;border-radius:19px;background:#000}
+.sb{position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;padding:4px 34px 0 50px;font:600 17px var(--f);color:#fff}
+.sb .r{margin-left:auto;display:flex;gap:6px;align-items:center}
+.light .sb{color:#111}
+.app{position:absolute;width:64px;text-align:center;font:500 12px/1 var(--f);color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.35)}
+.light .app{color:#1a1a1a;text-shadow:none}
+.app i{display:block;width:64px;height:64px;border-radius:15px;margin-bottom:6px;position:relative;overflow:hidden}
+.app i svg{position:absolute;inset:0;width:64px;height:64px}
+.wlabel{position:absolute;text-align:center;font:500 12px var(--f);color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.35)}
+.light .wlabel{color:#1a1a1a;text-shadow:none}
+.dock{position:absolute;left:12px;right:12px;top:830px;height:92px;border-radius:38px;background:rgba(255,255,255,.18);backdrop-filter:blur(20px)}
+.light .dock{background:rgba(255,255,255,.35)}
+.spot{position:absolute;left:175px;top:788px;width:80px;height:28px;border-radius:14px;background:rgba(255,255,255,.2);backdrop-filter:blur(10px);font:500 12px/28px var(--f);color:#fff;text-align:center}
+.light .spot{background:rgba(0,0,0,.08);color:#222}
+.homebar{position:absolute;left:146px;bottom:8px;width:138px;height:5px;border-radius:3px;background:rgba(255,255,255,.9)}
+.light .homebar{background:rgba(0,0,0,.8)}
+/* widget */
+.wg{position:absolute;overflow:hidden;border-radius:22px;cursor:pointer;-webkit-font-smoothing:antialiased}
+.wg canvas.f{position:absolute;left:0;top:0}
+.wg .txt{position:absolute;inset:0;z-index:5}
+.wg .t{position:absolute;white-space:nowrap}
+.wg.tinted{background:rgba(40,30,20,.28)!important;backdrop-filter:blur(24px) saturate(1.3);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18)}
+.lab{font:500 12px/15px var(--f);letter-spacing:.02em}
+.unit{font:600 12px var(--f);margin-left:4px;letter-spacing:.02em}
+.hero{font-weight:600;letter-spacing:-.025em}
+.hero .suf{font:500 14px var(--f);margin-left:3px;letter-spacing:0}
+.hero.zh{font-weight:500;letter-spacing:.04em}
+.line{font:500 12px/15px var(--f);letter-spacing:.01em}
+.line b{font-weight:600}
+.cat{font:500 12px/15px var(--f);display:flex;width:128px}
+.cat .v{margin-left:auto;font-weight:500}
+.tick{font:500 10px/12px var(--f);letter-spacing:.04em}
+.roll{display:inline-block;overflow:hidden;vertical-align:top;position:relative}
+.roll>span{display:block}
+.wg.enter .txt{animation:enter .35s cubic-bezier(.2,.7,.2,1)}
+@keyframes enter{from{opacity:0}to{opacity:1}}
+/* lock */
+.lockdate{position:absolute;left:0;right:0;top:74px;text-align:center;font:600 20px var(--f);color:rgba(255,255,255,.88)}
+.lockdate span{opacity:.9}
+.lockclock{position:absolute;left:0;right:0;top:106px;text-align:center;font:700 104px/1 var(--f);letter-spacing:-.02em;color:rgba(255,255,255,.9)}
+.acc{position:absolute;color:#fff}
+.lockbtn{position:absolute;bottom:52px;width:50px;height:50px;border-radius:25px;background:rgba(0,0,0,.25);backdrop-filter:blur(12px)}
+/* sheet */
+#sheet{display:none;padding:34px 40px 40px;background:#1f2022}
+#sheet h2{font:600 18px var(--f);color:#efebe4;margin:0}
+#sheet h2 small{font:500 11px var(--f);color:#86827a;letter-spacing:.12em;margin-left:10px}
+#sheet .grid{display:grid;grid-template-columns:120px 170px 364px 170px 364px 172px;gap:24px 22px;margin-top:22px;align-items:center}
+#sheet .ml{font:600 13px var(--f);color:#efebe4}
+#sheet .ml small{display:block;font:500 10px/1.5 var(--f);color:#86827a;letter-spacing:.06em;margin-top:3px}
+#sheet .colh{font:500 10px var(--f);color:#86827a;letter-spacing:.12em}
+#sheet .cell{position:relative}
+#sheet .lockcell{position:relative;width:172px;height:76px;border-radius:14px;background:linear-gradient(160deg,#39424f,#1c2129)}
+#cap{display:none;position:absolute;left:0;right:0;bottom:34px;text-align:center;font:500 12px var(--f);color:rgba(255,255,255,.75)}
+</style>
+</head>
+<body>
+<div id="controls">
+  <h1>Inertia · 沉積<small>WIDGET V3 · C · SEDIMENT · iOS</small></h1>
+  <div class="grp"><b>隱私模式</b><span id="modeBtns"></span></div>
+  <div class="grp"><b>外觀 RENDERING</b><span id="themeBtns"></span></div>
+  <div class="grp"><b>畫面 VIEW</b><span id="viewBtns"></span></div>
+  <div class="grp"><b>TIMELINE</b><button id="bPlay" class="on">播放</button><button id="bNext">下一個 entry</button>
+    <p>裝置上每 15 分鐘一個 entry；此處每 2.5 秒前進 90 分鐘。每天落下四顆（每 6 小時一顆），下一顆逐 entry 緩緩下沉。數字依月節奏平均滾動，不含任何市場波動。</p></div>
+  <div class="grp"><b>隱藏模式</b><p>輕觸 widget → 顯示約 10 秒後自動遮回（AppIntent Button，無倒數）。</p></div>
+  <div class="grp"><b>種子 SEED</b><p id="seedInfo" style="font-size:11px;word-break:break-all"></p></div>
+</div>
+<div id="stage"></div>
+<div id="sheet"><h2>隱私模式 · 五種表現<small>SEDIMENT · PRIVACY MODES</small></h2><div class="grid" id="sheetGrid"></div></div>
+
+<script>
+/* ============================ DATA (Taiwan household, 2026-09-27 22:07) ============================
+   The widget shows ONLY the quiet, contractual rhythm: mortgage principal + TD interest + passive pace,
+   spread evenly per day (= src/math.js quietDay). No market moves, no daily P&L, no timers.          */
+const DATA = {
+  date:'2026-09-27', day:27, daysInMonth:30, hourFrac:(22+7/60)/24,
+  netWorth:16470000, monthPace:51618, quietDay:1721,             // 1,721/day ≈ 51,618 / 30
+  rhythmParts:[['房貸本金',22000/30],['定存利息',1118/30],['被動收入',28500/30]],
+  buckets:[ {k:'passive',zh:'被動',v:194000,monthly:28500},{k:'cash',zh:'現金',v:856000},
+            {k:'stocks',zh:'股票',v:2140000},{k:'housing',zh:'房產',v:13280000} ],
+  goal:{name:'換屋頭期款',short:'頭期',pct:82}, installSalt:'a41f09c2',
+};
+// 36 months of month-end net worth (with real market wiggle) → the widget only ever shows the smoothed trend
+DATA.history=(function(){const r=mulberry(20260927),w=[0];for(let m=1;m<36;m++)w.push(w[m-1]+(r()-.5)*2*220000*(m%7===3?2.4:1));
+  const a=12.6e6,z=16.47e6;return w.map((v,m)=>a+(z-a)*m/35+(v-(w[35])*m/35))})();   // endpoints fixed, market wiggle in between
+const MIN_PER_STEP = 90;           // mock time-lapse: one step = 90 min (= 6 real 15-min entries)
+const GRAIN_ROWS = 4;              // 4 grains per day → one grain settles every 6 h
+const MODES=[['exact','精確'],['rounded','約略'],['relative','比例'],['rhythm','節奏'],['masked','隱藏']];
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+function content(mode,e){
+  const nw=DATA.netWorth+DATA.quietDay*MIN_PER_STEP/1440*e;
+  return {
+    exact:  {lab:'淨資產',unit:'NT$',hero:fmt(nw),num:true,pace:'+NT$51.6k',perDay:'≈ 1,721 / 日',
+             cats:['28,500/月','856,000','2,140,000','13,280,000'],goal:'82%',rect:fmt(nw),circ:'51.6k'},
+    rounded:{lab:'淨資產',unit:'NT$',hero:'1,647',suf:'萬',num:true,pace:'+5.2 萬',perDay:'≈ 0.17 萬 / 日',
+             cats:['2.9 萬/月','86 萬','214 萬','1,328 萬'],goal:'82%',rect:'1,647 萬',circ:'5.2萬'},
+    relative:{lab:'本月進度',unit:'',hero:'90%',num:true,pace:'+0.31%',perDay:'≈ 0.01% / 日',
+             cats:['—','5.2%','13.0%','80.6%'],goal:'82%',rect:'90%',circ:'0.31%'},
+    rhythm: {lab:'本月節奏',unit:'',hero:'持續累積',zh:true,cats:['','','',''],goal:'',rect:'持續累積',circ:''},
+    masked: {lab:'淨資產',unit:'NT$',hero:'••••••',pace:'+••••',perDay:'',cats:['••••','••••','••••','••••'],goal:'••',rect:'••••••',circ:'••',hint:'輕觸顯示'},
+  }[mode];
+}
+/* ============================ PALETTE — one accent: 赭 ochre ============================ */
+const PAL={
+  dark:{bg:'#141517',bg2:'#17191B',text:'#F2EFEA',text2:'rgba(235,232,226,.52)',text3:'rgba(235,232,226,.32)',
+        accent:'#C98A4B',grain:'#E8E1D4',strata:['#C98A4B','#D8D0C2','#B7AE9F','#8F8A82'],gAlpha:1},
+  light:{bg:'#F7F5F1',bg2:'#F1EEE8',text:'#1C1C1E',text2:'rgba(28,28,30,.50)',text3:'rgba(28,28,30,.30)',
+        accent:'#9A5B22',grain:'#5E574C',strata:['#A8672C','#8C8374','#766D5F','#5F5A52'],gAlpha:1},
+  tinted:{bg:'transparent',bg2:'transparent',text:'rgba(255,236,210,.95)',text2:'rgba(255,236,210,.55)',text3:'rgba(255,236,210,.35)',
+        accent:'#FFD6A0',grain:'#FFEAD0',strata:['#FFD6A0','#FFEAD0','#FFEAD0','#FFEAD0'],gAlpha:.8},
+};
+/* ============================ helpers ============================ */
+function fnv1a(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)}return h>>>0}
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function noise1(r,span,step){const n=Math.ceil(span/step)+3,lat=[...Array(n)].map(()=>r()*2-1),o=new Float32Array(Math.ceil(span)+2);
+  for(let x=0;x<o.length;x++){const f=x/step,i=Math.floor(f),t=f-i,s=(1-Math.cos(t*Math.PI))/2;o[x]=lat[i]*(1-s)+lat[i+1]*s}return o}
+function rgba(h,a){if(h.startsWith('rgba'))return h.replace(/,[\d.]+\)$/,','+a+')');const n=parseInt(h.slice(1),16);return`rgba(${n>>16&255},${n>>8&255},${n&255},${a})`}
+function seedFor(mode){const fp=DATA.buckets.map(b=>Math.round(b.v/1e4)).join(',');
+  const s=mode==='masked'?`${DATA.installSalt}|${DATA.date}|veil`:`${DATA.installSalt}|${DATA.date}|${fp}`;return{str:s,n:fnv1a(s)}}
+/* smoothed long-term trend: 12-month centred moving average, then a monotone cubic ease — volatility never reaches the widget */
+function trend(){const h=DATA.history,n=h.length,sm=h.map((_,i)=>{let a=0,c=0;for(let j=Math.max(0,i-6);j<=Math.min(n-1,i+6);j++){a+=h[j];c++}return a/c});
+  for(let i=1;i<n;i++)sm[i]=Math.max(sm[i],sm[i-1]);            // never draws a dip
+  const lo=sm[0],hi=sm[n-1];return x=>{const f=x*(n-1),i=Math.min(n-2,Math.floor(f)),t=f-i,u=t*t*(3-2*t);return((sm[i]*(1-u)+sm[i+1]*u)-lo)/(hi-lo)}}
+/* month rhythm: how many grains have settled (4 per day, evenly) and how far the next one has sunk */
+function monthProgress(e){const p=(DATA.day-1+DATA.hourFrac)/DATA.daysInMonth+(MIN_PER_STEP*e)/(1440*DATA.daysInMonth);
+  const g=p*DATA.daysInMonth*GRAIN_ROWS;return{p,landed:Math.floor(g),frac:g-Math.floor(g)}}
+
+/* ============================ GRAIN FIELD (SwiftUI Canvas on device) ============================
+   Two layers, both made of grains:
+   1. Sediment: a very quiet field under the SMOOTHED long-term net-worth trend (rises left→right),
+      strata inside by share. Static for the day.
+   2. Month rhythm: a 30×4 grain matrix (one column per day). Grains settle evenly: 4 per day, one every 6 h.
+      The next grain hangs above its slot and sinks a little with every timeline entry.            */
+const SIZES={ small:{w:170,h:170,lo:18,hi:66,mx:{x:16,y:150,w:138,rows:4}}, medium:{w:364,h:170,lo:16,hi:54,mx:{x:16,y:150,w:176,rows:4}} };
+function matrixSpec(size,mode){const S=SIZES[size];return mode==='rhythm'
+  ? {x:16,y:152,w:size==='medium'?188:138,rows:4,py:6,R:1.35}      // rhythm-only: the matrix is the hero
+  : {...S.mx,py:4.2,R:.95}}
+function renderField(cv,size,theme,mode,e,s){
+  const S=SIZES[size],W=S.w,H=S.h,P=PAL[theme],seed=seedFor(mode),r=mulberry(seed.n);
+  cv.width=Math.round(W*s);cv.height=Math.round(H*s);cv.style.width=W+'px';cv.style.height=H+'px';cv.className='f';
+  const c=cv.getContext('2d');c.setTransform(s,0,0,s,0,0);c.clearRect(0,0,W,H);
+  const tinted=theme==='tinted', A=(tinted?.7:1)*(theme==='light'?1.1:1);
+  if(!tinted){const g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,P.bg);g.addColorStop(1,P.bg2);c.fillStyle=g;c.fillRect(0,0,W,H)}
+  const rhythmMode=mode==='rhythm', masked=mode==='masked';
+  // ---- 1. sediment under the smooth trend ----
+  const tr=trend(), wob=noise1(r,W,37), surf=new Float32Array(W+2);
+  const hi=rhythmMode?S.hi*.55:S.hi;
+  for(let x=0;x<=W+1;x++){const f=masked?.5:tr(x/W);surf[x]=H-S.lo-(hi-S.lo)*f+wob[x]*.4}
+  const shares=DATA.buckets.map(b=>b.v/DATA.netWorth),eq=masked||rhythmMode;
+  const th=[0,1,2].map(i=>eq?[.14,.2,.26][i]:Math.max([.06,.09,.14][i],shares[i]));   // as fraction of local depth
+  const cum=[th[0],th[0]+th[1],th[0]+th[1]+th[2]];
+  const M=matrixSpec(size,mode), mTop=M.y-(M.rows-1)*M.py;
+  const quiet=(x,y)=>{const dx=Math.max(M.x-x,0,x-(M.x+M.w)),dy=Math.max(mTop-y,0,y-M.y),d=Math.hypot(dx,dy);return d<10?.8*(1-d/10):0}; // field thins softly around the matrix
+  const clear=(x,y)=>r()<quiet(x,y);
+  const sp=1.4,paths=[...Array(4)].map(()=>new Path2D()),alpha=[.40,.28,.22,.16];
+  for(let gy=H-hi-4;gy<H;gy+=sp)for(let gx=0;gx<W;gx+=sp){
+    const x=gx+r()*sp,y=gy+r()*sp,xi=Math.max(0,Math.min(W,Math.round(x)));if(y<surf[xi])continue;
+    if(r()>.5)continue; if(clear(x,y))continue;
+    const d=(y-surf[xi])/(H-surf[xi]+.01); let L=0;while(L<3&&d>cum[L])L++;
+    if(L===3&&r()<d*.5)continue;
+    const rad=.3+.24*r();paths[L].moveTo(x+rad,y);paths[L].arc(x,y,rad,0,6.283);
+  }
+  paths.forEach((p,i)=>{c.fillStyle=rgba(P.strata[i],alpha[i]*A*P.gAlpha);c.fill(p)});
+  c.fillStyle=rgba(P.grain,.16*A);for(let x=0;x<W;x+=1.2){const xi=Math.round(x);if(clear(x,surf[xi]))continue;c.beginPath();c.arc(x,surf[xi],.28,0,7);c.fill()}
+  // suspended grains: drift down a little every entry (the only thing in the water)
+  const re=mulberry(seed.n^0x9e37),snow=Math.round(W*H/900);
+  for(let i=0;i<snow;i++){const x=re()*W,top=H-hi-6,y=(re()*top+e*1.6*(.6+re()))%top;c.fillStyle=rgba(P.grain,(.05+.1*re())*A);c.beginPath();c.arc(x,y,.3+.3*re(),0,7);c.fill()}
+  // ---- 2. month rhythm matrix ----
+  const mp=monthProgress(e), cols=DATA.daysInMonth, rows=M.rows, pitchX=M.w/cols, pitchY=M.py, R=M.R;
+  for(let d=0;d<cols;d++)for(let k=0;k<rows;k++){
+    const idx=d*rows+k, x=M.x+pitchX*(d+.5), y=M.y-k*pitchY;
+    if(idx<mp.landed){ const fresh=idx===mp.landed-1;
+      c.fillStyle=rgba(P.accent,(fresh?1:.78)*A);c.beginPath();c.arc(x,y,R,0,7);c.fill(); }
+    else { c.fillStyle=rgba(P.grain,.13*A);c.beginPath();c.arc(x,y,R*.8,0,7);c.fill(); }
+  }
+  // the settling grain: hangs above its slot, sinks with every entry, lands after 6 h
+  { const idx=mp.landed,d=Math.floor(idx/rows),k=idx%rows; if(d<cols){
+      const x=M.x+pitchX*(d+.5), yS=M.y-k*pitchY, fall=rhythmMode?18:10, y=yS-(1-mp.frac)*fall;
+      c.fillStyle=rgba(P.accent,(.25+.7*mp.frac)*A);c.beginPath();c.arc(x,y,R,0,7);c.fill(); } }
+  // faint paper grain so flat areas never look dead
+  if(!tinted){const id=c.getImageData(0,0,cv.width,cv.height),a=id.data,rn=mulberry(seed.n^0xf11),kk=theme==='dark'?3:2.5;
+    for(let i=0;i<a.length;i+=4){const n=(rn()-.5)*2*kk;a[i]+=n;a[i+1]+=n;a[i+2]+=n}c.putImageData(id,0,0)}
+  return {};
+}
+
+/* ============================ NUMERIC ROLL (≈ .contentTransition(.numericText())) ============================ */
+function rollHTML(cur,prev,p,lh){
+  if(!prev||p>=1||prev.length!==cur.length)return cur;
+  let out='';for(let i=0;i<cur.length;i++){const a=prev[i],b=cur[i];
+    if(a===b||!/\d/.test(b)){out+=b;continue}
+    const k=1-Math.pow(1-p,3);
+    out+=`<span class="roll" style="height:${lh}px"><span style="transform:translateY(${-k*lh}px);opacity:${1-k*.9};filter:blur(${Math.sin(k*Math.PI)*1.2}px)">${a}</span><span style="transform:translateY(${-k*lh}px);opacity:${.1+k*.9};filter:blur(${Math.sin(k*Math.PI)*1.2}px)">${b}</span></span>`}
+  return out}
+
+/* ============================ WIDGET VIEWS ============================ */
+const ENTRY=2500, XFADE=900, ROLL=700;
+const STATE={mode:'exact',theme:'dark',view:'home',playing:true};
+const Q=new URLSearchParams(location.search);
+['mode','theme','view'].forEach(k=>Q.get(k)&&(STATE[k]=Q.get(k)));
+const FROZEN=Q.has('t')?+Q.get('t'):null;
+const live=[]; const E=8;   // pre-render 8 entries (≈ 2 h of timeline)
+function T(parent,cls,css,html){const d=document.createElement('div');d.className='t '+cls;Object.assign(d.style,css);d.innerHTML=html;parent.appendChild(d);return d}
+
+function buildWidget(el,size,theme,mode,opts={}){
+  el.innerHTML='';const S=SIZES[size],P=PAL[theme],s=Math.max(3,devicePixelRatio);
+  const eff=(mode==='masked'&&opts.reveal)?'exact':mode;
+  el.style.width=S.w+'px';el.style.height=S.h+'px';el.classList.toggle('tinted',theme==='tinted');
+  el.style.background=theme==='tinted'?'':P.bg;
+  const fields=[...Array(E)].map((_,e)=>{const cv=document.createElement('canvas');renderField(cv,size,theme,eff,e,s);cv.style.opacity=0;el.appendChild(cv);return cv});
+  const txt=document.createElement('div');txt.className='txt';el.appendChild(txt);
+  const C0=content(eff,0),med=size==='medium',pad=16;
+  T(txt,'lab',{left:pad+'px',top:'15px',color:P.text2},C0.lab+(C0.unit?`<span class="unit">${C0.unit}</span>`:''));
+  const hs=C0.zh?(med?24:22):(med?34:C0.hero.length>7?27:34), lh=Math.round(hs*1.15);
+  // number block sits just above the month-rhythm matrix; calm water above it
+  const M=matrixSpec(size,eff), mTop=M.y-(M.rows-1)*M.py, lineTop=mTop-12-15, heroTop=lineTop-3-lh;
+  const hero=T(txt,'hero num'+(C0.zh?' zh':''),{left:(pad-1)+'px',top:heroTop+'px',fontSize:hs+'px',lineHeight:lh+'px',color:P.text},'');
+  let line=null;
+  if(!C0.zh){line=T(txt,'line num',{left:pad+'px',top:lineTop+'px',color:P.text2},'')}
+  else T(txt,'line',{left:pad+'px',top:lineTop+'px',color:P.text2},'每天四顆，靜靜落下');
+  if(C0.hint)T(txt,'tick',med?{right:pad+'px',bottom:'13px',color:P.accent}:{right:pad+'px',top:'17px',color:P.accent},C0.hint);
+  if(opts.reveal)T(txt,'tick',{right:pad+'px',top:'17px',color:P.accent},'顯示中');
+  if(med){ // four categories, quiet list on the right; goal beneath
+    DATA.buckets.slice().reverse().forEach((b,i)=>T(txt,'cat num',{left:'220px',top:(17+i*19)+'px',color:P.text2},
+      `<span style="color:${P.text3}">${b.zh}</span><span class="v" style="color:${eff==='rhythm'?P.text3:P.text2}">${C0.cats[3-i]||'·'}</span>`));
+    if(C0.goal||eff==='rhythm'){T(txt,'cat num',{left:'220px',top:'98px',color:P.text3},`${DATA.goal.name}<span class="v" style="color:${P.accent}">${C0.goal}</span>`);}
+  }
+  const tick=null;
+  return {el,size,theme,mode:eff,fields,hero,line,tick,C:(e)=>content(eff,e),lh,P,revealAt:opts.revealAt};
+}
+function applyTime(t){
+  const e=Math.max(0,Math.floor(t/ENTRY)),u=t-e*ENTRY,cur=e%E,prev=(e+E-1)%E;
+  const a=e===0?1:Math.min(1,u/XFADE),p=e===0?1:Math.min(1,u/ROLL);
+  for(const w of live){
+    w.fields.forEach((cv,i)=>cv.style.opacity=i===cur?a:(i===prev?1:0)); // new entry fades in over old
+    w.fields[cur].style.zIndex=2;w.fields[prev].style.zIndex=1;w.fields.forEach((cv,i)=>{if(i!==cur&&i!==prev)cv.style.zIndex=0});
+    const C=w.C(e),Cp=w.C(e-1);
+    w.hero.innerHTML=(C.num?rollHTML(C.hero,Cp.hero,p,w.lh):C.hero)+(C.suf?`<span class="suf" style="color:${w.P.text2}">${C.suf}</span>`:'');
+    if(w.line){ w.line.innerHTML = C.pace ? `月節奏 <b style="color:${w.P.accent}">${C.pace}</b>`+
+        (w.size==='medium'&&C.perDay?`&nbsp;&nbsp;<span style="color:${w.P.text3}">·&nbsp;&nbsp;${C.perDay}</span>`:'') : ''; }
+    const cd=w.el.querySelector('[data-cd]');if(cd)cd.textContent='0:'+String(Math.max(0,10-Math.floor((t-w.revealAt)/1000))).padStart(2,'0');
+  }
+  document.querySelectorAll('[data-clock]').forEach(n=>n.textContent='22:07');
+  document.querySelectorAll('[data-rtoday]').forEach(n=>{const C=content(STATE.mode,0);n.textContent=C.pace||''});
+}
+window.__setTime=t=>applyTime(t);
+
+/* ============================ LOCK SCREEN ACCESSORIES (vibrant, monochrome) ============================ */
+function matrixMini(cv,w,rows,s,mode){ // 30×rows month rhythm, vibrant white
+  const pitchY=3.4,h=(rows-1)*pitchY+3;cv.width=w*s;cv.height=h*s;cv.style.width=w+'px';cv.style.height=h+'px';
+  const c=cv.getContext('2d');c.scale(s,s);const mp=monthProgress(0),step=w/30;
+  for(let d=0;d<30;d++)for(let k=0;k<rows;k++){const idx=(d*rows+k)*(4/rows)|0,x=(d+.5)*step,y=h-1.5-k*pitchY,on=idx<mp.landed;
+    c.fillStyle=`rgba(255,255,255,${on?(idx===mp.landed-1?1:.72):.22})`;c.beginPath();c.arc(x,y,on?.95:.7,0,7);c.fill()}
+  return cv}
+function ring(cv,sz,s,frac,n,big){
+  cv.width=sz*s;cv.height=sz*s;cv.style.width=sz+'px';cv.style.height=sz+'px';const c=cv.getContext('2d');c.scale(s,s);
+  const R=sz/2-5,f=frac*n;
+  c.fillStyle='rgba(255,255,255,.14)';c.beginPath();c.arc(sz/2,sz/2,sz/2,0,7);c.fill();   // AccessoryWidgetBackground
+  for(let i=0;i<n;i++){const a=-Math.PI/2+i/n*Math.PI*2,on=i<Math.floor(f);c.fillStyle=on?'rgba(255,255,255,.92)':'rgba(255,255,255,.26)';
+    c.beginPath();c.arc(sz/2+Math.cos(a)*R,sz/2+Math.sin(a)*R,on?big:.9,0,7);c.fill()}
+  return cv}
+function buildRect(el,mode,s){
+  el.innerHTML='';const C=content(mode,0);el.style.width='172px';el.style.height='76px';
+  T(el,'lab',{left:'0',top:'2px',color:'rgba(255,255,255,.7)',font:'600 13px/16px var(--f)'},(mode==='rhythm'?'本月節奏':C.lab)+(C.unit?' NT$':''));
+  T(el,'hero num',{left:'0',top:'19px',fontSize:C.zh?'19px':'23px',lineHeight:'27px',color:'#fff'},C.rect);
+  const cv=document.createElement('canvas');matrixMini(cv,mode==='rhythm'?172:116,3,s,mode);const d=T(el,'',{left:'0',top:'54px'},'');d.appendChild(cv);
+  if(C.pace&&mode!=='rhythm')T(el,'tick num',{left:'124px',top:'53px',color:'rgba(255,255,255,.8)',font:'600 11px var(--f)'},'月 '+C.pace.replace('NT$',''));
+}
+function buildCirc(el,mode,s,kind){
+  el.innerHTML='';el.style.width='76px';el.style.height='76px';const cv=document.createElement('canvas');const C=content(mode,0);
+  if(kind==='rhythm'){ring(cv,76,s,monthProgress(0).p,30,1.3)}else ring(cv,76,s,mode==='masked'?0:DATA.goal.pct/100,40,1.25);
+  const d=T(el,'',{left:0,top:0},'');d.appendChild(cv);
+  const val=kind==='rhythm'?C.circ:(mode==='masked'?'••':mode==='rhythm'?'':'82%'), cap=kind==='rhythm'?'本月':DATA.goal.short;
+  T(el,'hero num',{left:0,right:0,top:val?'22px':'30px',textAlign:'center',fontSize:(val.length>4?15:18)+'px',lineHeight:'22px',color:'#fff'},val);
+  T(el,'tick',{left:0,right:0,top:val?'44px':'32px',textAlign:'center',color:'rgba(255,255,255,.7)'},cap);
+}
+
+/* ============================ SCREENS ============================ */
+const ICONS={ // generic, non-branded glyph tiles
+  cal:['#fff','<text x="32" y="22" font-size="10" text-anchor="middle" fill="#e5484d" font-family="Inter" font-weight="600">週日</text><text x="32" y="50" font-size="30" text-anchor="middle" fill="#111" font-family="Inter" font-weight="400">27</text>'],
+  photo:['#fff','<g transform="translate(32 32)">'+[0,45,90,135,180,225,270,315].map((a,i)=>`<ellipse rx="6" ry="12" transform="rotate(${a}) translate(0 -10)" fill="${['#f5b93b','#f2833a','#e5484d','#c850c0','#6a5cd8','#3b8ef0','#3fbf7f','#9ad14b'][i]}" opacity=".85"/>`).join('')+'</g>'],
+  cam:['#8e9196','<rect x="12" y="20" width="40" height="28" rx="6" fill="#2b2c2f"/><circle cx="32" cy="34" r="9" fill="#9aa0a8"/><circle cx="32" cy="34" r="5" fill="#2b2c2f"/>'],
+  maps:['#e9efe3','<path d="M0 44 L64 20 L64 30 L0 54z" fill="#f4c542"/><path d="M28 0h8v64h-8z" fill="#fff"/><circle cx="44" cy="22" r="7" fill="#e5484d"/>'],
+  wea:['#3d8ee8','<circle cx="26" cy="26" r="10" fill="#ffd54a"/><ellipse cx="36" cy="40" rx="16" ry="9" fill="#fff"/>'],
+  notes:['#fff','<rect width="64" height="16" fill="#f7c948"/><path d="M12 30h40M12 40h40M12 50h28" stroke="#d6d6d6" stroke-width="2"/>'],
+  inertia:['#141517','<path d="M10 46 Q20 42 32 44 T54 42 V54 H10z" fill="#3a3733"/><path d="M10 46 Q20 42 32 44 T54 42" stroke="#c98a4b" stroke-width="2" fill="none"/><circle cx="40" cy="24" r="1.6" fill="#c98a4b"/><circle cx="40" cy="33" r="1.3" fill="#c98a4b" opacity=".7"/>'],
+  phone:['#34c759','<path d="M22 16l7 2 2 8-4 3a22 22 0 0 0 10 10l3-4 8 2 2 7c-1 3-4 5-7 5-15-1-27-13-28-28 0-3 2-6 7-5z" fill="#fff"/>'],
+  web:['#fff','<circle cx="32" cy="32" r="22" fill="#2f7bf5"/><path d="M32 12v40M12 32h40" stroke="#fff" stroke-width="2"/><path d="M40 24l-6 12-10 4 6-12z" fill="#fff"/>'],
+  msg:['#34c759','<ellipse cx="32" cy="30" rx="20" ry="16" fill="#fff"/><path d="M18 42l-4 8 12-5z" fill="#fff"/>'],
+  music:['#fa3c55','<path d="M26 44V20l18-4v24" stroke="#fff" stroke-width="3.5" fill="none"/><circle cx="22" cy="44" r="5" fill="#fff"/><circle cx="40" cy="40" r="5" fill="#fff"/>'],
+};
+function icon(name,label,x,y,theme){const [bg,svg]=ICONS[name];const tinted=theme==='tinted';
+  return `<div class="app" style="left:${x}px;top:${y}px"><i style="background:${tinted?'rgba(40,30,20,.35)':bg};${tinted?'backdrop-filter:blur(20px);':''}"><svg viewBox="0 0 64 64" style="${tinted?'filter:grayscale(1) sepia(.8) saturate(1.6) brightness(1.15);opacity:.9':''}">${svg}</svg></i>${label}</div>`}
+function wallpaper(cv,theme){const s=2;cv.width=430*s;cv.height=932*s;const c=cv.getContext('2d');c.scale(s,s);
+  let g;
+  if(theme==='light'){g=c.createLinearGradient(0,0,430,932);g.addColorStop(0,'#dfe6ee');g.addColorStop(.5,'#efe9df');g.addColorStop(1,'#d9cfc0');c.fillStyle=g;c.fillRect(0,0,430,932);
+    blob(c,340,160,260,'rgba(255,255,255,.7)');blob(c,60,700,300,'rgba(190,170,140,.35)');blob(c,380,860,240,'rgba(160,178,200,.35)')}
+  else{g=c.createLinearGradient(0,0,0,932);g.addColorStop(0,'#1d2530');g.addColorStop(.55,'#2a2a2f');g.addColorStop(1,'#3a2f28');c.fillStyle=g;c.fillRect(0,0,430,932);
+    blob(c,330,120,280,'rgba(120,150,190,.35)');blob(c,40,560,300,'rgba(150,110,80,.28)');blob(c,380,860,260,'rgba(201,138,75,.22)')}
+  function blob(c,x,y,r,col){const gg=c.createRadialGradient(x,y,0,x,y,r);gg.addColorStop(0,col);gg.addColorStop(1,col.replace(/[\d.]+\)$/,'0)'));c.fillStyle=gg;c.fillRect(0,0,430,932)}
+}
+const SB=`<div class="sb"><span data-clock>22:07</span><span class="r"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg><svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 11.5 0.5 3.5a11 11 0 0 1 15 0z" fill="currentColor"/></svg><svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24.5" y="4.5" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>`;
+
+function homeScreen(stage,theme,mode){
+  const ph=document.createElement('div');ph.className='phone'+(theme==='light'?' light':'');stage.appendChild(ph);
+  const wc=document.createElement('canvas');wc.className='wall';wallpaper(wc,theme==='light'?'light':'dark');ph.appendChild(wc);
+  ph.insertAdjacentHTML('beforeend',SB+'<div class="island"></div>');
+  const sm=document.createElement('div');sm.className='wg';sm.id='wSmall';Object.assign(sm.style,{left:'33px',top:'72px'});ph.appendChild(sm);
+  const md=document.createElement('div');md.className='wg';md.id='wMed';Object.assign(md.style,{left:'33px',top:'292px'});ph.appendChild(md);
+  ph.insertAdjacentHTML('beforeend',`<div class="wlabel" style="left:33px;width:170px;top:249px">Inertia</div><div class="wlabel" style="left:33px;width:364px;top:469px">Inertia</div>`+
+    icon('cal','行事曆',233,72,theme)+icon('photo','照片',333,72,theme)+icon('wea','天氣',233,172,theme)+icon('notes','備忘錄',333,172,theme)+
+    icon('maps','地圖',33,510,theme)+icon('cam','相機',133,510,theme)+icon('music','音樂',233,510,theme)+icon('inertia','Inertia',333,510,theme)+
+    `<div class="spot">搜尋</div><div class="dock"></div>`+
+    icon('phone','',33,844,theme)+icon('web','',133,844,theme)+icon('msg','',233,844,theme)+icon('cam','',333,844,theme)+`<div class="homebar"></div><div id="cap"></div>`);
+  ph.querySelectorAll('.dock~.app').forEach(a=>{a.style.fontSize='0'});
+  return {ph,sm,md};
+}
+function lockScreen(stage,mode){
+  const ph=document.createElement('div');ph.className='phone';stage.appendChild(ph);
+  const wc=document.createElement('canvas');wc.className='wall';wallpaper(wc,'dark');ph.appendChild(wc);
+  const s=Math.max(3,devicePixelRatio);
+  ph.insertAdjacentHTML('beforeend',SB+'<div class="island"></div>'+
+    `<div class="lockdate">9月27日 星期日&nbsp;&nbsp;<span class="num" style="font-weight:500">· 月節奏 <span data-rtoday></span></span></div><div class="lockclock num">22:07</div>`+
+    `<div class="acc" id="aRect" style="left:41px;top:240px"></div><div class="acc" id="aCirc" style="left:225px;top:240px"></div><div class="acc" id="aCirc2" style="left:313px;top:240px"></div>`+
+    `<div class="lockbtn" style="left:46px"></div><div class="lockbtn" style="right:46px"></div><div class="homebar"></div>`);
+  buildRect(ph.querySelector('#aRect'),mode,s);buildCirc(ph.querySelector('#aCirc'),mode,s,'rhythm');buildCirc(ph.querySelector('#aCirc2'),mode,s,'goal');
+  if(mode==='rhythm')ph.querySelector('.lockdate span').style.display='none';
+  return ph;
+}
+/* ============================ BOOT ============================ */
+let t0=performance.now();
+function build(){
+  const st=document.getElementById('stage');st.innerHTML='';live.length=0;
+  if(STATE.view==='lock'){lockScreen(st,STATE.mode)}
+  else{
+    const {ph,sm,md}=homeScreen(st,STATE.theme,STATE.mode);
+    live.push(buildWidget(sm,'small',STATE.theme,STATE.mode,{reveal:sm._r}));
+    live.push(buildWidget(md,'medium',STATE.theme,STATE.mode,{reveal:md._r}));
+    [sm,md].forEach(el=>el.onclick=()=>{if(STATE.mode!=='masked')return;window._rev=performance.now()-t0;window._revOn=true;build()});
+    if(window._revOn){live.forEach(w=>{w.revealAt=window._rev});}
+    if(STATE.view==='video'){const c=ph.querySelector('#cap');c.style.display='block';c.style.bottom='';c.style.top='700px';
+      c.innerHTML='時間壓縮：每 2.5 秒 = 90 分鐘（裝置上 6 個 15 分鐘 entry）<br><span style="opacity:.7">月節奏：每 6 小時落下一顆 · 數字平均滾動 · 不含市場波動</span>'}
+  }
+  document.getElementById('seedInfo').textContent=`"${seedFor(STATE.mode).str}" → FNV-1a 0x${seedFor(STATE.mode).n.toString(16)} → mulberry32`;
+  applyTime(FROZEN??(performance.now()-t0));
+}
+// masked reveal: build widgets with reveal flag
+const _bw=buildWidget;buildWidget=function(el,size,theme,mode,opts){return _bw(el,size,theme,mode,{...opts,reveal:window._revOn&&mode==='masked',revealAt:window._rev})};
+function loop(now){const t=now-t0;if(window._revOn&&t-window._rev>10000){window._revOn=false;build()}
+  if(FROZEN==null&&STATE.playing)applyTime(t);requestAnimationFrame(loop)}
+function btns(){
+  const mk=(id,list,key)=>{document.getElementById(id).innerHTML=list.map(([k,l])=>`<button data-k="${k}" class="${STATE[key]===k?'on':''}">${l}</button>`).join('');
+    document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{STATE[key]=b.dataset.k;window._revOn=false;btns();build()})};
+  mk('modeBtns',MODES,'mode');mk('themeBtns',[['dark','深色'],['light','淺色'],['tinted','著色 Tinted']],'theme');mk('viewBtns',[['home','主畫面'],['lock','鎖定畫面']],'view');
+}
+function sheet(){
+  document.getElementById('controls').style.display='none';document.getElementById('stage').style.display='none';
+  document.body.classList.add('bare');document.getElementById('sheet').style.display='block';const g=document.getElementById('sheetGrid');
+  g.innerHTML='<div></div>'+['SMALL · 深','MEDIUM · 深','SMALL · 淺','MEDIUM · 淺','鎖定 · RECT'].map(x=>`<div class="colh">${x}</div>`).join('');
+  const desc={exact:'全部數字',rounded:'以萬為單位',relative:'只有百分比',rhythm:'無數字 · 沉積帶加厚',masked:'遮蔽 · 均勻紋理 · 輕觸顯示'};
+  for(const [k,zh] of MODES){g.insertAdjacentHTML('beforeend',`<div class="ml">${zh}<small>${k.toUpperCase()}<br>${desc[k]}</small></div>`);
+    for(const th of ['dark','light'])for(const sz of ['small','medium']){const el=document.createElement('div');el.className='wg cell';g.appendChild(el);live.push(_bw(el,sz,th,k))}
+    const lc=document.createElement('div');lc.className='lockcell';g.appendChild(lc);const a=document.createElement('div');a.className='acc';a.style.left='12px';a.style.top='0';lc.appendChild(a);buildRect(a,k,3);a.style.transform='scale(.86)';a.style.transformOrigin='0 50%';a.style.top='5px'}
+  applyTime(FROZEN??2000);
+}
+function closeup(size){ // widget on a crop of wallpaper
+  document.getElementById('controls').style.display='none';document.body.classList.add('bare');
+  build();const ph=document.querySelector('.phone'),el=size==='small'?ph.querySelector('#wSmall'):ph.querySelector('#wMed');
+  const m=18,L=parseFloat(el.style.left)-m,Tp=parseFloat(el.style.top)-m;ph.style.width=(SIZES[size].w+2*m)+'px';ph.style.height=(SIZES[size].h+2*m)+'px';
+  [...ph.children].forEach(ch=>{ch.style.transform=`translate(${-L}px,${-Tp}px)`;if(ch!==el&&!ch.classList.contains('wall'))ch.style.visibility='hidden'});
+}
+document.fonts.ready.then(()=>{
+  if(Q.get('controls')==='0'||['small','medium','video'].includes(STATE.view)||Q.get('view')==='home'&&Q.get('controls')==='0'){document.getElementById('controls').style.display='none';document.body.classList.add('bare')}
+  if(STATE.view==='sheet')sheet();
+  else if(STATE.view==='small'||STATE.view==='medium'){const v=STATE.view;STATE.view='home';closeup(v)}
+  else{btns();document.getElementById('bPlay').onclick=e=>{STATE.playing=!STATE.playing;e.target.classList.toggle('on',STATE.playing)};
+    document.getElementById('bNext').onclick=()=>{t0-=ENTRY-((performance.now()-t0)%ENTRY)};build()}
+  requestAnimationFrame(loop);window.__ready=true;
+});
+</script>
+</body>
+</html>

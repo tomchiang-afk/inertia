@@ -1,0 +1,133 @@
+@font-face{font-family:"Fraunces";src:url(fonts/Fraunces-VF.woff2) format("woff2");font-weight:100 900;font-style:normal}
+@font-face{font-family:"Fraunces";src:url(fonts/Fraunces-Italic-VF.woff2) format("woff2");font-weight:100 900;font-style:italic}
+@font-face{font-family:"Noto Serif TC";src:url(fonts/NotoSerifTC-Regular.subset.woff2) format("woff2");font-weight:400}
+@font-face{font-family:"Noto Serif TC";src:url(fonts/NotoSerifTC-Bold.subset.woff2) format("woff2");font-weight:700}
+@font-face{font-family:"IBM Plex Mono";src:url(fonts/IBMPlexMono-Regular.woff2) format("woff2");font-weight:400}
+@font-face{font-family:"IBM Plex Mono";src:url(fonts/IBMPlexMono-Medium.woff2) format("woff2");font-weight:500}
+@font-face{font-family:"IBM Plex Mono";src:url(fonts/IBMPlexMono-Italic.woff2) format("woff2");font-weight:400;font-style:italic}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#2a2825;color:#e9e3d6;font-family:"Noto Serif TC",serif;-webkit-font-smoothing:antialiased}
+body{min-height:100vh}
+body.capture{background:transparent}
+
+/* ---------- page shell ---------- */
+.page{display:flex;gap:40px;padding:32px;align-items:flex-start;flex-wrap:wrap}
+.panel{width:300px;font:13px/1.5 "IBM Plex Mono",monospace;color:#cfc6b4}
+.panel h1{font:italic 300 30px/1.05 "Fraunces";font-variation-settings:"opsz" 144;color:#f1ece2;margin-bottom:4px}
+.panel h2{font:500 11px/1 "IBM Plex Mono";letter-spacing:.14em;text-transform:uppercase;color:#8f877a;margin:22px 0 8px}
+.panel p{font-family:"Noto Serif TC";font-size:13px;color:#a79e8e}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:12px "IBM Plex Mono","Noto Serif TC";background:none;border:1px solid #4b463e;color:#cfc6b4;padding:6px 9px;border-radius:2px;cursor:pointer}
+.seg button.on{background:#f1ece2;color:#1c1a17;border-color:#f1ece2}
+.panel .note{font-size:11px;color:#8f877a;margin-top:8px}
+
+/* ---------- phone ---------- */
+.phone{position:relative;width:411px;height:914px;overflow:hidden;border-radius:34px;box-shadow:0 0 0 10px #0b0b0c,0 30px 80px rgba(0,0,0,.5);font-family:"Google Sans","Roboto","Noto Sans",sans-serif}
+body.capture .phone{border-radius:0;box-shadow:none}
+.wall{position:absolute;inset:0}
+.status{position:absolute;top:0;left:0;right:0;height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 22px 0 26px;font:500 14px "Roboto","Noto Sans",sans-serif;color:#fff;z-index:3}
+.status svg{display:block}
+.glance{position:absolute;left:26px;top:122px;color:#fff;font:400 20px/1 "Roboto","Noto Sans",sans-serif;letter-spacing:.2px;text-shadow:0 1px 3px rgba(0,0,0,.25);z-index:2}
+.glance small{display:block;font-size:13px;margin-top:6px;opacity:.9}
+.app{position:absolute;width:88px;text-align:center;color:#fff;font:400 13px "Roboto","Noto Sans",sans-serif;text-shadow:0 1px 2px rgba(0,0,0,.4);z-index:2}
+.app .ic{width:58px;height:58px;border-radius:50%;margin:0 auto 7px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.dock .app{font-size:0}
+.search{position:absolute;left:30px;right:30px;top:818px;height:52px;border-radius:26px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:space-between;padding:0 18px;z-index:2}
+body.dark .search{background:rgba(48,48,54,.92)}
+.gest{position:absolute;bottom:9px;left:50%;width:108px;height:4px;margin-left:-54px;border-radius:2px;background:rgba(255,255,255,.85);z-index:3}
+.slot{position:absolute;z-index:2}
+.slot.s22{left:21px;top:208px}
+.slot.s42{left:21px;top:446px}
+
+/* ---------- WIDGET ---------- */
+.w{position:relative;overflow:hidden;border-radius:16px;font-size:10px;line-height:1.2;
+  --paper:#F1ECE2;--ink:#1C1A17;--ink2:#655D51;--ink3:#978E80;--hair:#CDC3B1;--acc:#B0341F;--blind-hi:rgba(255,255,255,.75);--blind-lo:rgba(90,70,40,.16);
+  color:var(--ink);background:var(--paper);font-family:"Noto Serif TC",serif;
+  box-shadow:0 1px 2px rgba(0,0,0,.18),0 6px 18px rgba(0,0,0,.18)}
+.w.dark{--paper:#17150F;--ink:#ECE4D2;--ink2:#A59B88;--ink3:#72695C;--hair:#39332A;--acc:#E2664A;--blind-hi:rgba(255,245,225,.07);--blind-lo:rgba(0,0,0,.55)}
+.w .grain{position:absolute;inset:0;background-size:100% 100%;pointer-events:none}
+.w .layer{position:absolute;inset:0}
+.abs{position:absolute}
+
+.mast{display:flex;justify-content:space-between;align-items:baseline;white-space:nowrap}
+.brand{font:500 8.5px/1 "Fraunces";font-variation-settings:"opsz" 9,"SOFT" 0,"WONK" 0;letter-spacing:.26em}
+.ed{font:400 7.5px/1 "Noto Serif TC";color:var(--ink2);letter-spacing:.06em}
+.ed b{font:italic 400 8.5px/1 "Fraunces";font-variation-settings:"opsz" 9;letter-spacing:0;color:var(--ink)}
+.rule2{height:3px;border-top:1.1px solid var(--ink);border-bottom:.5px solid var(--ink);opacity:.9}
+.hair{height:0;border-top:.5px solid var(--hair)}
+.kicker{font:400 8.5px/1 "Noto Serif TC";color:var(--ink2);letter-spacing:.08em;white-space:nowrap;display:flex;justify-content:space-between;align-items:baseline}
+.kicker i{font:italic 300 8.5px/1 "Fraunces";font-variation-settings:"opsz" 9;letter-spacing:.02em;color:var(--ink3);margin-left:4px}
+.kicker .dt{font:400 7px/1 "IBM Plex Mono";color:var(--ink3);letter-spacing:.02em}
+
+/* hero numerals */
+.hero{position:absolute;overflow:visible}
+.hero .dev{position:absolute;left:0;right:0;bottom:0;white-space:nowrap;opacity:0}
+.num{display:inline-flex;align-items:flex-start;line-height:1;color:var(--ink)}
+.num .cur{font:400 .30em/1 "Fraunces";font-variation-settings:"opsz" 24,"SOFT" 0;letter-spacing:.04em;margin-top:.12em;margin-right:.08em;color:var(--ink2)}
+.num .fig{font-family:"Fraunces";font-weight:330;font-variation-settings:"opsz" 144,"SOFT" 0,"WONK" 0;font-feature-settings:"lnum","pnum","kern";letter-spacing:-.018em}
+.num .unit{font:400 .42em/1 "Noto Serif TC";margin-left:.06em;margin-top:.47em}
+.num .pct{font:300 .5em/1 "Fraunces";font-variation-settings:"opsz" 72;margin-left:.03em;margin-top:.1em}
+.num .fig.mask{display:inline-flex;align-items:center;height:.74em;margin-top:.26em;gap:.2em;padding-left:.1em}
+.num .fig.mask .dot{display:block;width:.19em;height:.19em;border-radius:50%;background:currentColor}
+.ink{ -webkit-mask-size:150px 150px;mask-size:150px 150px}
+.w:not(.dark) .ink.press{text-shadow:0 .6px 0 rgba(255,255,255,.55),0 0 .5px currentColor}
+.w.dark .ink.press{text-shadow:0 0 .6px currentColor}
+
+.pace{display:flex}
+.pace .c{flex:1;min-width:0}
+.pace .c{line-height:1}
+.pace .l{font:400 7.5px/1 "Noto Serif TC";color:var(--ink2);letter-spacing:.1em;display:block;margin-bottom:5px}
+.pace .l sup{font:400 6px/0 "Fraunces";color:var(--acc);margin-left:1px;vertical-align:.5em}
+.pace .v{font-family:"Fraunces";font-weight:400;font-variation-settings:"opsz" 36,"SOFT" 0;font-feature-settings:"lnum","tnum";font-size:15px;line-height:1;color:var(--acc);white-space:nowrap;display:block}
+.pace .v small{font-size:.62em;margin-left:1px;font-family:"Noto Serif TC"}
+.pace .v.words{font:400 10px/1.2 "Noto Serif TC";letter-spacing:.06em;color:var(--ink)}
+.pace .c + .c{border-left:.5px solid var(--hair);padding-left:9px}
+
+.flip{position:absolute}
+.flip img,.flip canvas{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0}
+
+.goal{white-space:nowrap}
+.goal .row{display:flex;align-items:baseline;font:400 8px/1 "Noto Serif TC";letter-spacing:.06em;color:var(--ink)}
+.goal .lead{flex:1;border-bottom:.8px dotted var(--ink3);margin:0 4px;transform:translateY(-2px)}
+.goal .pv{font:400 9.5px/1 "Fraunces";font-variation-settings:"opsz" 14;font-feature-settings:"lnum","tnum";letter-spacing:0}
+.goal .bar{position:relative;height:3px;margin-top:4px}
+.goal .bar .base{position:absolute;left:0;right:0;top:1px;border-top:.8px dotted var(--ink3)}
+.goal .bar .fill{position:absolute;left:0;top:.6px;height:1.4px;background:var(--ink)}
+.goal .bar .tick{position:absolute;top:-1.5px;width:1.3px;height:6px;background:var(--acc)}
+.goal .bar.blind .fill{background:none;box-shadow:0 .5px 0 var(--blind-hi),0 -.5px 0 var(--blind-lo)}
+
+.foot{display:flex;align-items:center;justify-content:space-between;white-space:nowrap}
+.ticker{position:relative;flex:1;height:10px;overflow:hidden}
+.ticker div{position:absolute;left:0;top:0;right:0;font:400 7.2px/10px "Noto Serif TC";color:var(--ink2);letter-spacing:.04em;opacity:0}
+.ticker div sup{font:italic 400 6.5px/0 "Fraunces";color:var(--acc);margin-right:2px;vertical-align:.45em}
+.ticker div .n{font:400 7.5px/10px "Fraunces";font-variation-settings:"opsz" 9;font-feature-settings:"lnum","tnum";color:var(--ink);letter-spacing:0}
+.clock{font:400 7px/10px "IBM Plex Mono";color:var(--ink3);letter-spacing:.02em}
+.clock b{font-weight:500;color:var(--ink2)}
+
+/* 4x2 categories */
+.cats .cr{display:flex;align-items:baseline;white-space:nowrap}
+.cats .cn{font:400 9.5px/1 "Noto Serif TC";letter-spacing:.1em}
+.cats .lead{flex:1;border-bottom:.8px dotted var(--ink3);margin:0 4px;transform:translateY(-2px);opacity:.8}
+.cats .cv{font-family:"Fraunces";font-weight:380;font-variation-settings:"opsz" 24,"SOFT" 0;font-feature-settings:"lnum","tnum";font-size:12.5px;line-height:1;letter-spacing:-.005em}
+.cats .cv small{font:400 .66em/1 "Noto Serif TC";margin-left:1px;color:var(--ink2)}
+.cats .cs{font:400 6.5px/1 "IBM Plex Mono";color:var(--ink3);letter-spacing:.03em;margin-top:3px;white-space:nowrap}
+.cats .cs.zh{font-family:"Noto Serif TC";letter-spacing:.08em}
+.cats .glyph{height:9px;width:44px}
+.vmarg{position:absolute;writing-mode:vertical-rl;font:400 6.8px/1 "Noto Serif TC";letter-spacing:.32em;color:var(--ink3);white-space:nowrap}
+.vmarg b{font-weight:400;color:var(--acc)}
+.daylbl{font:400 6px/1 "IBM Plex Mono";color:var(--ink3);position:absolute}
+.rhythm-cap{font:400 11px/1.35 "Noto Serif TC";letter-spacing:.14em;color:var(--ink)}
+.rhythm-cap i{display:block;font:italic 300 9px/1.2 "Fraunces";font-variation-settings:"opsz" 9;letter-spacing:.02em;color:var(--ink3)}
+
+/* sheet */
+.sheet{padding:28px 32px 36px;background:#DDD6C9;color:#1c1a17;display:inline-block}
+.sheet.dk{background:#1f1d1a;color:#e9e3d6}
+.sheet h3{font:italic 300 26px/1 "Fraunces";font-variation-settings:"opsz" 144;margin-bottom:4px}
+.sheet .sub{font:400 11px/1.4 "IBM Plex Mono";opacity:.7;margin-bottom:18px}
+.sheet .grid{display:grid;grid-template-columns:auto auto auto;gap:18px 28px;align-items:center}
+.sheet .lab{font:400 12px/1.35 "Noto Serif TC";width:118px}
+.sheet .lab b{display:block;font:500 10px/1.4 "IBM Plex Mono";letter-spacing:.1em;text-transform:uppercase;opacity:.6}
+.sheet .col{display:flex;gap:18px}
+
+.hero .dev .ghost{position:absolute;left:0;bottom:0;white-space:nowrap}
