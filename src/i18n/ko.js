@@ -155,6 +155,8 @@ export default {
   "widget.passive": "패시브",
   "widget.lockAria": "Inertia 잠금 위젯 미리보기",
   "widget.homeAria": "Inertia 홈 중형 위젯 미리보기",
+  "widget.updated": "업데이트",
+  "widget.rhythm": "이번 달 리듬",
 
   "ad.aria": "광고（모의）",
   "ad.kicker": "광고（모의）",

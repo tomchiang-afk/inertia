@@ -155,6 +155,8 @@ export default {
   "widget.passive": "被動",
   "widget.lockAria": "Inertia 鎖定小工具預覽",
   "widget.homeAria": "Inertia 主畫面中型小工具預覽",
+  "widget.updated": "更新",
+  "widget.rhythm": "本月節奏",
 
   "ad.aria": "廣告（模擬）",
   "ad.kicker": "廣告（模擬）",

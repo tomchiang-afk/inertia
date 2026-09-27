@@ -155,6 +155,8 @@ export default {
   "widget.passive": "パッシブ",
   "widget.lockAria": "Inertia ロックウィジェットプレビュー",
   "widget.homeAria": "Inertia ホーム中ウィジェットプレビュー",
+  "widget.updated": "更新",
+  "widget.rhythm": "今月のリズム",
 
   "ad.aria": "広告（モック）",
   "ad.kicker": "広告（モック）",

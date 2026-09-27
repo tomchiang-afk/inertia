@@ -33,6 +33,7 @@ import {
   showRhythmWithoutPace,
 } from "./widgetPrivacy.js";
 import { configureAdGate, withEditAd } from "./adGate.js";
+import { syncNativeWidget, initNativeWidget } from "./nativeWidget.js";
 import { fetchDelayedQuotes, mockPortfolioFromQuotes } from "./quotes.js";
 import {
   t,
@@ -64,6 +65,7 @@ const app = document.getElementById("app");
 
 function persist() {
   saveState(state);
+  syncNativeWidget(state);
 }
 
 function currentTemplate() {
@@ -1373,3 +1375,6 @@ if (new URLSearchParams(location.search).get("demo") === "1") {
 }
 
 render();
+
+/* Native home-screen widget: snapshot on start + on resume/pause (no-op on web). */
+initNativeWidget(state);

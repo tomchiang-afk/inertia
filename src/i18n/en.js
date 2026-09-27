@@ -155,6 +155,8 @@ export default {
   "widget.passive": "Passive",
   "widget.lockAria": "Inertia lock widget preview",
   "widget.homeAria": "Inertia home medium widget preview",
+  "widget.updated": "Updated",
+  "widget.rhythm": "Month rhythm",
 
   "ad.aria": "Ad (mock)",
   "ad.kicker": "Ad (mock)",

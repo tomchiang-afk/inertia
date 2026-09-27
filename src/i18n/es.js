@@ -155,6 +155,8 @@ export default {
   "widget.passive": "Pasivo",
   "widget.lockAria": "Vista previa del widget de bloqueo de Inertia",
   "widget.homeAria": "Vista previa del widget mediano de inicio de Inertia",
+  "widget.updated": "Actualizado",
+  "widget.rhythm": "Ritmo del mes",
 
   "ad.aria": "Anuncio (simulación)",
   "ad.kicker": "Anuncio (simulación)",
