@@ -3,7 +3,9 @@ package app.inertia.wealth.widget;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RectF;
+import android.graphics.Typeface;
 
 /**
  * Static bitmaps for RemoteViews (no animation): the month rhythm beat bar
@@ -98,6 +100,140 @@ public final class WidgetBitmaps {
                 c.drawRoundRect(new RectF(0, 0, Math.max(fw, h), h), r, r, p);
             }
         }
+        return bmp;
+    }
+
+    /**
+     * Month beat. {@code cols == 10 && rows == 3} is the small rhythm grid (one dot per day).
+     * A single row is the wide rhythm line. Otherwise each column is a day and rows fill upward.
+     */
+    public static Bitmap monthMatrix(int w, int h, int cols, int rows, int day, int dim,
+                                     float dayFraction, int accent, int track, boolean square) {
+        w = Math.max(w, 8);
+        h = Math.max(h, 8);
+        cols = Math.max(cols, 1);
+        rows = Math.max(rows, 1);
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        float gapX = Math.max(1f, w * 0.015f);
+        float gapY = rows == 1 ? 0f : Math.max(1f, h * 0.08f);
+        float cw = (w - gapX * (cols - 1)) / cols;
+        float rh = (h - gapY * (rows - 1)) / Math.max(rows, 1);
+        float rad = Math.min(cw, rh) * 0.42f;
+        int limit = Math.max(dim, 1);
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < cols; col++) {
+                boolean on;
+                boolean today;
+                if (cols == 10 && rows > 1) {
+                    int n = row * cols + col + 1;
+                    if (n > Math.min(limit, 30)) continue;
+                    on = n < day;
+                    today = n == day;
+                } else if (rows == 1) {
+                    int n = col + 1;
+                    if (n > limit) continue;
+                    on = n < day;
+                    today = n == day;
+                } else {
+                    int n = col + 1;
+                    if (n > limit) continue;
+                    int filled = n < day ? rows : n == day ? Math.max(1, (int) Math.ceil(dayFraction * rows)) : 0;
+                    int fromBottom = rows - 1 - row;
+                    on = fromBottom < filled;
+                    today = n == day && fromBottom == filled - 1;
+                }
+                p.setColor(on || today ? accent : track);
+                if (today) p.setAlpha(160 + (int) (95 * Math.max(0f, Math.min(1f, dayFraction))));
+                float cx = col * (cw + gapX) + cw / 2f;
+                float cy = row * (rh + gapY) + rh / 2f;
+                if (square) {
+                    float s = rad * 0.85f;
+                    c.drawRect(cx - s, cy - s, cx + s, cy + s, p);
+                } else {
+                    c.drawCircle(cx, cy, rad, p);
+                }
+                p.setAlpha(255);
+            }
+        }
+        return bmp;
+    }
+
+    /** Monotone 12-month pace curve. No axes, no values. */
+    public static Bitmap trend(int w, int h, int accent) {
+        w = Math.max(w, 8);
+        h = Math.max(h, 8);
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(Math.max(2f, h * 0.04f));
+        p.setStrokeCap(Paint.Cap.ROUND);
+        p.setStrokeJoin(Paint.Join.ROUND);
+        p.setColor(accent);
+        Path path = new Path();
+        int n = 12;
+        float endX = 0f;
+        float endY = 0f;
+        for (int i = 0; i < n; i++) {
+            float t = i / (float) (n - 1);
+            float x = 4f + t * (w - 10f);
+            float y = h - 8f - (h * 0.18f + h * 0.62f * t);
+            if (i == 0) path.moveTo(x, y);
+            else path.lineTo(x, y);
+            endX = x;
+            endY = y;
+        }
+        c.drawPath(path, p);
+        p.setStyle(Paint.Style.FILL);
+        c.drawCircle(endX, endY, Math.max(3f, h * 0.055f), p);
+        return bmp;
+    }
+
+    /** Quiet paper grain. Capped so a 4×2 widget stays well under the RemoteViews bitmap budget. */
+    public static Bitmap grain(int w, int h, int seed) {
+        int maxW = 480;
+        if (w > maxW) {
+            h = Math.max(1, h * maxW / w);
+            w = maxW;
+        }
+        w = Math.max(w, 4);
+        h = Math.max(h, 4);
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        int[] px = new int[w * h];
+        int s = seed == 0 ? 1 : seed;
+        for (int i = 0; i < px.length; i += 2) {
+            s = s * 1664525 + 1013904223;
+            int a = 10 + ((s >>> 28) & 15);
+            int v = (s >>> 16) & 0xFF;
+            px[i] = (a << 24) | (v << 16) | (v << 8) | v;
+        }
+        bmp.setPixels(px, 0, w, 0, 0, w, h);
+        return bmp;
+    }
+
+    /** Editorial hero. RemoteViews cannot load a bundled serif, so the numeral is a bitmap. */
+    public static Bitmap heroText(String text, int w, int h, int color, boolean serif) {
+        w = Math.max(w, 8);
+        h = Math.max(h, 8);
+        if (text == null) text = "";
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setColor(color);
+        p.setTypeface(serif
+                ? Typeface.create(Typeface.SERIF, Typeface.NORMAL)
+                : Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
+        float size = h * 0.78f;
+        p.setTextSize(size);
+        while (size > 10f && p.measureText(text) > w * 0.98f) {
+            size *= 0.92f;
+            p.setTextSize(size);
+        }
+        Paint.FontMetrics fm = p.getFontMetrics();
+        float y = (h - (fm.ascent + fm.descent)) / 2f;
+        c.drawText(text, 0, y, p);
         return bmp;
     }
 

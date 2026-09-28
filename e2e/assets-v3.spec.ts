@@ -260,11 +260,11 @@ test("ads rule — rename / reorder / delete: no ad; changed amount: ad; unchang
   s = await saved(page);
   expect(s.assets.cashAccounts).toHaveLength(1);
 
-  // Browsing never shows ads; widgets previews neither
+  // Browsing never shows ads; the widget tab neither
   await nav(page, "Home");
   await page.getByTestId("bucket-stocks").click();
-  await nav(page, "Settings");
-  await page.getByRole("button", { name: "Home medium (preview)" }).click();
+  await nav(page, "Widget");
+  await page.getByTestId("style-sediment").click();
   await expect(page.getByTestId("home-widget")).toContainText("Stocks");
   await expect(page.getByTestId("ad-overlay")).toHaveCount(0);
 });

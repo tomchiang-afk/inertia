@@ -103,7 +103,8 @@ test("hydrateState: partial v1 save merges v1 defaults (same as old loadState), 
   assert.equal(s.migratedFrom, 1);
   assert.equal(s.assets.properties[0].marketValue, 20_000_000);
   assert.equal(s.assets.properties[0].mortgageBalance, 5_200_000);
-  assert.equal(s.settings.widgetTemplate, "noir");
+  assert.equal(s.settings.widgetStyle, "editorial");
+  assert.equal(s.settings.widgetTemplate, undefined);
   assert.equal(s.settings.buyout, true);
   assert.equal(s.settings.fx.base, "TWD");
   assert.equal(s.goals.length, 1);

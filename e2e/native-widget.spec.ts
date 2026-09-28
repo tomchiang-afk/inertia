@@ -31,7 +31,7 @@ test("native widget snapshot — exact by default, then masked after Settings ch
   expect(snap.goal).toMatchObject({ show: true, name: "Down payment", barPct: 82.4 });
   expect(snap.live).toMatchObject({ format: "exact", base: 16_470_000 });
 
-  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Widget" }).click();
   await page.getByTestId("privacy-mode-masked").click();
   await expect(page.getByTestId("privacy-mode-masked")).toHaveAttribute("aria-selected", "true");
 
@@ -47,7 +47,7 @@ test("native widget snapshot — exact by default, then masked after Settings ch
 
 test("native widget snapshot — relative / rhythm modes carry no absolute NT$", async ({ page }) => {
   await gotoHome(page);
-  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Widget" }).click();
 
   await page.getByTestId("privacy-mode-relative").click();
   let snap = await snapshotFromSavedState(page);
@@ -70,7 +70,6 @@ test("native widget mock — masked layout shows no raw amounts", async ({ page 
   await page.waitForFunction(() => (window as any).__mockReady === true);
   const widgets = page.getByTestId("android-widget");
   await expect(widgets).toHaveCount(2);
-  await expect(widgets.first()).toContainText("Inertia");
   await expect(widgets.first()).toContainText("NT$••••••");
   await expect(widgets.first()).not.toContainText(/\d{1,3},\d{3}/);
 });

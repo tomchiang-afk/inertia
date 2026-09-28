@@ -112,7 +112,6 @@ export function housingList(state, d, reorder) {
     ${missingNote(d)}
     <div class="list-head"><h3>${t("list.properties")}</h3>${listHead("property", reorder, list.length)}</div>
     <div class="item-list" data-testid="property-list">${rows || `<p class="item-empty">${t("list.empty.house")}</p>`}</div>
-    <p class="detail-note bare">${t("note.housing", { amount: fmtMoney(Math.round(d.dailyPrincipal)) })}</p>
     <div class="actions"><button type="button" class="btn btn-primary" data-new="property" data-testid="add-property">${t("list.add.property")}</button></div>`;
 }
 
@@ -160,7 +159,6 @@ export function stocksList(state, d, reorder) {
     ${missingNote(d)}
     <div class="list-head"><h3>${t("list.accounts")}</h3>${listHead("account", reorder, Math.max(accts.length, accts.some((a) => a.holdings.length > 1) ? 2 : 0))}</div>
     <div class="acct-list" data-testid="account-list">${groups || `<p class="item-empty">${t("list.empty.stock")}</p>`}</div>
-    <p class="detail-note bare">${t("note.stocks")}</p>
     <div class="actions"><button type="button" class="btn btn-primary" data-new="account" data-testid="add-account">${t("list.add.account")}</button></div>`;
 }
 
@@ -215,7 +213,6 @@ export function passiveList(state, d, reorder) {
     ${missingNote(d)}
     <div class="list-head"><h3>${t("list.passiveItems")}</h3>${listHead("passive", reorder, list.length)}</div>
     <div class="item-list" data-testid="passive-list">${rows || `<p class="item-empty">${t("list.empty.passive")}</p>`}</div>
-    <p class="detail-note bare">${t("note.passive")}</p>
     <div class="actions"><button type="button" class="btn btn-primary" data-new="passive" data-testid="add-passive">${t("list.add.passive")}</button></div>`;
 }
 
@@ -313,8 +310,7 @@ function fieldHTML(f, value, ctx) {
   if (f.type === "market") {
     const opts = MARKETS.map((m) => `<option value="${m}">${t("market." + m)}</option>`).join("");
     return wrap(`<input id="${id}" name="market" type="text" maxlength="16" list="market-list" value="${esc(v)}" required autocomplete="off" data-testid="form-market" />
-      <datalist id="market-list">${opts}</datalist>
-      <span class="field-hint">${t("form.marketHint")}</span>`);
+      <datalist id="market-list">${opts}</datalist>`);
   }
   return "";
 }

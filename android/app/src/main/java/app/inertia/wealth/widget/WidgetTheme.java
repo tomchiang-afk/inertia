@@ -3,8 +3,8 @@ package app.inertia.wealth.widget;
 import app.inertia.wealth.R;
 
 /**
- * Native palette per in-app widget template (tokens from src/styles.css).
- * Light by default, one accent each; noir is the single dark option.
+ * Native palette for the three v0.4 styles (rhythm / editorial / sediment).
+ * Legacy template ids still resolve through {@link #normalizeStyle}.
  */
 public final class WidgetTheme {
 
@@ -31,28 +31,28 @@ public final class WidgetTheme {
         this.accentRule = accentRule;
     }
 
-    public static WidgetTheme forTemplate(String template) {
-        if (template == null) template = "paper";
-        switch (template) {
-            case "swiss":
-                return new WidgetTheme("swiss", R.drawable.widget_bg_swiss,
-                        0xFF0A0A0A, 0xFF4A4A4E, 0xFF7A7A80, 0xFFD8D8DE, 0xFF9B1B2E, true, true);
-            case "sumi":
-                return new WidgetTheme("sumi", R.drawable.widget_bg_sumi,
-                        0xFF1C1C1A, 0xFF555850, 0xFF7E8378, 0xFFD0D6CC, 0xFF3F4F42, false, false);
-            case "glass":
-                return new WidgetTheme("glass", R.drawable.widget_bg_glass,
-                        0xFF1B1D21, 0xFF5A5E66, 0xFF8B9099, 0x1F000000, 0xFF2C5F6E, false, false);
-            case "noir":
-                return new WidgetTheme("noir", R.drawable.widget_bg_noir,
-                        0xFFF2F2F0, 0xFFA1A19C, 0xFF6E6E6A, 0xFF3A3A3C, 0xFF8FA896, false, false);
-            case "matrix":
-                return new WidgetTheme("matrix", R.drawable.widget_bg_matrix,
-                        0xFF111111, 0xFF5A5A5A, 0xFF8A8A8A, 0xFFC8C8C8, 0xFF0B7A4B, true, false);
-            case "paper":
-            default:
-                return new WidgetTheme("paper", R.drawable.widget_bg_paper,
-                        0xFF1A1A1A, 0xFF5C5C5C, 0xFF8A8A8A, 0xFFE8E8E8, 0xFF2F5D4A, false, false);
+    /** paper/swiss/glass → rhythm, sumi → sediment, noir/matrix → editorial. */
+    public static String normalizeStyle(String style, String template) {
+        if ("rhythm".equals(style) || "editorial".equals(style) || "sediment".equals(style)) return style;
+        if ("sumi".equals(template)) return "sediment";
+        if ("noir".equals(template) || "matrix".equals(template)) return "editorial";
+        return "rhythm";
+    }
+
+    public static WidgetTheme forStyle(String style) {
+        if ("editorial".equals(style)) {
+            return new WidgetTheme("editorial", R.drawable.widget_bg_editorial,
+                    0xFF1D1B18, 0xFF8B857A, 0xFFB9B2A6, 0xFFE6E0D6, 0xFFC3402A, false, false);
         }
+        if ("sediment".equals(style)) {
+            return new WidgetTheme("sediment", R.drawable.widget_bg_sediment,
+                    0xFF1C1C1E, 0xFF6A645B, 0xFFA39B90, 0xFFE8E1D4, 0xFF9A5B22, false, false);
+        }
+        return new WidgetTheme("rhythm", R.drawable.widget_bg_rhythm,
+                0xFF1C1C1E, 0xFF5C5C5C, 0xFF8A8A8A, 0xFFE4E4E6, 0xFF2E7D5B, false, false);
+    }
+
+    public static WidgetTheme forTemplate(String template) {
+        return forStyle(normalizeStyle(null, template));
     }
 }

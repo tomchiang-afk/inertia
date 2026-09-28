@@ -28,8 +28,10 @@ test("no today-actual switch anywhere; static month-pace badge; settings explain
 
   await nav(page, "Settings");
   await expect(page.locator("#honesty-seg")).toHaveCount(0);
-  await expect(page.getByTestId("settings-rhythm")).toContainText("mortgage principal + time-deposit interest + passive income");
+  await expect(page.getByTestId("settings-rhythm")).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText("Today actual");
+  await nav(page, "Widget");
+  await expect(page.getByTestId("style-rhythm")).toHaveAttribute("aria-selected", "true");
 
   await nav(page, "Stocks");
   await expect(page.getByTestId("stocks-summary")).not.toContainText(/Today|3,200|186/);

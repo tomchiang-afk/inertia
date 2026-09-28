@@ -4,6 +4,6 @@ package app.inertia.wealth.widget;
 public class InertiaWidgetMediumProvider extends InertiaWidgetProvider {
     @Override
     protected int[] defaultSizeDp() {
-        return new int[] {300, 150};
+        return new int[] {368, 222};
     }
 }

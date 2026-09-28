@@ -1,0 +1,52 @@
+name: InertiaWidget
+options:
+  bundleIdPrefix: app.inertia
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  CODE_SIGNING_ALLOWED: NO
+  CODE_SIGNING_REQUIRED: NO
+targets:
+  InertiaHost:
+    type: application
+    platform: iOS
+    sources:
+      - InertiaHost
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: app.inertia.wealth
+      GENERATE_INFOPLIST_FILE: YES
+      INFOPLIST_KEY_UILaunchScreen_Generation: YES
+      TARGETED_DEVICE_FAMILY: "1"
+      CODE_SIGN_ENTITLEMENTS: InertiaWidget/InertiaWidget.entitlements
+      CODE_SIGNING_ALLOWED: NO
+    dependencies:
+      - target: InertiaWidget
+        embed: true
+  InertiaWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: InertiaWidget
+        excludes:
+          - Info.plist
+          - "*.entitlements"
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: app.inertia.wealth.widget
+      GENERATE_INFOPLIST_FILE: YES
+      INFOPLIST_FILE: InertiaWidget/Info.plist
+      CODE_SIGN_ENTITLEMENTS: InertiaWidget/InertiaWidget.entitlements
+      CODE_SIGNING_ALLOWED: NO
+    dependencies: []
+    info:
+      path: InertiaWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Inertia
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+schemes:
+  InertiaHost:
+    build:
+      targets:
+        InertiaHost: all
+        InertiaWidget: all

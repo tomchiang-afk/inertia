@@ -1,17 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Inertia home widget, small (2x2). Texts are set from the snapshot. -->
+<!-- Inertia 2×2. Content starts at the top; the month beat is anchored to the bottom. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@android:id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_bg_paper">
+    android:background="@drawable/widget_bg_rhythm">
+
+    <ImageView
+        android:id="@+id/grain_img"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:visibility="gone" />
 
     <ImageView
         android:id="@+id/accent_rule"
         android:layout_width="3dp"
         android:layout_height="match_parent"
-        android:layout_gravity="start"
-        android:background="#9B1B2E"
         android:importantForAccessibility="no"
         android:visibility="gone" />
 
@@ -27,54 +33,33 @@
         android:paddingRight="14dp"
         android:paddingBottom="12dp">
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/brand"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:text="Inertia"
+            android:visibility="gone" />
 
-            <TextView
-                android:id="@+id/brand"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:fontFamily="sans-serif-medium"
-                android:letterSpacing="0.02"
-                android:maxLines="1"
-                android:text="Inertia"
-                android:textColor="#1A1A1A"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/updated"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFeatureSettings="tnum"
-                android:maxLines="1"
-                android:textColor="#8A8A8A"
-                android:textSize="9sp" />
-        </LinearLayout>
-
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
+        <TextView
+            android:id="@+id/updated"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/placeholder"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="4dp"
-            android:lineSpacingMultiplier="1.15"
             android:text="@string/widget_placeholder"
             android:textColor="#5C5C5C"
-            android:textSize="11sp"
+            android:textSize="12sp"
             android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/body"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:orientation="vertical">
 
             <TextView
@@ -83,29 +68,37 @@
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:textColor="#5C5C5C"
-                android:textSize="10sp" />
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/nw_value"
                 android:layout_width="match_parent"
-                android:layout_height="26dp"
-                android:autoSizeMaxTextSize="21sp"
-                android:autoSizeMinTextSize="12sp"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:autoSizeMaxTextSize="28sp"
+                android:autoSizeMinTextSize="14sp"
                 android:autoSizeTextType="uniform"
                 android:ellipsize="end"
-                android:fontFamily="sans-serif-medium"
                 android:fontFeatureSettings="tnum"
                 android:gravity="center_vertical"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:textColor="#1A1A1A"
-                android:textSize="18sp" />
+                android:textColor="#1C1C1E"
+                android:textSize="22sp" />
+
+            <ImageView
+                android:id="@+id/hero_img"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:importantForAccessibility="no"
+                android:scaleType="fitStart"
+                android:visibility="gone" />
 
             <LinearLayout
                 android:id="@+id/pace_row"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
                 android:orientation="horizontal">
 
                 <TextView
@@ -116,26 +109,24 @@
                     android:layout_marginRight="4dp"
                     android:maxLines="1"
                     android:textColor="#5C5C5C"
-                    android:textSize="10sp" />
+                    android:textSize="12sp" />
 
                 <TextView
                     android:id="@+id/pace_value"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
-                    android:fontFamily="sans-serif-medium"
                     android:fontFeatureSettings="tnum"
                     android:maxLines="1"
-                    android:textColor="#2F5D4A"
-                    android:textSize="10.5sp" />
+                    android:textColor="#2E7D5B"
+                    android:textSize="13sp" />
             </LinearLayout>
         </LinearLayout>
 
         <ImageView
             android:id="@+id/rhythm_img"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="7dp"
+            android:layout_height="52dp"
             android:importantForAccessibility="no"
             android:scaleType="fitXY" />
 
@@ -154,7 +145,7 @@
                 android:fontFeatureSettings="tnum"
                 android:maxLines="1"
                 android:textColor="#5C5C5C"
-                android:textSize="9.5sp" />
+                android:textSize="11sp" />
 
             <ImageView
                 android:id="@+id/goal_bar"

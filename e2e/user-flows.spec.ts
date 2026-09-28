@@ -106,78 +106,47 @@ test("demo rhythm — ?demo=1 adds demo-rhythm class and hero rhythm", async ({ 
   await expect(page.getByTestId("rhythm-metro").first()).toBeVisible();
 });
 
-test("widget template — Settings → select noir → preview has data-template", async ({ page }) => {
+test("widget tab — three styles update both previews immediately", async ({ page }) => {
   await gotoHome(page);
-  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
-  await expect(page.getByTestId("template-picker")).toBeVisible();
+  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Widget" }).click();
+  await expect(page.getByTestId("style-picker")).toBeVisible();
+  await expect(page.getByTestId("style-rhythm")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-style", "rhythm");
+  await expect(page.getByTestId("home-widget")).toHaveAttribute("data-style", "rhythm");
+  await expect(page.getByTestId("month-beat")).toBeVisible();
+  await expect(page.getByTestId("template-picker")).toHaveCount(0);
 
-  await page.getByTestId("template-noir").click();
-  await expect(page.getByTestId("template-noir")).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#app")).toHaveAttribute("data-template", "noir");
+  await page.getByTestId("style-editorial").click();
+  await expect(page.getByTestId("style-editorial")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-style", "editorial");
+  await expect(page.getByTestId("home-widget")).toHaveAttribute("data-style", "editorial");
+  await expect(page.locator("#app")).toHaveAttribute("data-style", "editorial");
 
-  await page.getByRole("button", { name: "Lock small (preview)" }).click();
-  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-template", "noir");
-  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-rhythm", "dots");
-  await expect(page.getByTestId("rhythm-dots").first()).toBeVisible();
-
-  await page.getByRole("button", { name: "Back" }).click();
-  await page.getByRole("button", { name: "Home medium (preview)" }).click();
-  await expect(page.getByTestId("home-widget")).toHaveAttribute("data-template", "noir");
-  await expect(page.getByTestId("home-widget")).toHaveAttribute("data-rhythm", "dots");
-  await expect(page.getByTestId("rhythm-dots").first()).toBeVisible();
+  await page.getByTestId("style-sediment").click();
+  await expect(page.getByTestId("home-widget")).toHaveAttribute("data-style", "sediment");
+  await expect(page.getByTestId("home-widget")).toContainText("Stocks");
 });
 
-test("widget template — swiss has accent rule structure; sumi asymmetric lock", async ({ page }) => {
+test("legacy widget templates migrate onto the widget tab", async ({ page }) => {
+  await seedEnglish(page, { force: true, settings: { widgetTemplate: "noir" } });
   await gotoHome(page);
-  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
-
-  await page.getByTestId("template-swiss").click();
-  await page.getByRole("button", { name: "Lock small (preview)" }).click();
-  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-template", "swiss");
-  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-rhythm", "bars");
-  await expect(page.getByTestId("rhythm-metro").first()).toBeVisible();
-  await page.getByRole("button", { name: "Back" }).click();
-
-  await page.getByTestId("template-sumi").click();
-  await page.getByRole("button", { name: "Lock small (preview)" }).click();
-  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-template", "sumi");
-  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-rhythm", "ink");
-  await expect(page.locator(".lw-asymmetric")).toBeVisible();
-  await expect(page.getByTestId("rhythm-dots").first()).toBeVisible();
-});
-
-test("widget template — Settings → select matrix → preview has data-template", async ({ page }) => {
-  await gotoHome(page);
-  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
-  await expect(page.getByTestId("template-picker")).toBeVisible();
-
-  await page.getByTestId("template-matrix").click();
-  await expect(page.getByTestId("template-matrix")).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#app")).toHaveAttribute("data-template", "matrix");
-
-  await page.getByRole("button", { name: "Lock small (preview)" }).click();
-  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-template", "matrix");
-  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-rhythm", "scan");
-  await expect(page.getByTestId("rhythm-scan").first()).toBeVisible();
-  await expect(page.getByTestId("rhythm-scan").first().locator(".rhythm-beat")).toHaveCount(4);
-
-  await page.getByRole("button", { name: "Back" }).click();
-  await page.getByRole("button", { name: "Home medium (preview)" }).click();
-  await expect(page.getByTestId("home-widget")).toHaveAttribute("data-template", "matrix");
-  await expect(page.getByTestId("home-widget")).toHaveAttribute("data-rhythm", "scan");
-  await expect(page.getByTestId("rhythm-scan").first()).toBeVisible();
+  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Widget" }).click();
+  await expect(page.getByTestId("style-editorial")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("lock-widget")).toHaveAttribute("data-style", "editorial");
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("inertia.v1") || "{}"));
+  expect(saved.settings.widgetStyle).toBe("editorial");
+  expect(saved.settings.widgetTemplate).toBeUndefined();
 });
 
 
 test("widget privacy — masked hides raw NT$ on lock preview", async ({ page }) => {
   await gotoHome(page);
-  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Widget" }).click();
   await expect(page.getByTestId("widget-privacy")).toBeVisible();
 
   await page.getByTestId("privacy-mode-masked").click();
   await expect(page.getByTestId("privacy-mode-masked")).toHaveAttribute("aria-selected", "true");
 
-  await page.getByRole("button", { name: "Lock small (preview)" }).click();
   const lock = page.getByTestId("lock-widget");
   await expect(lock).toHaveAttribute("data-privacy-mode", "masked");
   await expect(page.getByTestId("lock-net-worth")).toHaveText("NT$••••••");
@@ -188,12 +157,11 @@ test("widget privacy — masked hides raw NT$ on lock preview", async ({ page })
 
 test("widget privacy — relative shows % / progress, not raw absolute", async ({ page }) => {
   await gotoHome(page);
-  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Widget" }).click();
 
   await page.getByTestId("privacy-mode-relative").click();
   await expect(page.getByTestId("privacy-mode-relative")).toHaveAttribute("aria-selected", "true");
 
-  await page.getByRole("button", { name: "Lock small (preview)" }).click();
   const lock = page.getByTestId("lock-widget");
   await expect(lock).toHaveAttribute("data-privacy-mode", "relative");
   await expect(page.getByTestId("lock-net-worth")).toContainText(/Month progress \d+%/);
@@ -291,17 +259,16 @@ test("goals — widget strip shows amount in exact; privacy masked hides goal am
   await gotoHome(page);
   await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Settings" }).click();
   await expect(page.getByTestId("settings-goals")).toContainText("NW target");
-  await expect(page.getByTestId("privacy-field-goalProgress")).toBeChecked();
+  await expect(page.getByTestId("widget-privacy")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Lock small (preview)" }).click();
+  await page.getByRole("navigation", { name: "Screens" }).getByRole("button", { name: "Widget" }).click();
+  await expect(page.getByTestId("privacy-field-goalProgress")).toBeChecked();
   const strip = page.getByTestId("widget-goal-progress");
   await expect(strip).toBeVisible();
   // net worth 16.47M / 20M → 82%
   await expect(page.getByTestId("widget-goal-value")).toHaveText("82% · NT$16M");
 
-  await page.getByRole("button", { name: "Back" }).click();
   await page.getByTestId("privacy-mode-masked").click();
-  await page.getByRole("button", { name: "Lock small (preview)" }).click();
   const lock = page.getByTestId("lock-widget");
   await expect(lock).toHaveAttribute("data-privacy-mode", "masked");
   await expect(strip).toHaveAttribute("data-privacy-mode", "masked");
@@ -310,10 +277,7 @@ test("goals — widget strip shows amount in exact; privacy masked hides goal am
   await expect(strip).not.toContainText("82%");
   await expect(lock).not.toContainText("16,470,000");
 
-  // Field toggle off → strip gone
-  await page.getByRole("button", { name: "Back" }).click();
   await page.locator('label.switch:has([data-testid="privacy-field-goalProgress"])').click();
   await expect(page.getByTestId("privacy-field-goalProgress")).not.toBeChecked();
-  await page.getByRole("button", { name: "Home medium (preview)" }).click();
   await expect(page.getByTestId("widget-goal-progress")).toHaveCount(0);
 });

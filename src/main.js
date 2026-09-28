@@ -2,8 +2,8 @@ import "./styles.css";
 import {
   loadState,
   saveState,
-  WIDGET_TEMPLATES,
-  normalizeWidgetTemplate,
+  WIDGET_STYLES,
+  normalizeWidgetStyle,
 } from "./store.js";
 import {
   GOAL_ALIGNS,
@@ -88,10 +88,11 @@ if (!state.settings.locale || !SUPPORTED.includes(state.settings.locale)) {
   saveState(state);
 }
 setLocale(state.settings.locale);
-state.settings.widgetTemplate = normalizeWidgetTemplate(state.settings.widgetTemplate);
+state.settings.widgetStyle = normalizeWidgetStyle(state.settings.widgetStyle, state.settings.widgetTemplate);
+delete state.settings.widgetTemplate;
 state.settings.widgetPrivacy = normalizeWidgetPrivacy(state.settings.widgetPrivacy);
 
-let route = "home"; // home | house | stock | cash | passive | settings | widget-lock | widget-home
+let route = "home"; // home | house | stock | cash | passive | widget | settings
 let goalEdit = null; // null | "new" | goalId
 /** Item sheet: { kind: property|account|holding|cash|passive, id: string|null (null = new), accountId? } */
 let itemEdit = null;
@@ -107,19 +108,19 @@ function persist() {
   syncNativeWidget(state);
 }
 
-function currentTemplate() {
-  return normalizeWidgetTemplate(state.settings.widgetTemplate);
+function currentStyle() {
+  return normalizeWidgetStyle(state.settings.widgetStyle, state.settings.widgetTemplate);
 }
 
 function privacy() {
   return normalizeWidgetPrivacy(state.settings.widgetPrivacy);
 }
 
-function applyTemplateAttr(root) {
-  const id = currentTemplate();
-  root.setAttribute("data-template", id);
-  document.documentElement.setAttribute("data-template", id);
-  document.body.setAttribute("data-template", id);
+function applyStyleAttr(root) {
+  const id = currentStyle();
+  root.setAttribute("data-style", id);
+  document.documentElement.setAttribute("data-style", id);
+  document.body.setAttribute("data-style", id);
 }
 
 function go(name) {
@@ -158,18 +159,9 @@ function sparkPath(quietDay) {
   return { w, h, d, fill, coords: pts, last: pts[pts.length - 1] };
 }
 
-/* Template → rhythm craft (structural, not only color) */
-const TEMPLATE_RHYTHM = {
-  paper: "bars",
-  swiss: "bars",
-  sumi: "ink",
-  glass: "dots",
-  noir: "dots",
-  matrix: "scan",
-};
-
-function rhythmVariant() {
-  return TEMPLATE_RHYTHM[currentTemplate()] || "dots";
+/** App Home keeps the bar metronome. Widget styles use the month-beat matrix. */
+function homeRhythmHTML(size = "full") {
+  return metroHTML(size);
 }
 
 /** Rounded/sharp bar metronome — paper & swiss */
@@ -179,69 +171,6 @@ function metroHTML(size = "inline") {
     `<span class="rhythm-beat" style="--i:${i}"></span>`
   ).join("");
   return `<span class="rhythm-metro pace-only" data-rhythm="bars" data-size="${size}" data-testid="rhythm-metro" aria-hidden="true">${beats}</span>`;
-}
-
-/** LED / phosphor dot-matrix — glass & noir (and hero signature) */
-function dotsHTML(size = "full") {
-  const specs = {
-    full: { rows: 7, cols: 20 },
-    compact: { rows: 4, cols: 16 },
-    strip: { rows: 3, cols: 12 },
-    inline: { rows: 5, cols: 8 },
-  };
-  const { rows, cols } = specs[size] || specs.full;
-  const colsHtml = [];
-  for (let c = 0; c < cols; c++) {
-    const level = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin((c / Math.max(cols - 1, 1)) * Math.PI * 2.2));
-    let dots = "";
-    for (let r = 0; r < rows; r++) {
-      const fromBottom = rows - 1 - r;
-      const on = fromBottom / Math.max(rows - 1, 1) <= level;
-      dots += `<span class="led-dot${on ? " is-on" : ""}" style="--r:${r}"></span>`;
-    }
-    colsHtml.push(`<span class="led-col" style="--i:${c}">${dots}</span>`);
-  }
-  return `<div class="rhythm-matrix pace-only" data-rhythm="dots" data-size="${size}" data-rows="${rows}" data-cols="${cols}" data-testid="rhythm-dots" aria-hidden="true">${colsHtml.join("")}</div>`;
-}
-
-/** Soft circular ink dots — sumi */
-function inkHTML(size = "full") {
-  const specs = {
-    full: { rows: 5, cols: 12 },
-    compact: { rows: 3, cols: 10 },
-    strip: { rows: 2, cols: 8 },
-    inline: { rows: 3, cols: 6 },
-  };
-  const { rows, cols } = specs[size] || specs.full;
-  const colsHtml = [];
-  for (let c = 0; c < cols; c++) {
-    const level = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin((c / Math.max(cols - 1, 1)) * Math.PI * 1.8 + 0.4));
-    let dots = "";
-    for (let r = 0; r < rows; r++) {
-      const fromBottom = rows - 1 - r;
-      const on = fromBottom / Math.max(rows - 1, 1) <= level;
-      dots += `<span class="led-dot${on ? " is-on" : ""}" style="--r:${r}"></span>`;
-    }
-    colsHtml.push(`<span class="led-col" style="--i:${c}">${dots}</span>`);
-  }
-  return `<div class="rhythm-matrix pace-only" data-rhythm="ink" data-size="${size}" data-rows="${rows}" data-cols="${cols}" data-testid="rhythm-dots" aria-hidden="true">${colsHtml.join("")}</div>`;
-}
-
-/** 4-bar L→R scan metronome — matrix LCD */
-function scanHTML(size = "inline") {
-  const beats = Array.from({ length: 4 }, (_, i) =>
-    `<span class="rhythm-beat" style="--i:${i}"></span>`
-  ).join("");
-  return `<span class="rhythm-metro pace-only" data-rhythm="scan" data-size="${size}" data-testid="rhythm-scan" aria-hidden="true">${beats}</span>`;
-}
-
-/** Pick bars | dots | ink | scan for current template */
-function rhythmHTML(size = "full") {
-  const v = rhythmVariant();
-  if (v === "bars") return metroHTML(size);
-  if (v === "ink") return inkHTML(size);
-  if (v === "scan") return scanHTML(size);
-  return dotsHTML(size);
 }
 
 function prefersReducedMotion() {
@@ -871,7 +800,7 @@ function screenHome(d) {
   const paceBlock = `<p class="rhythm-live-line" id="rhythmLiveLine">${t("rhythm.paceRunning")} <span id="rhythmLive" data-testid="rhythm-today">${fmtNT(Math.floor(todaySoFar(d.quietDay, new Date())))}</span></p>
       <div class="rhythm-hero" data-testid="rhythm-hero">
         <div class="cap">${t("rhythm.matrixCap")}</div>
-        ${rhythmHTML("full")}
+        ${homeRhythmHTML("full")}
       </div>`;
   const capNote = paceCapped(state.paceAnchorAt)
     ? `<p class="fx-note" data-testid="pace-capped-note">${t("pace.cappedNote", { days: PACE_MAX_DAYS })}</p>`
@@ -925,10 +854,9 @@ function screenHome(d) {
         <div class="meta-row">
           ${pacePill}
           <span class="pill accent pace-breathe" data-testid="pace-badge">${t("home.paceBadge")}</span>
-          ${rhythmHTML("inline")}
+          ${homeRhythmHTML("inline")}
         </div>
       </div>
-      <p class="quiet-line">${t("quiet.line", { amount: `<strong>${fmtNT(Math.round(d.quietDay))}</strong>` })}</p>
       ${paceBlock}
       ${capNote}
       <div class="spark-wrap spark-secondary">
@@ -1018,9 +946,7 @@ function fxSettingsHTML() {
           <label for="fx-base-select">${t("fx.base")}</label>
           <select id="fx-base-select" data-testid="fx-base">${baseOpts}</select>
         </div>
-        <p class="about">${t("fx.baseHint")}</p>
         <h4 class="settings-sub">${t("fx.rates")} <span class="fx-stamp" data-testid="fx-stamp">${stamp}</span></h4>
-        <p class="about fx-approx">${t("fx.approx")}</p>
         <div class="fx-table" data-testid="fx-table">${rows}</div>
         <form class="fx-add" id="fx-add-form" data-testid="fx-add-form" novalidate>
           <input name="code" type="text" maxlength="3" placeholder="${t("fx.code")}" aria-label="${t("fx.code")}" autocomplete="off" data-testid="fx-add-code" />
@@ -1032,7 +958,6 @@ function fxSettingsHTML() {
 
 function screenSettings() {
   const s = state.settings;
-  const priv = privacy();
   const langButtons = SUPPORTED.map(
     (loc) =>
       `<button type="button" data-locale="${loc}" class="${s.locale === loc ? "active" : ""}">${localeLabel(loc)}</button>`
@@ -1059,10 +984,6 @@ function screenSettings() {
           <button type="button" data-period="month" class="${s.period === "month" ? "active" : ""}">${t("period.month.full")}</button>
         </div>
       </div>
-      <div class="settings-block" data-testid="settings-rhythm">
-        <h3>${t("settings.rhythm")}</h3>
-        <p class="desc">${t("settings.rhythmBody", { days: PACE_MAX_DAYS })}</p>
-      </div>
       <div class="settings-block">
         <div class="toggle-row">
           <div>
@@ -1075,35 +996,156 @@ function screenSettings() {
           </label>
         </div>
       </div>
-      <div class="settings-block">
-        <h3>${t("settings.aboutQuotes")}</h3>
-        <p class="about">${t("settings.aboutQuotesBody")}</p>
-      </div>
       <div class="settings-block" data-testid="settings-goals">
         <h3>${t("settings.goals")}</h3>
-        <p class="about">${t("goals.hint")}</p>
         ${goalsListHTML(d0(), { manage: true })}
       </div>
       <div class="settings-block">
-        <h3>${t("settings.widgetTemplate")}</h3>
-        <div class="template-picker" id="template-picker" data-testid="template-picker" role="listbox" aria-label="${t("settings.widgetTemplate")}">
-          ${WIDGET_TEMPLATES.map((id) => `
+        <h3>${t("settings.about")}</h3>
+        <p class="about">${t("settings.aboutBody", {
+          tagline: t("tagline"),
+          lang: localeLabel(s.locale || "en"),
+          ccy: fx().base,
+        })}</p>
+      </div>
+    </div>`;
+}
+
+function monthBeatHTML(style, size) {
+  const now = new Date();
+  const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const day = now.getDate();
+  const frac = (now.getHours() * 60 + now.getMinutes()) / (24 * 60);
+  const rhythmSmall = style === "rhythm" && size === "small";
+  const cols = rhythmSmall ? 10 : dim;
+  const rows = style === "rhythm" ? (size === "small" ? 3 : 1) : 4;
+  if (rhythmSmall) {
+    let dots = "";
+    const n = Math.min(dim, 30);
+    for (let i = 1; i <= cols * rows; i++) {
+      if (i > n) {
+        dots += `<i class="dot empty"></i>`;
+        continue;
+      }
+      const on = i < day;
+      const today = i === day;
+      dots += `<i class="dot${today ? " today" : on ? " on" : ""}"></i>`;
+    }
+    return `<div class="month-beat grid" style="--cols:${cols}" ${size === "small" ? 'data-testid="month-beat"' : ""} aria-hidden="true">${dots}</div>`;
+  }
+  let html = "";
+  for (let c = 1; c <= cols; c++) {
+    const filled = style === "rhythm"
+      ? (c < day || c === day ? 1 : 0)
+      : c < day ? rows : c === day ? Math.max(1, Math.ceil(frac * rows)) : 0;
+    let dots = "";
+    for (let r = 0; r < rows; r++) {
+      const on = r < filled;
+      const today = c === day && on && r === filled - 1;
+      dots += `<i class="dot${today ? " today" : on ? " on" : ""}"></i>`;
+    }
+    html += `<span class="col">${dots}</span>`;
+  }
+  return `<div class="month-beat cols" ${size === "small" ? 'data-testid="month-beat"' : ""} aria-hidden="true">${html}</div>`;
+}
+
+function trendSVG() {
+  const pts = [];
+  for (let i = 0; i < 12; i++) {
+    const t = i / 11;
+    const x = (i / 11) * 120;
+    const y = 52 - (10 + 34 * t);
+    pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+  }
+  const line = pts.join(" ");
+  return `<svg class="w-trend" viewBox="0 0 120 56" preserveAspectRatio="none" aria-hidden="true"><polyline points="${line}" /></svg>`;
+}
+
+function sedimentBuckets(d, priv) {
+  if (priv.displayMode === "rhythm") return "";
+  const base = d.netWorth;
+  const amt = (n) => formatWidgetMoney(n, priv, { kind: "absolute", compact: true, base });
+  const rows = [
+    ["bucketHousing", t("widget.housing"), amt(d.netEquity)],
+    ["bucketTwse", t("widget.stocks"), amt(d.stocks)],
+    ["bucketCash", t("widget.cash"), amt(d.cashTotal)],
+    ["bucketPassive", t("widget.passive"), priv.displayMode === "relative" ? "" : amt(d.passiveMonthly) + (priv.displayMode === "masked" ? "" : t("perMo"))],
+  ];
+  const html = rows
+    .filter(([key, , text]) => privacyFieldOn(priv, key) && text)
+    .map(([, label, text]) => `<div class="row"><span>${label}</span><span>${text}</span></div>`)
+    .join("");
+  return html ? `<div class="w-buckets">${html}</div>` : "";
+}
+
+function widgetCard(d, size) {
+  const style = currentStyle();
+  const priv = privacy();
+  const pace30 = Math.round(d.periodQuiet(30));
+  const showNw = privacyFieldOn(priv, "netWorth");
+  const showPace = privacyFieldOn(priv, "monthPace");
+  const showRhythm = showPace || showRhythmWithoutPace(priv);
+  const nwText = formatWidgetMoney(d.netWorth, priv, {
+    kind: "absolute",
+    asMonthProgress: priv.displayMode === "relative",
+  });
+  const paceRaw = formatWidgetPace(pace30, priv, { base: d.netWorth, compact: true });
+  const paceShown = priv.displayMode === "rhythm" ? "" : paceRaw;
+  const small = size === "small";
+  const hero = showNw && nwText
+    ? `<div class="w-hero"${small ? ' data-testid="lock-net-worth"' : ""}>${nwText}</div>`
+    : priv.displayMode === "rhythm"
+      ? `<div class="w-hero w-phrase">${t("widget.rhythm")}</div>`
+      : "";
+  const pace = showPace && paceShown
+    ? `<div class="w-pace"${small ? ' data-testid="lock-pace"' : ""}>${paceShown}</div>`
+    : "";
+  const side = small ? "" : style === "sediment" ? sedimentBuckets(d, priv) : trendSVG();
+  return `
+    <div class="wcard wstyle-${style} wsize-${size}" data-style="${style}" data-privacy-mode="${priv.displayMode}" data-testid="${small ? "lock-widget" : "home-widget"}" aria-label="${t(small ? "widget.lockAria" : "widget.homeAria")}">
+      <div class="w-top">
+        <div class="w-copy">
+          <div class="w-kicker">${style === "rhythm" ? t("widget.rhythm") : t("netWorth")}</div>
+          ${hero}
+          ${pace}
+        </div>
+        ${side ? `<div class="w-side">${side}</div>` : ""}
+      </div>
+      ${showRhythm ? monthBeatHTML(style, size) : ""}
+      ${small ? widgetGoalStripHTML(d, priv) : ""}
+    </div>`;
+}
+
+function screenWidget(d) {
+  const style = currentStyle();
+  const priv = privacy();
+  return `
+    <div class="topbar">
+      <div class="title">${t("nav.widget")}</div>
+    </div>
+    <div class="screen active" data-screen="widget" data-testid="widget-screen">
+      <div class="widget-stage widget-stage-live">
+        ${widgetCard(d, "small")}
+        ${widgetCard(d, "medium")}
+      </div>
+      <div class="settings-block">
+        <div class="template-picker style-picker" id="style-picker" data-testid="style-picker" role="listbox" aria-label="${t("nav.widget")}">
+          ${WIDGET_STYLES.map((id) => `
             <button type="button"
-              class="template-swatch ${s.widgetTemplate === id ? "active" : ""}"
-              data-template-pick="${id}"
-              data-testid="template-${id}"
+              class="template-swatch ${style === id ? "active" : ""}"
+              data-style-pick="${id}"
+              data-testid="style-${id}"
               role="option"
-              aria-selected="${s.widgetTemplate === id ? "true" : "false"}"
-              title="${t("template." + id + ".desc")}">
+              aria-selected="${style === id ? "true" : "false"}">
               <span class="swatch-face" data-face="${id}" aria-hidden="true"></span>
-              <span class="swatch-name">${t("template." + id)}</span>
+              <span class="swatch-name">${t("style." + id)}</span>
             </button>`).join("")}
         </div>
-        <p class="template-desc" data-testid="template-desc">${t("template." + s.widgetTemplate + ".desc")}</p>
+        <p class="template-desc" data-testid="style-desc">${t("style." + style + ".line")}</p>
       </div>
       <div class="settings-block" data-testid="widget-privacy">
         <h3>${t("settings.widgetPrivacy")}</h3>
-        <p class="about privacy-note" data-testid="privacy-note">${t("settings.widgetPrivacyNote")}</p>
+        <p class="template-desc" data-testid="privacy-note">${t("settings.widgetPrivacyNote")}</p>
         <h4 class="settings-sub">${t("settings.privacyDisplayMode")}</h4>
         <div class="seg seg-wrap" id="privacy-mode-seg" data-testid="privacy-mode-seg" role="listbox" aria-label="${t("settings.privacyDisplayMode")}">
           ${DISPLAY_MODES.map((mode) => `
@@ -1127,199 +1169,6 @@ function screenSettings() {
             </div>`).join("")}
         </div>
       </div>
-      <div class="settings-block">
-        <h3>${t("settings.widgetPreviews")}</h3>
-        <div class="actions">
-          <button type="button" class="btn" data-go="widget-lock">${t("settings.widgetLock")}</button>
-          <button type="button" class="btn" data-go="widget-home">${t("settings.widgetHome")}</button>
-        </div>
-        <p class="about" style="margin-top:6px">${t("settings.widgetNote")}</p>
-      </div>
-      <div class="settings-block">
-        <h3>${t("settings.about")}</h3>
-        <p class="about">${t("settings.aboutBody", {
-          tagline: t("tagline"),
-          lang: localeLabel(s.locale || "en"),
-          ccy: fx().base,
-        })}</p>
-      </div>
-    </div>`;
-}
-
-function screenWidgetLock(d) {
-  const priv = privacy();
-  const pace30 = Math.round(d.periodQuiet(30));
-  const showNw = privacyFieldOn(priv, "netWorth");
-  const showPace = privacyFieldOn(priv, "monthPace");
-  const showRhythm = showPace || showRhythmWithoutPace(priv);
-  const nwText = formatWidgetMoney(d.netWorth, priv, {
-    kind: "absolute",
-    asMonthProgress: priv.displayMode === "relative",
-  });
-  const paceRaw = formatWidgetPace(pace30, priv, { base: d.netWorth, compact: true });
-  const paceText =
-    priv.displayMode === "rhythm"
-      ? ""
-      : priv.displayMode === "relative"
-      ? paceRaw
-      : paceRaw
-        ? t("widget.monthPace", { delta: paceRaw })
-        : "";
-
-  const valHtml = showNw && nwText ? `<div class="val" data-testid="lock-net-worth">${nwText}</div>` : "";
-  const paceHtml =
-    showPace && paceText
-      ? `<div class="pace pace-breathe" data-testid="lock-pace">${paceText}</div>`
-      : "";
-  const rhythmHtml = showRhythm ? rhythmHTML("compact") : "";
-
-  const body =
-    currentTemplate() === "sumi"
-      ? `<div class="lw-asymmetric">
-            <div class="lw-value-block">${valHtml || '<div class="val muted">&nbsp;</div>'}</div>
-            <div class="lw-meta-block">
-              <div class="brand">${t("brand")}</div>
-              <div class="lab">${t("netWorth")}</div>
-              ${paceHtml}
-            </div>
-          </div>
-          ${showRhythm ? `<div class="pace-row">${rhythmHtml}</div>` : ""}`
-      : `<div class="brand">${t("brand")}</div>
-          <div class="lab">${t("netWorth")}</div>
-          ${valHtml}
-          ${
-            showPace || showRhythm
-              ? `<div class="pace-row">
-            ${paceHtml}
-            ${rhythmHtml}
-          </div>`
-              : ""
-          }`;
-
-  return `
-    <div class="topbar">
-      <button type="button" class="back" data-go="settings">${t("back")}</button>
-      <div class="title">${t("widget.lockTitle")}</div>
-    </div>
-    <div class="screen active">
-      <div class="preview-banner">${t("widget.previewBanner")}</div>
-      <div class="widget-stage">
-        <div class="lock-widget tpl-${currentTemplate()}" data-template="${currentTemplate()}" data-rhythm="${rhythmVariant()}" data-privacy-mode="${priv.displayMode}" data-testid="lock-widget" aria-label="${t("widget.lockAria")}">
-          ${body}
-          ${widgetGoalStripHTML(d, priv)}
-        </div>
-      </div>
-      <p class="preview-note">${t("widget.previewNoteLock")}</p>
-    </div>`;
-}
-
-function screenWidgetHome(d) {
-  const priv = privacy();
-  const pl = periodLabel(state.settings.period);
-  const days = periodDays(state.settings.period);
-  const dailyTd = d.dailyTdInterest;
-  const base = d.netWorth;
-  const moneyOpts = { compact: true, base };
-
-  function amt(n) {
-    return formatWidgetMoney(n, priv, { kind: "absolute", compact: true, base });
-  }
-  function deltaMoney(n) {
-    return formatWidgetPace(n, priv, { base, compact: true });
-  }
-
-  const prinAmt = Math.round(d.monthlyPrincipal * (days / 30));
-  const tdAmt = Math.round(dailyTd * days);
-  const passAmt = Math.round(d.passiveMonthly * (days / 30));
-
-  // Stocks never show market P&L (month rhythm only); the row just shows the holding value.
-  const stockDeltaText = "";
-  const stockDeltaClass = "";
-
-  function row(fieldKey, tag, amountHtml, deltaHtml, deltaClass = "") {
-    if (!privacyFieldOn(priv, fieldKey)) return "";
-    const a =
-      priv.displayMode === "rhythm"
-        ? ""
-        : amountHtml
-          ? `<span class="amt">${amountHtml}</span>`
-          : "";
-    const dlt =
-      priv.displayMode === "rhythm"
-        ? ""
-        : deltaHtml
-          ? `<span class="d ${deltaClass}">${deltaHtml}</span>`
-          : "";
-    return `<div class="mw-row" data-privacy-field="${fieldKey}">
-            <span class="tag">${tag}</span>
-            ${a}
-            ${dlt}
-          </div>`;
-  }
-
-  const housingDelta =
-    privacyFieldOn(priv, "monthPace") && priv.displayMode !== "rhythm"
-      ? (() => {
-          const raw = deltaMoney(prinAmt);
-          if (!raw) return "";
-          if (priv.displayMode === "relative" || priv.displayMode === "masked") return raw;
-          return t("widget.prin", { amount: formatWidgetMoney(prinAmt, priv, moneyOpts) });
-        })()
-      : "";
-
-  const cashDelta =
-    privacyFieldOn(priv, "monthPace") && priv.displayMode !== "rhythm"
-      ? (() => {
-          const raw = deltaMoney(tdAmt);
-          if (!raw) return "";
-          if (priv.displayMode === "relative" || priv.displayMode === "masked") return raw;
-          return t("widget.tdInt", { amount: formatWidgetMoney(tdAmt, priv, moneyOpts) });
-        })()
-      : "";
-
-  const passiveDelta =
-    privacyFieldOn(priv, "monthPace") && priv.displayMode !== "rhythm"
-      ? (() => {
-          const raw = deltaMoney(passAmt);
-          if (!raw) return "";
-          if (priv.displayMode === "relative" || priv.displayMode === "masked") return raw;
-          return t("widget.pace", { amount: formatWidgetMoney(passAmt, priv, moneyOpts) });
-        })()
-      : "";
-
-  const passiveAmt =
-    priv.displayMode === "relative"
-      ? amt(d.passiveMonthly)
-      : priv.displayMode === "rhythm"
-      ? ""
-      : amt(d.passiveMonthly) + (priv.displayMode === "masked" ? "" : t("perMo"));
-
-  const showRhythm = privacyFieldOn(priv, "monthPace") || showRhythmWithoutPace(priv);
-
-  return `
-    <div class="topbar">
-      <button type="button" class="back" data-go="settings">${t("back")}</button>
-      <div class="title">${t("widget.homeTitle")}</div>
-    </div>
-    <div class="screen active">
-      <div class="preview-banner">${t("widget.previewBanner")}</div>
-      <div class="widget-stage">
-        <div class="medium-widget tpl-${currentTemplate()}" data-template="${currentTemplate()}" data-rhythm="${rhythmVariant()}" data-privacy-mode="${priv.displayMode}" data-testid="home-widget" aria-label="${t("widget.homeAria")}">
-          <div class="mw-head">
-            <span class="brand">${t("brand")}</span>
-            <span class="period">${pl}</span>
-          </div>
-          <div class="mw-body">
-          ${row("bucketHousing", t("widget.housing"), amt(d.netEquity), housingDelta)}
-          ${row("bucketTwse", t("widget.stocks"), amt(d.stocks), stockDeltaText, stockDeltaClass)}
-          ${row("bucketCash", t("widget.cash"), amt(d.cashTotal), cashDelta, "mute")}
-          ${row("bucketPassive", t("widget.passive"), passiveAmt, passiveDelta)}
-          </div>
-          ${showRhythm ? `<div class="mw-rhythm">${rhythmHTML("strip")}</div>` : ""}
-          ${widgetGoalStripHTML(d, priv)}
-        </div>
-      </div>
-      <p class="preview-note">${t("widget.previewNoteHome")}</p>
     </div>`;
 }
 
@@ -1332,9 +1181,8 @@ function render() {
   else if (route === "stock") body = screenBucket("stock", d);
   else if (route === "cash") body = screenBucket("cash", d);
   else if (route === "passive") body = screenBucket("passive", d);
+  else if (route === "widget") body = screenWidget(d);
   else if (route === "settings") body = screenSettings();
-  else if (route === "widget-lock") body = screenWidgetLock(d);
-  else if (route === "widget-home") body = screenWidgetHome(d);
   else body = screenHome(d);
 
   const sheet = itemEdit
@@ -1350,7 +1198,6 @@ function render() {
   app.innerHTML = `
     <header class="app-chrome">
       <h1 data-testid="app-title">${t("brand")}<em>${t("tagline")}</em></h1>
-      <p>${t("chrome.sub")}</p>
     </header>
     <nav class="nav-seg" aria-label="${t("nav.screens")}">
       <button type="button" data-go="home" class="${route === "home" ? "active" : ""}">${t("nav.home")}</button>
@@ -1358,21 +1205,20 @@ function render() {
       <button type="button" data-go="stock" class="${route === "stock" ? "active" : ""}">${t("nav.stocks")}</button>
       <button type="button" data-go="cash" class="${route === "cash" ? "active" : ""}">${t("nav.cash")}</button>
       <button type="button" data-go="passive" class="${route === "passive" ? "active" : ""}">${t("nav.passive")}</button>
+      <button type="button" data-go="widget" class="${route === "widget" ? "active" : ""}">${t("nav.widget")}</button>
       <button type="button" data-go="settings" class="${route === "settings" ? "active" : ""}">${t("nav.settings")}</button>
     </nav>
-    <div class="shell" data-template="${currentTemplate()}">${body}</div>
+    <div class="shell" data-style="${currentStyle()}">${body}</div>
     ${sheet}
   `;
 
-  applyTemplateAttr(app);
+  applyStyleAttr(app);
   bind();
 
   if (route === "home") {
     const spark = sparkPath(d.quietDay);
     sparkCoords = spark.coords;
     onEnterHome();
-  } else if (route === "widget-lock") {
-    /* metronome CSS-only on lock preview; no ads */
   } else {
     onLeaveRhythmViews();
   }
@@ -1415,10 +1261,11 @@ function bind() {
     });
   }
 
-  document.getElementById("template-picker")?.querySelectorAll("[data-template-pick]").forEach((b) => {
+  document.getElementById("style-picker")?.querySelectorAll("[data-style-pick]").forEach((b) => {
     b.addEventListener("click", () => {
-      const id = normalizeWidgetTemplate(b.getAttribute("data-template-pick"));
-      state.settings.widgetTemplate = id;
+      const id = normalizeWidgetStyle(b.getAttribute("data-style-pick"));
+      state.settings.widgetStyle = id;
+      delete state.settings.widgetTemplate;
       persist();
       render();
     });

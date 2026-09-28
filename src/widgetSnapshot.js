@@ -28,26 +28,30 @@ import {
 import { primaryGoal, goalProgress } from "./goals.js";
 import { t, getLocale } from "./i18n/index.js";
 import { normalizeFx, currencySymbol } from "./currency.js";
+import { normalizeWidgetStyle } from "./widgetStyle.js";
 
-/** v2: multi-currency (currency block, live.prefix, "round" live format, bucket key "stocks"). */
-export const WIDGET_SNAPSHOT_VERSION = 2;
+/** v3: three styles (rhythm / editorial / sediment) + a monotone 12-point trend. */
+export const WIDGET_SNAPSHOT_VERSION = 3;
 
-const TEMPLATES = ["paper", "swiss", "sumi", "glass", "noir", "matrix"];
-const DARK_TEMPLATES = new Set(["noir"]);
-
-/** Template → rhythm drawing style used by the native bitmap renderer. */
-const RHYTHM_STYLE = {
-  paper: "bars",
-  swiss: "bars-sharp",
-  sumi: "ink",
-  glass: "dots",
-  noir: "dots",
-  matrix: "scan",
+/** Style → native bitmap beat. */
+const BEAT_STYLE = {
+  rhythm: "month-dots",
+  editorial: "beat-4",
+  sediment: "grain-4",
 };
 
-function templateOf(state) {
-  const id = state?.settings?.widgetTemplate;
-  return TEMPLATES.includes(id) ? id : "paper";
+function styleOf(state) {
+  return normalizeWidgetStyle(state?.settings?.widgetStyle, state?.settings?.widgetTemplate);
+}
+
+/** Pace-implied smooth climb. Not a market history — the widget never shows a dip. */
+function smoothTrend() {
+  const pts = [];
+  for (let i = 0; i < 12; i++) {
+    const t = i / 11;
+    pts.push(Math.round((0.7 + 0.3 * t) * 1000) / 1000);
+  }
+  return pts;
 }
 
 /**
@@ -58,7 +62,7 @@ export function buildWidgetSnapshot(state, opts = {}) {
   const now = opts.now instanceof Date ? opts.now : new Date();
   const priv = normalizeWidgetPrivacy(state?.settings?.widgetPrivacy);
   const mode = priv.displayMode;
-  const template = templateOf(state);
+  const style = styleOf(state);
   const fx = normalizeFx(state?.settings?.fx, "TWD");
   const ccy = fx.base;
   const symbol = currencySymbol(ccy);
@@ -123,7 +127,8 @@ export function buildWidgetSnapshot(state, opts = {}) {
   const rhythm = {
     show: paceOn || showRhythmWithoutPace(priv),
     label: t("widget.rhythm"),
-    style: RHYTHM_STYLE[template],
+    style: BEAT_STYLE[style],
+    rows: style === "rhythm" ? 3 : 4,
     pct: monthProgressPct(now),
   };
 
@@ -164,8 +169,9 @@ export function buildWidgetSnapshot(state, opts = {}) {
     v: WIDGET_SNAPSHOT_VERSION,
     updatedAt: now.getTime(),
     locale: getLocale(),
-    template,
-    theme: DARK_TEMPLATES.has(template) ? "dark" : "light",
+    style,
+    theme: "light",
+    trend: smoothTrend(),
     mode,
     brand: "Inertia",
     currency: { code: ccy, symbol },

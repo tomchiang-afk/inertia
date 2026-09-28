@@ -1,0 +1,29 @@
+name: iOS widget
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "native/ios-widget/**"
+      - ".github/workflows/ios-widget.yml"
+
+jobs:
+  simulator:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        working-directory: native/ios-widget
+        run: xcodegen generate
+      - name: Build for simulator (no signing)
+        working-directory: native/ios-widget
+        run: >
+          xcodebuild
+          -project InertiaWidget.xcodeproj
+          -scheme InertiaHost
+          -destination "generic/platform=iOS Simulator"
+          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_REQUIRED=NO
+          build

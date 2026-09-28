@@ -33,10 +33,16 @@ public final class WidgetRenderer {
 
     public static RemoteViews render(Context ctx, JSONObject snap, int wDp, int hDp, boolean medium, long now) {
         RemoteViews v = new RemoteViews(ctx.getPackageName(), medium ? R.layout.widget_medium : R.layout.widget_small);
-        WidgetTheme th = WidgetTheme.forTemplate(snap != null ? snap.optString("template", "paper") : "paper");
+        String style = WidgetTheme.normalizeStyle(
+                snap != null ? snap.optString("style", "") : "rhythm",
+                snap != null ? snap.optString("template", "") : "");
+        WidgetTheme th = WidgetTheme.forStyle(style);
         float density = ctx.getResources().getDisplayMetrics().density;
 
         applyTheme(v, th, medium);
+        v.setViewVisibility(R.id.brand, View.GONE);
+        v.setViewVisibility(R.id.updated, View.GONE);
+        v.setViewVisibility(R.id.accent_rule, View.GONE);
         v.setOnClickPendingIntent(android.R.id.background, openAppIntent(ctx));
 
         if (snap == null) {
@@ -47,13 +53,12 @@ public final class WidgetRenderer {
 
         v.setViewVisibility(R.id.placeholder, View.GONE);
         v.setTextViewText(R.id.brand, snap.optString("brand", "Inertia"));
-
-        // Last updated (snapshot time, not redraw time).
-        JSONObject labels = snap.optJSONObject("labels");
-        String updLabel = labels != null ? labels.optString("updated", "") : "";
-        if (updLabel.isEmpty()) updLabel = ctx.getString(R.string.widget_updated_fallback);
-        long updatedAt = snap.optLong("updatedAt", 0);
-        v.setTextViewText(R.id.updated, updatedAt > 0 ? updLabel + " " + formatTime(updatedAt, now) : "");
+        if ("editorial".equals(style) || "sediment".equals(style)) {
+            v.setViewVisibility(R.id.grain_img, View.VISIBLE);
+            v.setImageViewBitmap(R.id.grain_img, WidgetBitmaps.grain(px(Math.max(wDp, 40), density), px(Math.max(hDp, 40), density), (int) (now / 86_400_000L)));
+        } else {
+            v.setViewVisibility(R.id.grain_img, View.GONE);
+        }
 
         String mode = snap.optString("mode", "exact");
         Calendar cal = Calendar.getInstance();
@@ -63,22 +68,34 @@ public final class WidgetRenderer {
         // Net worth.
         JSONObject nw = snap.optJSONObject("netWorth");
         JSONObject rhythm = snap.optJSONObject("rhythm");
+        int contentWDp = Math.max(wDp - PAD_H_DP, 40);
         boolean nwShow = nw != null && nw.optBoolean("show", false);
+        String nwText = "";
         if (nwShow) {
-            String text = netWorthText(nw, snap.optJSONObject("live"), medium, now, cal);
+            nwText = netWorthText(nw, snap.optJSONObject("live"), medium, now, cal);
             v.setViewVisibility(R.id.nw_label, View.VISIBLE);
             v.setViewVisibility(R.id.nw_value, View.VISIBLE);
             v.setTextViewText(R.id.nw_label, nw.optString("label", ""));
-            v.setTextViewText(R.id.nw_value, text);
-            a11y.append(". ").append(nw.optString("label", "")).append(" ").append(text);
+            v.setTextViewText(R.id.nw_value, nwText);
+            if ("editorial".equals(style) && !nwText.isEmpty()) {
+                v.setViewVisibility(R.id.nw_value, View.GONE);
+                v.setViewVisibility(R.id.hero_img, View.VISIBLE);
+                v.setImageViewBitmap(R.id.hero_img, WidgetBitmaps.heroText(
+                        nwText, px(contentWDp, density), px(medium ? 72 : 64, density), th.ink, true));
+            } else {
+                v.setViewVisibility(R.id.nw_value, View.VISIBLE);
+                v.setViewVisibility(R.id.hero_img, View.GONE);
+            }
+            a11y.append(". ").append(nw.optString("label", "")).append(" ").append(nwText);
         } else if ("rhythm".equals(mode) && rhythm != null && rhythm.optBoolean("show", false)) {
-            // Rhythm-only: no numbers; the beat bar is the content.
             v.setViewVisibility(R.id.nw_label, View.VISIBLE);
             v.setTextViewText(R.id.nw_label, rhythm.optString("label", ""));
             v.setViewVisibility(R.id.nw_value, View.GONE);
+            v.setViewVisibility(R.id.hero_img, View.GONE);
         } else {
             v.setViewVisibility(R.id.nw_label, View.GONE);
             v.setViewVisibility(R.id.nw_value, View.GONE);
+            v.setViewVisibility(R.id.hero_img, View.GONE);
         }
 
         // Month pace.
@@ -88,21 +105,40 @@ public final class WidgetRenderer {
             v.setTextViewText(R.id.pace_label, pace.optString("label", ""));
             v.setTextViewText(R.id.pace_value, pace.optString("text", ""));
             a11y.append(". ").append(pace.optString("label", "")).append(" ").append(pace.optString("text", ""));
+            // Rhythm style: the month pace is the hero, net worth stays secondary.
+            if ("rhythm".equals(style) && nwShow && !nwText.isEmpty()) {
+                v.setTextViewText(R.id.nw_label, pace.optString("label", ""));
+                v.setTextViewText(R.id.nw_value, pace.optString("text", ""));
+                v.setTextViewText(R.id.pace_label, nw.optString("label", ""));
+                v.setTextViewText(R.id.pace_value, nwText);
+            }
         } else {
             v.setViewVisibility(R.id.pace_row, View.GONE);
         }
 
-        int contentWDp = Math.max(wDp - PAD_H_DP, 40);
-
-        // Rhythm beat bar (static bitmap).
+        // Month beat, anchored under the numbers.
         if (rhythm != null && rhythm.optBoolean("show", false)) {
             int day = cal.get(Calendar.DAY_OF_MONTH);
             int dim = cal.getActualMaximum(Calendar.DAY_OF_MONTH);
+            float frac = (cal.get(Calendar.HOUR_OF_DAY) * 60f + cal.get(Calendar.MINUTE)) / (24f * 60f);
+            String beat = rhythm.optString("style", "month-dots");
+            int cols;
+            int rows;
+            if ("month-dots".equals(beat) && !medium) {
+                cols = 10;
+                rows = 3;
+            } else if ("month-dots".equals(beat)) {
+                cols = dim;
+                rows = 1;
+            } else {
+                cols = dim;
+                rows = 4;
+            }
+            int rhythmHDp = rows == 1 ? 22 : (rows == 3 ? 56 : (medium ? 36 : 44));
             v.setViewVisibility(R.id.rhythm_img, View.VISIBLE);
-            // Rhythm-only mode: the beat bar is the hero, so draw it taller.
-            int rhythmHDp = "rhythm".equals(mode) ? (medium ? 22 : 18) : 8;
-            v.setImageViewBitmap(R.id.rhythm_img, WidgetBitmaps.rhythm(
-                    px(contentWDp, density), px(rhythmHDp, density), rhythm.optString("style", "bars"), day, dim, th, density));
+            v.setImageViewBitmap(R.id.rhythm_img, WidgetBitmaps.monthMatrix(
+                    px(contentWDp, density), px(rhythmHDp, density), cols, rows, day, dim, frac,
+                    th.accent, th.track, "grain-4".equals(beat)));
         } else {
             v.setViewVisibility(R.id.rhythm_img, View.GONE);
         }
@@ -123,8 +159,15 @@ public final class WidgetRenderer {
                 v.setTextViewText(BUCKET_VALUE[i], b.optString("text", ""));
                 hasBuckets = true;
             }
-            v.setViewVisibility(R.id.buckets, hasBuckets ? View.VISIBLE : View.GONE);
-            v.setViewVisibility(R.id.divider, hasBuckets ? View.VISIBLE : View.GONE);
+            boolean showBuckets = "sediment".equals(style) && hasBuckets;
+            v.setViewVisibility(R.id.buckets, showBuckets ? View.VISIBLE : View.GONE);
+            v.setViewVisibility(R.id.divider, View.GONE);
+            v.setViewVisibility(R.id.trend_img, showBuckets ? View.GONE : View.VISIBLE);
+            if (!showBuckets) {
+                int trendW = Math.max(40, Math.round(contentWDp * 0.42f));
+                v.setImageViewBitmap(R.id.trend_img, WidgetBitmaps.trend(
+                        px(trendW, density), px(Math.max(hDp - 80, 48), density), th.accent));
+            }
             v.setViewVisibility(R.id.columns, View.VISIBLE);
         } else {
             v.setViewVisibility(R.id.body, View.VISIBLE);
@@ -179,6 +222,8 @@ public final class WidgetRenderer {
         v.setTextViewText(R.id.updated, "");
         v.setViewVisibility(R.id.placeholder, View.VISIBLE);
         v.setViewVisibility(R.id.rhythm_img, View.GONE);
+        v.setViewVisibility(R.id.grain_img, View.GONE);
+        v.setViewVisibility(R.id.hero_img, View.GONE);
         if (medium) {
             v.setViewVisibility(R.id.columns, View.GONE);
         } else {

@@ -25,7 +25,7 @@ public class InertiaWidgetProvider extends AppWidgetProvider {
 
     /** Fallback size when the launcher reports no options. */
     protected int[] defaultSizeDp() {
-        return new int[] {150, 150};
+        return new int[] {176, 222};
     }
 
     @Override
@@ -47,8 +47,8 @@ public class InertiaWidgetProvider extends AppWidgetProvider {
         AppWidgetManager mgr = AppWidgetManager.getInstance(context);
         JSONObject snap = WidgetStore.load(context);
         int count = 0;
-        count += refresh(context, mgr, snap, InertiaWidgetProvider.class, new int[] {150, 150});
-        count += refresh(context, mgr, snap, InertiaWidgetMediumProvider.class, new int[] {300, 150});
+        count += refresh(context, mgr, snap, InertiaWidgetProvider.class, new int[] {176, 222});
+        count += refresh(context, mgr, snap, InertiaWidgetMediumProvider.class, new int[] {368, 222});
         return count;
     }
 

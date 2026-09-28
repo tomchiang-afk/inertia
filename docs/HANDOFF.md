@@ -1,6 +1,6 @@
 # Inertia: engineering handoff
 
-Last updated 2026-09-27 (Asia/Taipei). Current version is **0.3.1** (Android versionCode 4).
+Last updated 2026-09-28 (Asia/Taipei). Current version in the working tree is **0.4.0** (Android versionCode 5). Implemented locally, not committed.
 Read this first, then [`PRD.md`](../PRD.md) (product rules, data model §7, smooth accrual §7b),
 [`docs/ANDROID_WIDGET.md`](ANDROID_WIDGET.md) (native widget) and the widget-v3 design specs
 listed under "Next plan".
@@ -170,7 +170,17 @@ npm run android:widget-shots  # HTML mock of the RemoteViews layouts → docs/sh
 
 ## 9. Next plan (priority order)
 
-### P0: v0.4.0, in progress (spec locked 2026-09-27)
+### P0: v0.4.0, implemented in the working tree (2026-09-28)
+
+Web: `settings.widgetStyle` is `rhythm` | `editorial` | `sediment`. Legacy templates migrate on load (paper/swiss/glass → rhythm, sumi → sediment, noir/matrix → editorial) and `widgetTemplate` is dropped. The bottom tab「小工具」shows small + wide previews, the style picker, and privacy on one page. Widget settings and the old preview routes are gone. Explanatory paragraphs were removed from Home, lists, and Settings (5 languages). Snapshot `v` is 3 and includes `style` plus a monotone 12-point `trend`.
+
+Android: 2×2 and 4×2 fill the cell (no top spacer). Rhythm / editorial / sediment palettes, month-beat and trend bitmaps, editorial numeral as a serif bitmap, sediment category column. Redraw period stays 30 min. versionCode 5.
+
+iOS: WidgetKit sources and an XcodeGen project live in `native/ios-widget/` (the Capacitor `ios/` directory stays gitignored). `.github/workflows/ios-widget.yml` builds the simulator target with signing off. Not run from this Linux box.
+
+Tests on 2026-09-28: unit 47/47, Playwright 32/32, Gradle `:app:testDebugUnitTest` and `assembleDebug` passed. On `inertia34`, both Inertia · Small (2×2) and Inertia · Wide (4×2) are on the home screen. All three styles and the five privacy modes were checked there (`validation/2026-09-28/`). The old debug signature did not match, so that device's previous save was reset to the demo portfolio.
+
+### P0 spec (locked 2026-09-27)
 
 **1. Three selectable widget styles.** These replace the 6 legacy templates everywhere: the in-app
 preview, Android and iOS.

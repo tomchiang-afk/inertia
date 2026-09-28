@@ -8,13 +8,14 @@ import { normalizeGoals } from "./goals.js";
 import { normalizeAssets, demoAssets, isV2Assets, SCHEMA_VERSION } from "./portfolio.js";
 import { normalizeFx, defaultFx } from "./currency.js";
 import { detectLocale } from "./i18n/index.js";
+import { normalizeWidgetStyle, styleFromLegacyTemplate, WIDGET_STYLES } from "./widgetStyle.js";
 
 const KEY = "inertia.v1";
 const LEGACY_KEY = "jingchang.v1";
 /** Raw pre-v2 save kept once, untouched, when the fixed-bucket model is migrated. */
 export const V1_BACKUP_KEY = "inertia.v1.backup-schema1";
 
-export const WIDGET_TEMPLATES = ["paper", "swiss", "sumi", "glass", "noir", "matrix"];
+export { WIDGET_STYLES, normalizeWidgetStyle };
 
 /** Fresh-install sample data (v2 lists). */
 export const DEFAULT_ASSETS = demoAssets("zh-TW");
@@ -24,15 +25,11 @@ export const DEFAULT_SETTINGS = {
   // v0.3.1: the "today actual" / "month pace" honesty switch is gone — month rhythm only.
   period: "30d", // 7d | 30d | month
   buyout: false,
-  widgetTemplate: "paper", // paper | swiss | sumi | glass | noir | matrix
+  widgetStyle: "rhythm", // rhythm | editorial | sediment
   widgetPrivacy: { ...DEFAULT_WIDGET_PRIVACY, fields: { ...DEFAULT_WIDGET_PRIVACY.fields } },
   fx: defaultFx("TWD"), // base currency + user-editable FX table (see currency.js)
   // locale: set on first launch via i18n.detectLocale()
 };
-
-export function normalizeWidgetTemplate(id) {
-  return WIDGET_TEMPLATES.includes(id) ? id : "paper";
-}
 
 function migrateLegacyKey() {
   try {
@@ -89,7 +86,21 @@ export function hydrateState(parsed, { now = Date.now() } = {}) {
   }
   // Retired widget privacy field ("todayActual"): normalizeWidgetPrivacy drops unknown keys.
   if (parsed.settings?.widgetPrivacy?.fields && "todayActual" in parsed.settings.widgetPrivacy.fields) cleaned = true;
-  settings.widgetTemplate = normalizeWidgetTemplate(settings.widgetTemplate);
+  // Default widgetStyle is "rhythm". That must not hide a saved legacy template:
+  // only an explicit widgetStyle key wins over widgetTemplate.
+  const rawSettings = parsed.settings && typeof parsed.settings === "object" ? parsed.settings : {};
+  const styleWasSaved = Object.prototype.hasOwnProperty.call(rawSettings, "widgetStyle");
+  const legacyTemplate = rawSettings.widgetTemplate;
+  const style = styleWasSaved
+    ? normalizeWidgetStyle(rawSettings.widgetStyle, legacyTemplate)
+    : legacyTemplate != null
+      ? styleFromLegacyTemplate(legacyTemplate)
+      : "rhythm";
+  if (settings.widgetStyle !== style || legacyTemplate != null || (styleWasSaved && !WIDGET_STYLES.includes(rawSettings.widgetStyle))) {
+    cleaned = true;
+  }
+  settings.widgetStyle = style;
+  delete settings.widgetTemplate;
   settings.widgetPrivacy = normalizeWidgetPrivacy(settings.widgetPrivacy);
   settings.fx = normalizeFx(parsed.settings?.fx, "TWD");
   const locale = parsed.settings?.locale || safeDetect();

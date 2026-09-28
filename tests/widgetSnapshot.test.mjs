@@ -152,22 +152,33 @@ test("no onWidget goal → goal hidden", () => {
   assert.equal(s.goal.show, false);
 });
 
-test("templates map to theme + rhythm style", () => {
+test("legacy templates migrate to the three styles; trend only climbs", () => {
   const cases = {
-    paper: ["light", "bars"],
-    swiss: ["light", "bars-sharp"],
-    sumi: ["light", "ink"],
-    glass: ["light", "dots"],
-    noir: ["dark", "dots"],
-    matrix: ["light", "scan"],
-    bogus: ["light", "bars"],
+    paper: ["rhythm", "month-dots"],
+    swiss: ["rhythm", "month-dots"],
+    glass: ["rhythm", "month-dots"],
+    sumi: ["sediment", "grain-4"],
+    noir: ["editorial", "beat-4"],
+    matrix: ["editorial", "beat-4"],
+    bogus: ["rhythm", "month-dots"],
   };
-  for (const [tpl, [theme, style]] of Object.entries(cases)) {
+  for (const [tpl, [style, beat]] of Object.entries(cases)) {
     const s = buildWidgetSnapshot(state({ template: tpl }), { now: NOW });
-    assert.equal(s.theme, theme, tpl);
-    assert.equal(s.rhythm.style, style, tpl);
-    assert.equal(s.template, tpl === "bogus" ? "paper" : tpl);
+    assert.equal(s.style, style, tpl);
+    assert.equal(s.theme, "light", tpl);
+    assert.equal(s.rhythm.style, beat, tpl);
+    assert.equal(s.template, undefined);
+    assert.equal(s.trend.length, 12);
+    assert.ok(s.trend.every((n, i, a) => i === 0 || n >= a[i - 1]), tpl);
   }
+});
+
+test("explicit widgetStyle wins over a leftover template", () => {
+  const base = state({ template: "noir" });
+  base.settings.widgetStyle = "sediment";
+  const s = buildWidgetSnapshot(base, { now: NOW });
+  assert.equal(s.style, "sediment");
+  assert.equal(s.rhythm.style, "grain-4");
 });
 
 test("locale: labels follow app locale, brand stays Inertia", () => {

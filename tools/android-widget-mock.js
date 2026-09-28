@@ -4,6 +4,9 @@ import { DEFAULT_ASSETS } from "../src/store.js";
 
 /* Palette mirror of android/.../widget/WidgetTheme.java + drawable/widget_bg_*.xml */
 const THEMES = {
+  rhythm: { bg: "#F4F5F3", radius: 20, border: null, ink: "#1C1C1E", muted: "#5C5C5C", faint: "#8A8A8A", track: "#E4E4E6", accent: "#2E7D5B", sharp: false },
+  editorial: { bg: "#F7F4EE", radius: 20, border: null, ink: "#1D1B18", muted: "#8B857A", faint: "#B9B2A6", track: "#E6E0D6", accent: "#C3402A", sharp: false },
+  sediment: { bg: "#F7F5F1", radius: 20, border: null, ink: "#1C1C1E", muted: "#6A645B", faint: "#A39B90", track: "#E8E1D4", accent: "#9A5B22", sharp: false },
   paper: { bg: "#FCFBF8", radius: 18, border: null, ink: "#1A1A1A", muted: "#5C5C5C", faint: "#8A8A8A", track: "#E8E8E8", accent: "#2F5D4A", sharp: false },
   swiss: { bg: "#FAFAFB", radius: 2, border: "1px solid #D8D8DE", ink: "#0A0A0A", muted: "#4A4A4E", faint: "#7A7A80", track: "#D8D8DE", accent: "#9B1B2E", sharp: true, rule: true },
   sumi: { bg: "#F3F5F1", radius: 14, border: null, ink: "#1C1C1A", muted: "#555850", faint: "#7E8378", track: "#D0D6CC", accent: "#3F4F42", sharp: false },
@@ -98,7 +101,7 @@ function fmtUpdated(at) {
 
 /* Mirror of WidgetRenderer.render */
 export function renderWidget(snap, { wDp, hDp, medium, now = new Date() }) {
-  const th = THEMES[snap?.template] || THEMES.paper;
+  const th = THEMES[snap?.style] || THEMES.rhythm;
   const w = el("div", "w" + (medium ? " medium" : ""), null, {
     width: wDp + "px", height: hDp + "px", background: th.bg, borderRadius: th.radius + "px",
     border: th.border || "none", color: th.ink,
@@ -109,7 +112,8 @@ export function renderWidget(snap, { wDp, hDp, medium, now = new Date() }) {
   head.append(el("div", "brand", "Inertia", { color: th.ink }));
   const upd = el("div", "upd", snap ? `${snap.labels.updated} ${fmtUpdated(snap.updatedAt)}` : "", { color: th.faint });
   head.append(upd);
-  w.append(head, el("div", "spacer"));
+  head.style.display = "none";
+  w.append(head);
   if (!snap) {
     w.append(el("div", "ph", "開啟 Inertia 一次即可同步小工具。", { color: th.muted }));
     return w;
@@ -182,8 +186,8 @@ const state = {
 };
 const snap = q.get("empty") === "1" ? null : buildWidgetSnapshot(state, { now });
 const stage = document.getElementById("stage");
-if (q.get("wall") === "1") stage.classList.add(template === "noir" ? "wall-dark" : "wall");
-const DIMS = { small: [170, 170, false], medium: [352, 170, true] };
+if (q.get("wall") === "1") stage.classList.add("wall");
+const DIMS = { small: [176, 222, false], medium: [368, 222, true] };
 for (const s of sizes) {
   const [wDp, hDp, medium] = DIMS[s] || DIMS.small;
   const box = el("div");
