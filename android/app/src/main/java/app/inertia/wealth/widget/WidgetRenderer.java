@@ -183,7 +183,7 @@ public final class WidgetRenderer {
             if (!showBuckets) {
                 int trendW = Math.max(40, Math.round(contentWDp * 0.42f));
                 v.setImageViewBitmap(R.id.trend_img, WidgetBitmaps.trend(
-                        px(trendW, density), px(Math.max(hDp - 80, 48), density), th.accent));
+                        px(trendW, density), px(Math.max(hDp - 80, 48), density), th.accent, goalReach(snap)));
             }
             v.setViewVisibility(R.id.columns, View.VISIBLE);
         } else {
@@ -210,6 +210,17 @@ public final class WidgetRenderer {
 
         v.setContentDescription(android.R.id.background, a11y.toString());
         return v;
+    }
+
+    /** 1 = the pace line itself. A shown goal walks that far along the path; a hidden ratio is the track only. */
+    private static float goalReach(JSONObject snap) {
+        JSONObject goal = snap != null ? snap.optJSONObject("goal") : null;
+        if (goal == null || !goal.optBoolean("show", false)) return 1f;
+        if (goal.isNull("barPct")) return 0f;
+        double pct = goal.optDouble("barPct", 0) / 100.0;
+        if (pct < 0) return 0f;
+        if (pct > 1) return 1f;
+        return (float) pct;
     }
 
     private static String netWorthText(JSONObject nw, JSONObject live, boolean medium, long now, Calendar cal) {

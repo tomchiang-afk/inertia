@@ -161,10 +161,15 @@ public final class WidgetBitmaps {
         return bmp;
     }
 
-    /** Monotone 12-month pace curve. No axes, no values. */
-    public static Bitmap trend(int w, int h, int accent) {
+    /**
+     * Quiet rise. {@code reach} is 1 when the line is the pace itself.
+     * Below 1, the line is the path to a widget goal: accent up to the current
+     * point, a quiet track for what is left, a ring at the target.
+     */
+    public static Bitmap trend(int w, int h, int accent, float reach) {
         w = Math.max(w, 8);
         h = Math.max(h, 8);
+        reach = Math.max(0f, Math.min(1f, reach));
         Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -172,24 +177,47 @@ public final class WidgetBitmaps {
         p.setStrokeWidth(Math.max(2f, h * 0.04f));
         p.setStrokeCap(Paint.Cap.ROUND);
         p.setStrokeJoin(Paint.Join.ROUND);
-        p.setColor(accent);
-        Path path = new Path();
         int n = 12;
-        float endX = 0f;
-        float endY = 0f;
+        float[] xs = new float[n];
+        float[] ys = new float[n];
         for (int i = 0; i < n; i++) {
             float t = i / (float) (n - 1);
-            float x = 4f + t * (w - 10f);
-            float y = h - 8f - (h * 0.18f + h * 0.62f * t);
-            if (i == 0) path.moveTo(x, y);
-            else path.lineTo(x, y);
-            endX = x;
-            endY = y;
+            xs[i] = 4f + t * (w - 10f);
+            ys[i] = h - 8f - (h * 0.18f + h * 0.62f * t);
         }
-        c.drawPath(path, p);
+        Path full = slopePath(xs, ys, n - 1, 1f);
+        if (reach < 0.999f) {
+            p.setColor(accent);
+            p.setAlpha(70);
+            c.drawPath(full, p);
+            p.setAlpha(255);
+        }
+        float pos = reach * (n - 1);
+        int i = Math.min(n - 2, (int) Math.floor(pos));
+        float f = pos - i;
+        float nx = xs[i] + (xs[i + 1] - xs[i]) * f;
+        float ny = ys[i] + (ys[i + 1] - ys[i]) * f;
+        p.setColor(accent);
+        c.drawPath(slopePath(xs, ys, i, f), p);
         p.setStyle(Paint.Style.FILL);
-        c.drawCircle(endX, endY, Math.max(3f, h * 0.055f), p);
+        c.drawCircle(nx, ny, Math.max(3f, h * 0.055f), p);
+        if (reach < 0.999f) {
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(Math.max(1.5f, h * 0.025f));
+            c.drawCircle(xs[n - 1], ys[n - 1], Math.max(3.5f, h * 0.06f), p);
+        }
         return bmp;
+    }
+
+    private static Path slopePath(float[] xs, float[] ys, int fullSteps, float frac) {
+        Path path = new Path();
+        path.moveTo(xs[0], ys[0]);
+        int last = Math.max(0, Math.min(xs.length - 1, fullSteps));
+        for (int i = 1; i <= last; i++) path.lineTo(xs[i], ys[i]);
+        if (frac > 0f && last < xs.length - 1) {
+            path.lineTo(xs[last] + (xs[last + 1] - xs[last]) * frac, ys[last] + (ys[last + 1] - ys[last]) * frac);
+        }
+        return path;
     }
 
     /** Quiet paper grain. Capped so a 4×2 widget stays well under the RemoteViews bitmap budget. */

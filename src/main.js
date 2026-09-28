@@ -192,17 +192,19 @@ function paintRhythmLive() {
 function startRhythmLive() {
   stopRhythmLive();
   paintRhythmLive();
+  paintWidgetLive();
   if (prefersReducedMotion()) return; // static values, refreshed on every render
   // The pace is tiny per second, so repaint ~4×/s and only touch the DOM when text changes.
   let last = 0;
   function frame(now) {
-    if (route !== "home") {
+    if (route !== "home" && route !== "widget") {
       rhythmRaf = null;
       return;
     }
     if (now - last > 250) {
       last = now;
-      paintRhythmLive();
+      if (route === "home") paintRhythmLive();
+      if (route === "widget") paintWidgetLive();
     }
     rhythmRaf = requestAnimationFrame(frame);
   }
@@ -224,6 +226,13 @@ function onLeaveRhythmViews() {
 function onEnterHome() {
   requestAnimationFrame(() => {
     animateSparkStroke();
+    startRhythmLive();
+  });
+}
+
+function onEnterWidget() {
+  requestAnimationFrame(() => {
+    settleSlopes();
     startRhythmLive();
   });
 }
@@ -444,20 +453,29 @@ function goalSheetHTML() {
     </div>`;
 }
 
-function widgetGoalStripHTML(d, priv) {
-  if (!privacyFieldOn(priv, "goalProgress")) return "";
+function widgetGoalInfo(d, priv) {
+  if (!privacyFieldOn(priv, "goalProgress")) return null;
   const g = primaryGoal(state.goals);
-  if (!g) return "";
+  if (!g) return null;
   const prog = goalProgress(g, state.assets, d);
+  const reach = showGoalBarFill(priv) ? prog.barPct / 100 : 0;
+  return { g, prog, reach, label: formatGoalProgressLabel(prog, priv) };
+}
+
+function widgetGoalStripHTML(d, priv, testIds) {
+  const info = widgetGoalInfo(d, priv);
+  if (!info) return "";
   const mode = priv.displayMode || "exact";
-  const label = formatGoalProgressLabel(prog, priv);
-  const fill = showGoalBarFill(priv) ? prog.barPct : 0;
+  const label = info.label;
+  const fill = info.reach * 100;
   const aria = showGoalBarFill(priv)
-    ? `role="progressbar" aria-valuenow="${Math.round(prog.barPct)}" aria-valuemin="0" aria-valuemax="100"`
+    ? `role="progressbar" aria-valuenow="${Math.round(info.prog.barPct)}" aria-valuemin="0" aria-valuemax="100"`
     : `aria-hidden="true"`;
+  const rootId = testIds ? ` data-testid="widget-goal-progress"` : "";
+  const valueId = testIds ? ` data-testid="widget-goal-value"` : "";
   return `
-    <div class="widget-goal" data-testid="widget-goal-progress" data-privacy-mode="${mode}">
-      <span class="widget-goal-label${label ? "" : " muted"}">${escapeHtml(g.name)}${label ? ` · <span data-testid="widget-goal-value">${label}</span>` : ""}</span>
+    <div class="widget-goal"${rootId} data-privacy-mode="${mode}">
+      <span class="widget-goal-label${label ? "" : " muted"}">${escapeHtml(info.g.name)}${label ? ` · <span class="widget-goal-value"${valueId}>${label}</span>` : ""}</span>
       <span class="widget-goal-bar" ${aria}><span class="widget-goal-fill" style="width:${fill}%"></span></span>
     </div>`;
 }
@@ -992,18 +1010,102 @@ function beatTestId(size, testId) {
   return "";
 }
 
-/** One calm rise. Drawn once; the dot stays at the end. Not a loop. */
-function trendSVG(compact) {
+/** Quiet rise. reach 1 = the pace itself. reach &lt; 1 = how far a widget goal has been walked. */
+function slopePoints() {
   const pts = [];
   for (let i = 0; i < 12; i++) {
     const t = i / 11;
-    const x = (i / 11) * 120;
-    const y = 52 - (10 + 34 * t);
-    pts.push([x, y]);
+    pts.push([(i / 11) * 120, 52 - (10 + 34 * t)]);
   }
+  return pts;
+}
+
+function pointOnSlope(pts, reach) {
+  const x = Math.max(0, Math.min(1, reach)) * (pts.length - 1);
+  const i = Math.min(pts.length - 2, Math.floor(x));
+  const f = x - i;
+  const a = pts[Math.max(0, i)];
+  const b = pts[Math.min(pts.length - 1, i + 1)];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+}
+
+function trendSVG(compact, reach) {
+  const pts = slopePoints();
+  const r = reach == null ? 1 : Math.max(0, Math.min(1, Number(reach) || 0));
   const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+  const now = pointOnSlope(pts, r);
   const end = pts[pts.length - 1];
-  return `<svg class="w-trend${compact ? " is-compact" : ""}" viewBox="0 0 120 56" preserveAspectRatio="none" aria-hidden="true"><path class="line" pathLength="1" d="${d}" /><circle class="end" cx="${end[0].toFixed(1)}" cy="${end[1].toFixed(1)}" r="2.4" /></svg>`;
+  const goalMark = r < 0.999
+    ? `<circle class="goal" cx="${end[0].toFixed(1)}" cy="${end[1].toFixed(1)}" r="2.3" />`
+    : "";
+  const track = r < 0.999 ? `<path class="track" pathLength="1" d="${d}" />` : "";
+  return `<svg class="w-trend${compact ? " is-compact" : ""}" data-reach="${r.toFixed(4)}" style="--reach:1" viewBox="0 0 120 56" preserveAspectRatio="none" aria-hidden="true">${track}<path class="line" pathLength="1" d="${d}" /><circle class="now" cx="${now[0].toFixed(1)}" cy="${now[1].toFixed(1)}" r="2.6" />${goalMark}</svg>`;
+}
+
+function settleSlopes(root = document) {
+  root.querySelectorAll(".w-trend").forEach((svg) => {
+    const reach = Number(svg.getAttribute("data-reach"));
+    const offset = (1 - (Number.isFinite(reach) ? reach : 1)).toFixed(4);
+    if (prefersReducedMotion()) {
+      svg.style.setProperty("--reach", offset);
+      svg.dataset.settled = "1";
+      return;
+    }
+    svg.style.setProperty("--reach", "1");
+    requestAnimationFrame(() => {
+      svg.style.setProperty("--reach", offset);
+      svg.dataset.settled = "1";
+    });
+  });
+}
+
+function paintWidgetLive() {
+  const cards = document.querySelectorAll(".wcard");
+  if (!cards.length) return;
+  const d = d0();
+  const priv = privacy();
+  const texts = widgetTexts(d, priv);
+  const info = widgetGoalInfo(d, priv);
+  cards.forEach((card) => {
+    const hero = card.querySelector(".w-hero");
+    if (hero && !hero.classList.contains("w-phrase") && texts.nwText && hero.textContent !== texts.nwText) {
+      hero.textContent = texts.nwText;
+    }
+    const pace = card.querySelector(".w-pace");
+    if (pace && texts.paceShown && pace.textContent !== texts.paceShown) pace.textContent = texts.paceShown;
+    const reach = info ? info.reach : 1;
+    card.querySelectorAll(".w-trend").forEach((svg) => {
+      if (!svg.dataset.settled) return;
+      const offset = (1 - reach).toFixed(4);
+      if (svg.style.getPropertyValue("--reach") !== offset) svg.style.setProperty("--reach", offset);
+      const now = svg.querySelector(".now");
+      if (now) {
+        const [x, y] = pointOnSlope(slopePoints(), reach);
+        now.setAttribute("cx", x.toFixed(1));
+        now.setAttribute("cy", y.toFixed(1));
+      }
+    });
+    card.querySelectorAll(".widget-goal-fill").forEach((el) => {
+      el.style.width = `${reach * 100}%`;
+    });
+    if (info) {
+      card.querySelectorAll(".widget-goal-value").forEach((el) => {
+        if (el.textContent !== info.label) el.textContent = info.label;
+      });
+    }
+  });
+}
+
+function widgetTexts(d, priv) {
+  const showNw = privacyFieldOn(priv, "netWorth");
+  const showPace = privacyFieldOn(priv, "monthPace");
+  const pace30 = Math.round(d.periodQuiet(30));
+  const nwText = showNw
+    ? formatWidgetMoney(d.netWorth, priv, { kind: "absolute", asMonthProgress: priv.displayMode === "relative" })
+    : "";
+  const paceRaw = formatWidgetPace(pace30, priv, { base: d.netWorth, compact: true });
+  const paceShown = showPace && priv.displayMode !== "rhythm" ? paceRaw : "";
+  return { nwText, paceShown };
 }
 
 function sedimentBuckets(d, priv) {
@@ -1026,16 +1128,13 @@ function sedimentBuckets(d, priv) {
 function widgetCard(d, size) {
   const style = currentStyle();
   const priv = privacy();
-  const pace30 = Math.round(d.periodQuiet(30));
   const showNw = privacyFieldOn(priv, "netWorth");
   const showPace = privacyFieldOn(priv, "monthPace");
   const showRhythm = showPace || showRhythmWithoutPace(priv);
-  const nwText = formatWidgetMoney(d.netWorth, priv, {
-    kind: "absolute",
-    asMonthProgress: priv.displayMode === "relative",
-  });
-  const paceRaw = formatWidgetPace(pace30, priv, { base: d.netWorth, compact: true });
-  const paceShown = priv.displayMode === "rhythm" ? "" : paceRaw;
+  const texts = widgetTexts(d, priv);
+  const nwText = texts.nwText;
+  const paceShown = texts.paceShown;
+  const reach = widgetGoalInfo(d, priv)?.reach ?? 1;
   const small = size === "small";
   const hero = showNw && nwText
     ? `<div class="w-hero"${small ? ' data-testid="lock-net-worth"' : ""}>${nwText}</div>`
@@ -1045,12 +1144,13 @@ function widgetCard(d, size) {
   const pace = showPace && paceShown
     ? `<div class="w-pace"${small ? ' data-testid="lock-pace"' : ""}>${paceShown}</div>`
     : "";
-  const slope = trendSVG(small || style === "sediment");
+  const slope = trendSVG(small || style === "sediment", reach);
   const side = small
     ? ""
     : style === "sediment"
       ? sedimentBuckets(d, priv)
-      : slope;
+      : trendSVG(false, reach);
+  const goalStrip = widgetGoalStripHTML(d, priv, small);
   return `
     <div class="wcard wstyle-${style} wsize-${size}" data-style="${style}" data-privacy-mode="${priv.displayMode}" data-testid="${small ? "lock-widget" : "home-widget"}" aria-label="${t(small ? "widget.lockAria" : "widget.homeAria")}">
       <div class="w-top">
@@ -1059,12 +1159,13 @@ function widgetCard(d, size) {
           ${hero}
           ${pace}
           ${!small && style === "sediment" ? slope : ""}
+          ${!small ? goalStrip : ""}
         </div>
         ${side ? `<div class="w-side">${side}</div>` : ""}
       </div>
       ${small ? slope : ""}
       ${showRhythm ? monthBeatHTML(style, size) : ""}
-      ${small ? widgetGoalStripHTML(d, priv) : ""}
+      ${small ? goalStrip : ""}
     </div>`;
 }
 
@@ -1167,11 +1268,9 @@ function render() {
   applyStyleAttr(app);
   bind();
 
-  if (route === "home") {
-    onEnterHome();
-  } else {
-    onLeaveRhythmViews();
-  }
+  if (route === "home") onEnterHome();
+  else if (route === "widget") onEnterWidget();
+  else onLeaveRhythmViews();
   lastRoute = route;
 }
 

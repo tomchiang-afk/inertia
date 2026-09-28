@@ -1101,15 +1101,18 @@ body.demo-rhythm .rhythm-matrix[data-rhythm="dots"] .led-dot.is-on {
     animation: paceBreathe 2s ease-in-out infinite;
   }
 
-  .spark-wrap svg.animate path.line,
-  .w-trend path.line {
+  .spark-wrap svg.animate path.line {
     stroke-dasharray: 1;
     stroke-dashoffset: 1;
     animation: drawSlope 1.45s var(--ease) forwards;
   }
-  .spark-wrap svg.animate #sparkPlayhead,
-  .w-trend .end {
+  .spark-wrap svg.animate #sparkPlayhead {
     animation: fadeEnd 0.35s ease 1.2s forwards;
+  }
+  .w-trend .now,
+  .wcard .month-beat .dot.today,
+  .rhythm-hero .month-beat .dot.today {
+    animation: tipBreath 3.6s ease-in-out infinite;
   }
   .spark-wrap svg.animate path.fill {
     animation: fadeFill 0.45s ease 1.15s forwards;
@@ -1143,17 +1146,27 @@ body.demo-rhythm .rhythm-matrix[data-rhythm="dots"] .led-dot.is-on {
 @keyframes fadeFill {
   to { opacity: 0.08; }
 }
+@keyframes tipBreath {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .rhythm-beat,
   .led-dot,
   .lock-widget .pace.pace-breathe,
   .pill.accent.pace-breathe,
-  .spark-wrap path.line,
-  .w-trend path.line {
+  .spark-wrap path.line {
     animation: none !important;
     stroke-dashoffset: 0 !important;
   }
+  .w-trend path.line {
+    animation: none !important;
+    transition: none !important;
+    stroke-dashoffset: var(--reach, 0) !important;
+  }
+  .w-trend .now,
+  .month-beat .dot.today { animation: none !important; opacity: 1 !important; }
   .rhythm-beat { opacity: 0.4; transform: none; }
   .led-dot { opacity: 0.18; }
   .led-dot.is-on { opacity: 0.65; }
@@ -2194,14 +2207,22 @@ button.item-row:focus-visible { outline-offset: -2px; }
 .w-pace { font-family: var(--font); font-size: 13px; color: var(--w-accent); font-weight: 600; font-variant-numeric: tabular-nums lining-nums; }
 .w-trend { width: 100%; height: 72px; flex: 0 0 auto; }
 .w-trend.is-compact { height: 32px; margin: 2px 0 4px; }
+.w-trend path.track,
 .w-trend path.line {
   fill: none;
-  stroke: var(--w-accent);
-  stroke-width: 1.6;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
-.w-trend .end { fill: var(--w-accent); opacity: 0; }
+.w-trend path.track { stroke: var(--w-track); stroke-width: 1.4; }
+.w-trend path.line {
+  stroke: var(--w-accent);
+  stroke-width: 1.6;
+  stroke-dasharray: 1;
+  stroke-dashoffset: var(--reach, 1);
+  transition: stroke-dashoffset 1.6s var(--ease);
+}
+.w-trend .now { fill: var(--w-accent); }
+.w-trend .goal { fill: none; stroke: var(--w-accent); stroke-width: 1.1; opacity: 0.85; }
 .w-buckets { width: 100%; font-size: 11px; color: var(--w-muted); }
 .w-buckets .row { display: flex; justify-content: space-between; gap: 6px; padding: 1px 0; }
 .w-buckets .row span:last-child { color: var(--w-ink); font-variant-numeric: tabular-nums; }
