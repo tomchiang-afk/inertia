@@ -58,9 +58,7 @@
         <LinearLayout
             android:id="@+id/body"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:gravity="center_vertical"
+            android:layout_height="wrap_content"
             android:orientation="vertical">
 
             <TextView
@@ -91,6 +89,15 @@
                 android:scaleType="fitCenter"
                 android:visibility="gone" />
 
+            <TextView
+                android:id="@+id/rhythm_kicker"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:textColor="#5C5C5C"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
             <LinearLayout
                 android:id="@+id/pace_row"
                 android:layout_width="match_parent"
@@ -117,12 +124,27 @@
                     android:textColor="#2E7D5B"
                     android:textSize="13sp" />
             </LinearLayout>
+
+            <ImageView
+                android:id="@+id/slope_img"
+                android:layout_width="match_parent"
+                android:layout_height="32dp"
+                android:layout_marginTop="6dp"
+                android:importantForAccessibility="no"
+                android:scaleType="fitXY"
+                android:visibility="gone" />
         </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical" />
 
         <ImageView
             android:id="@+id/rhythm_img"
             android:layout_width="match_parent"
-            android:layout_height="52dp"
+            android:layout_height="56dp"
             android:importantForAccessibility="no"
             android:scaleType="fitXY" />
 

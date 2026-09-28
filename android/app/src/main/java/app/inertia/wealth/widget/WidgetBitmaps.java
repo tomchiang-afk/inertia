@@ -166,7 +166,7 @@ public final class WidgetBitmaps {
      * Below 1, the line is the path to a widget goal: accent up to the current
      * point, a quiet track for what is left, a ring at the target.
      */
-    public static Bitmap trend(int w, int h, int accent, float reach) {
+    public static Bitmap trend(int w, int h, int accent, int track, float reach) {
         w = Math.max(w, 8);
         h = Math.max(h, 8);
         reach = Math.max(0f, Math.min(1f, reach));
@@ -174,23 +174,21 @@ public final class WidgetBitmaps {
         Canvas c = new Canvas(bmp);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(Math.max(2f, h * 0.04f));
+        p.setStrokeWidth(Math.max(2f, h * 0.045f));
         p.setStrokeCap(Paint.Cap.ROUND);
         p.setStrokeJoin(Paint.Join.ROUND);
         int n = 12;
         float[] xs = new float[n];
         float[] ys = new float[n];
+        // Same rise as the in-app preview SVG (viewBox 120×56, y = 42 → 8).
         for (int i = 0; i < n; i++) {
             float t = i / (float) (n - 1);
-            xs[i] = 4f + t * (w - 10f);
-            ys[i] = h - 8f - (h * 0.18f + h * 0.62f * t);
+            xs[i] = 3f + t * (w - 6f);
+            ys[i] = 2f + (h - 4f) * (42f - 34f * t) / 56f;
         }
-        Path full = slopePath(xs, ys, n - 1, 1f);
         if (reach < 0.999f) {
-            p.setColor(accent);
-            p.setAlpha(70);
-            c.drawPath(full, p);
-            p.setAlpha(255);
+            p.setColor(track);
+            c.drawPath(slopePath(xs, ys, n - 1, 1f), p);
         }
         float pos = reach * (n - 1);
         int i = Math.min(n - 2, (int) Math.floor(pos));

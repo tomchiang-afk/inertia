@@ -113,6 +113,15 @@
                         android:scaleType="fitCenter"
                         android:visibility="gone" />
 
+                    <TextView
+                        android:id="@+id/rhythm_kicker"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:maxLines="1"
+                        android:textColor="#5C5C5C"
+                        android:textSize="12sp"
+                        android:visibility="gone" />
+
                     <LinearLayout
                         android:id="@+id/pace_row"
                         android:layout_width="match_parent"
@@ -139,6 +148,17 @@
                             android:textColor="#2E7D5B"
                             android:textSize="13sp" />
                     </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/slope_img"
+                        android:layout_width="match_parent"
+                        android:layout_height="32dp"
+                        android:layout_marginTop="6dp"
+                        android:layout_marginEnd="12dp"
+                        android:layout_marginRight="12dp"
+                        android:importantForAccessibility="no"
+                        android:scaleType="fitXY"
+                        android:visibility="gone" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -182,9 +202,10 @@
                 <ImageView
                     android:id="@+id/trend_img"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_height="72dp"
+                    android:layout_gravity="center_vertical"
                     android:importantForAccessibility="no"
-                    android:scaleType="fitCenter" />
+                    android:scaleType="fitXY" />
 
                 <LinearLayout
                     android:id="@+id/buckets"

@@ -95,15 +95,19 @@ public final class WidgetRenderer {
             v.setViewVisibility(R.id.hero_img, View.GONE);
         }
 
+        v.setViewVisibility(R.id.pace_label, View.GONE);
+        v.setViewVisibility(R.id.rhythm_kicker, View.GONE);
         if (paceShow) {
             v.setViewVisibility(R.id.pace_row, View.VISIBLE);
-            v.setTextViewText(R.id.pace_label, pace.optString("label", ""));
             v.setTextViewText(R.id.pace_value, paceText);
             v.setTextColor(R.id.pace_value, th.accent);
             a11y.append(". ").append(pace.optString("label", "")).append(" ").append(paceText);
             if (rhythmHero) {
-                v.setTextViewText(R.id.nw_label, pace.optString("label", ""));
-                v.setTextViewText(R.id.pace_label, nw.optString("label", ""));
+                // Preview order: big pace, then "Month rhythm", then the net worth with no field name.
+                v.setViewVisibility(R.id.nw_label, View.GONE);
+                v.setViewVisibility(R.id.rhythm_kicker, View.VISIBLE);
+                v.setTextViewText(R.id.rhythm_kicker, rhythm != null ? rhythm.optString("label", "") : "");
+                v.setTextColor(R.id.rhythm_kicker, th.muted);
                 v.setTextViewText(R.id.pace_value, nwText);
                 v.setTextColor(R.id.pace_value, th.ink);
             }
@@ -179,15 +183,20 @@ public final class WidgetRenderer {
             boolean showBuckets = "sediment".equals(style) && hasBuckets;
             v.setViewVisibility(R.id.buckets, showBuckets ? View.VISIBLE : View.GONE);
             v.setViewVisibility(R.id.divider, View.GONE);
-            v.setViewVisibility(R.id.trend_img, showBuckets ? View.GONE : View.VISIBLE);
-            if (!showBuckets) {
-                int trendW = Math.max(40, Math.round(contentWDp * 0.42f));
-                v.setImageViewBitmap(R.id.trend_img, WidgetBitmaps.trend(
-                        px(trendW, density), px(Math.max(hDp - 80, 48), density), th.accent, goalReach(snap)));
+            float reach = goalReach(snap);
+            if (showBuckets) {
+                int leftW = Math.max(96, Math.round((Math.max(wDp, 220) - 36) * 0.50f));
+                showSlope(v, R.id.slope_img, px(leftW, density), px(32, density), th, reach);
+                v.setViewVisibility(R.id.trend_img, View.GONE);
+            } else {
+                v.setViewVisibility(R.id.slope_img, View.GONE);
+                int trendW = Math.max(40, Math.round(contentWDp * 0.46f));
+                showSlope(v, R.id.trend_img, px(trendW, density), px(72, density), th, reach);
             }
             v.setViewVisibility(R.id.columns, View.VISIBLE);
         } else {
             v.setViewVisibility(R.id.body, View.VISIBLE);
+            showSlope(v, R.id.slope_img, px(contentWDp, density), px(32, density), th, goalReach(snap));
         }
 
         // Goal strip (hidden when the widget is too short to fit it).
@@ -245,6 +254,11 @@ public final class WidgetRenderer {
         return fallback;
     }
 
+    private static void showSlope(RemoteViews v, int imageId, int wPx, int hPx, WidgetTheme th, float reach) {
+        v.setViewVisibility(imageId, View.VISIBLE);
+        v.setImageViewBitmap(imageId, WidgetBitmaps.trend(wPx, hPx, th.accent, th.track, reach));
+    }
+
     private static void showFigure(Context ctx, RemoteViews v, String text, int wPx, int hPx,
                                    int color, boolean editorial, float maxTextPx) {
         Typeface face = editorial ? WidgetFonts.newsreader(ctx) : WidgetFonts.inter(ctx);
@@ -270,6 +284,8 @@ public final class WidgetRenderer {
         v.setViewVisibility(R.id.rhythm_img, View.GONE);
         v.setViewVisibility(R.id.grain_img, View.GONE);
         v.setViewVisibility(R.id.hero_img, View.GONE);
+        v.setViewVisibility(R.id.slope_img, View.GONE);
+        v.setViewVisibility(R.id.rhythm_kicker, View.GONE);
         if (medium) {
             v.setViewVisibility(R.id.columns, View.GONE);
         } else {
@@ -286,6 +302,7 @@ public final class WidgetRenderer {
         v.setTextColor(R.id.updated, th.faint);
         v.setTextColor(R.id.placeholder, th.muted);
         v.setTextColor(R.id.nw_label, th.muted);
+        v.setTextColor(R.id.rhythm_kicker, th.muted);
         v.setTextColor(R.id.nw_value, th.ink);
         v.setTextColor(R.id.pace_label, th.muted);
         v.setTextColor(R.id.pace_value, th.accent);
