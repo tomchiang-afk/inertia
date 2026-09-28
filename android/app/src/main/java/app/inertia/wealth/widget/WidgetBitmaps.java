@@ -6,6 +6,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.os.Build;
 
 /**
  * Static bitmaps for RemoteViews (no animation): the month rhythm beat bar
@@ -213,28 +214,112 @@ public final class WidgetBitmaps {
         return bmp;
     }
 
-    /** Editorial hero. RemoteViews cannot load a bundled serif, so the numeral is a bitmap. */
-    public static Bitmap heroText(String text, int w, int h, int color, boolean serif) {
+    /**
+     * Large figure. Latin runs use the bundled face (Inter or Newsreader).
+     * A glyph that face lacks — 萬, a CJK phrase — is drawn with the system
+     * sans, which is Noto CJK on current Android.
+     *
+     * @param maxTextPx starting size in pixels; shrunk until the line fits
+     */
+    public static Bitmap heroText(String text, int w, int h, int color, Typeface face,
+                                  float letterSpacingEm, float maxTextPx) {
         w = Math.max(w, 8);
         h = Math.max(h, 8);
         if (text == null) text = "";
+        if (face == null) face = Typeface.SANS_SERIF;
         Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
-        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setColor(color);
-        p.setTypeface(serif
-                ? Typeface.create(Typeface.SERIF, Typeface.NORMAL)
-                : Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
-        float size = h * 0.78f;
-        p.setTextSize(size);
-        while (size > 10f && p.measureText(text) > w * 0.98f) {
+        Paint latin = figurePaint(color, face, letterSpacingEm);
+        Paint cjk = figurePaint(color, cjkFallback(), letterSpacingEm);
+        boolean anyFallback = needsFallback(latin, text);
+        float size = maxTextPx > 0f ? maxTextPx : h * 0.62f;
+        float pad = 2f;
+        float limit = Math.max(8f, w - pad * 2f);
+        applySize(latin, cjk, size);
+        while (size > 8f && (measureRuns(latin, cjk, text) > limit || lineBox(latin, cjk, anyFallback) > h * 0.96f)) {
             size *= 0.92f;
-            p.setTextSize(size);
+            applySize(latin, cjk, size);
         }
-        Paint.FontMetrics fm = p.getFontMetrics();
+        Paint.FontMetrics fm = latin.getFontMetrics();
         float y = (h - (fm.ascent + fm.descent)) / 2f;
-        c.drawText(text, 0, y, p);
+        float x = pad;
+        int i = 0;
+        while (i < text.length()) {
+            int cp = text.codePointAt(i);
+            boolean fallback = !glyphCovered(latin, cp);
+            int j = i + Character.charCount(cp);
+            while (j < text.length()) {
+                int next = text.codePointAt(j);
+                if ((!glyphCovered(latin, next)) != fallback) break;
+                j += Character.charCount(next);
+            }
+            Paint paint = fallback ? cjk : latin;
+            c.drawText(text, i, j, x, y, paint);
+            x += paint.measureText(text, i, j);
+            i = j;
+        }
         return bmp;
+    }
+
+    private static Paint figurePaint(int color, Typeface face, float letterSpacingEm) {
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+        p.setColor(color);
+        p.setTypeface(face);
+        p.setLetterSpacing(letterSpacingEm);
+        p.setFontFeatureSettings("tnum, lnum");
+        return p;
+    }
+
+    private static void applySize(Paint latin, Paint cjk, float size) {
+        latin.setTextSize(size);
+        cjk.setTextSize(size);
+    }
+
+    private static float lineBox(Paint latin, Paint cjk, boolean anyFallback) {
+        Paint.FontMetrics a = latin.getFontMetrics();
+        float box = a.descent - a.ascent;
+        if (!anyFallback) return box;
+        Paint.FontMetrics b = cjk.getFontMetrics();
+        return Math.max(box, b.descent - b.ascent);
+    }
+
+    private static boolean needsFallback(Paint latin, String text) {
+        for (int i = 0; i < text.length(); ) {
+            int cp = text.codePointAt(i);
+            if (!glyphCovered(latin, cp)) return true;
+            i += Character.charCount(cp);
+        }
+        return false;
+    }
+
+    private static float measureRuns(Paint latin, Paint cjk, String text) {
+        float width = 0f;
+        int i = 0;
+        while (i < text.length()) {
+            int cp = text.codePointAt(i);
+            boolean fallback = !glyphCovered(latin, cp);
+            int j = i + Character.charCount(cp);
+            while (j < text.length()) {
+                int next = text.codePointAt(j);
+                if ((!glyphCovered(latin, next)) != fallback) break;
+                j += Character.charCount(next);
+            }
+            width += (fallback ? cjk : latin).measureText(text, i, j);
+            i = j;
+        }
+        return width;
+    }
+
+    private static boolean glyphCovered(Paint paint, int cp) {
+        if (Build.VERSION.SDK_INT >= 23) {
+            return paint.hasGlyph(new String(Character.toChars(cp)));
+        }
+        return cp <= 0x024F || cp == 0x2212 || cp == 0x2022 || cp == 0x00B7;
+    }
+
+    private static Typeface cjkFallback() {
+        if (Build.VERSION.SDK_INT >= 28) return Typeface.create(Typeface.SANS_SERIF, 500, false);
+        return Typeface.SANS_SERIF;
     }
 
     private static int withAlpha(int color, int alpha) {

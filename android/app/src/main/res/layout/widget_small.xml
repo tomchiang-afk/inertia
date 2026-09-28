@@ -60,6 +60,7 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
+            android:gravity="center_vertical"
             android:orientation="vertical">
 
             <TextView
@@ -73,26 +74,21 @@
             <TextView
                 android:id="@+id/nw_value"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:autoSizeMaxTextSize="28sp"
-                android:autoSizeMinTextSize="14sp"
-                android:autoSizeTextType="uniform"
+                android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:fontFeatureSettings="tnum"
-                android:gravity="center_vertical"
                 android:includeFontPadding="false"
                 android:maxLines="1"
                 android:textColor="#1C1C1E"
-                android:textSize="22sp" />
+                android:textSize="22sp"
+                android:visibility="gone" />
 
             <ImageView
                 android:id="@+id/hero_img"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
+                android:layout_height="46dp"
                 android:importantForAccessibility="no"
-                android:scaleType="fitStart"
+                android:scaleType="fitCenter"
                 android:visibility="gone" />
 
             <LinearLayout

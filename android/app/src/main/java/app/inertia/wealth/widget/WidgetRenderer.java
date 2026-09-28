@@ -3,6 +3,7 @@ package app.inertia.wealth.widget;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.os.Build;
 import android.view.View;
 import android.widget.RemoteViews;
@@ -65,27 +66,23 @@ public final class WidgetRenderer {
         cal.setTimeInMillis(now);
         StringBuilder a11y = new StringBuilder("Inertia");
 
-        // Net worth.
+        // Net worth and month pace. The large figure is a bitmap (Inter, or
+        // Newsreader on editorial) because RemoteViews cannot load a bundled face.
         JSONObject nw = snap.optJSONObject("netWorth");
         JSONObject rhythm = snap.optJSONObject("rhythm");
+        JSONObject pace = snap.optJSONObject("pace");
         int contentWDp = Math.max(wDp - PAD_H_DP, 40);
         boolean nwShow = nw != null && nw.optBoolean("show", false);
         String nwText = "";
-        if (nwShow) {
-            nwText = netWorthText(nw, snap.optJSONObject("live"), medium, now, cal);
+        if (nwShow) nwText = netWorthText(nw, snap.optJSONObject("live"), medium, now, cal);
+        boolean paceShow = pace != null && pace.optBoolean("show", false) && !pace.optString("text", "").isEmpty();
+        String paceText = paceShow ? pace.optString("text", "") : "";
+        // Rhythm style: month pace is the hero, net worth stays on the secondary line.
+        boolean rhythmHero = "rhythm".equals(style) && paceShow && nwShow && !nwText.isEmpty();
+
+        if (nwShow && !nwText.isEmpty()) {
             v.setViewVisibility(R.id.nw_label, View.VISIBLE);
-            v.setViewVisibility(R.id.nw_value, View.VISIBLE);
             v.setTextViewText(R.id.nw_label, nw.optString("label", ""));
-            v.setTextViewText(R.id.nw_value, nwText);
-            if ("editorial".equals(style) && !nwText.isEmpty()) {
-                v.setViewVisibility(R.id.nw_value, View.GONE);
-                v.setViewVisibility(R.id.hero_img, View.VISIBLE);
-                v.setImageViewBitmap(R.id.hero_img, WidgetBitmaps.heroText(
-                        nwText, px(contentWDp, density), px(medium ? 72 : 64, density), th.ink, true));
-            } else {
-                v.setViewVisibility(R.id.nw_value, View.VISIBLE);
-                v.setViewVisibility(R.id.hero_img, View.GONE);
-            }
             a11y.append(". ").append(nw.optString("label", "")).append(" ").append(nwText);
         } else if ("rhythm".equals(mode) && rhythm != null && rhythm.optBoolean("show", false)) {
             v.setViewVisibility(R.id.nw_label, View.VISIBLE);
@@ -98,22 +95,42 @@ public final class WidgetRenderer {
             v.setViewVisibility(R.id.hero_img, View.GONE);
         }
 
-        // Month pace.
-        JSONObject pace = snap.optJSONObject("pace");
-        if (pace != null && pace.optBoolean("show", false) && !pace.optString("text", "").isEmpty()) {
+        if (paceShow) {
             v.setViewVisibility(R.id.pace_row, View.VISIBLE);
             v.setTextViewText(R.id.pace_label, pace.optString("label", ""));
-            v.setTextViewText(R.id.pace_value, pace.optString("text", ""));
-            a11y.append(". ").append(pace.optString("label", "")).append(" ").append(pace.optString("text", ""));
-            // Rhythm style: the month pace is the hero, net worth stays secondary.
-            if ("rhythm".equals(style) && nwShow && !nwText.isEmpty()) {
+            v.setTextViewText(R.id.pace_value, paceText);
+            v.setTextColor(R.id.pace_value, th.accent);
+            a11y.append(". ").append(pace.optString("label", "")).append(" ").append(paceText);
+            if (rhythmHero) {
                 v.setTextViewText(R.id.nw_label, pace.optString("label", ""));
-                v.setTextViewText(R.id.nw_value, pace.optString("text", ""));
                 v.setTextViewText(R.id.pace_label, nw.optString("label", ""));
                 v.setTextViewText(R.id.pace_value, nwText);
+                v.setTextColor(R.id.pace_value, th.ink);
             }
         } else {
             v.setViewVisibility(R.id.pace_row, View.GONE);
+        }
+
+        String figure = "";
+        int figureColor = th.ink;
+        boolean editorialFace = false;
+        if (rhythmHero) {
+            figure = paceText;
+            figureColor = th.accent;
+        } else if (nwShow && !nwText.isEmpty()) {
+            figure = nwText;
+            figureColor = "rhythm".equals(style) ? th.accent : th.ink;
+            editorialFace = "editorial".equals(style);
+        }
+        if (!figure.isEmpty()) {
+            int heroHDp = medium ? 40 : 46;
+            int heroWDp = medium
+                    ? Math.max(96, Math.round((Math.max(wDp, 220) - 36) * 0.50f))
+                    : contentWDp;
+            float textSp = editorialFace ? (medium ? 22f : 26f) : (medium ? 20f : 24f);
+            float scaled = ctx.getResources().getDisplayMetrics().scaledDensity;
+            showFigure(ctx, v, figure, px(heroWDp, density), px(heroHDp, density),
+                    figureColor, editorialFace, textSp * scaled);
         }
 
         // Month beat, anchored under the numbers.
@@ -215,6 +232,24 @@ public final class WidgetRenderer {
         if ("wan".equals(format)) return WidgetFormat.wan(value, live.optString("unit", "萬"), prefix);
         if ("round".equals(format)) return WidgetFormat.round(value, prefix);
         return fallback;
+    }
+
+    private static void showFigure(Context ctx, RemoteViews v, String text, int wPx, int hPx,
+                                   int color, boolean editorial, float maxTextPx) {
+        Typeface face = editorial ? WidgetFonts.newsreader(ctx) : WidgetFonts.inter(ctx);
+        float tracking = editorial ? -0.02f : -0.03f;
+        try {
+            v.setImageViewBitmap(R.id.hero_img, WidgetBitmaps.heroText(text, wPx, hPx, color, face, tracking, maxTextPx));
+            v.setViewVisibility(R.id.hero_img, View.VISIBLE);
+            v.setViewVisibility(R.id.nw_value, View.GONE);
+            return;
+        } catch (RuntimeException ignored) {
+            // Bitmap budget or a broken face: the system text view is still readable.
+        }
+        v.setViewVisibility(R.id.hero_img, View.GONE);
+        v.setViewVisibility(R.id.nw_value, View.VISIBLE);
+        v.setTextViewText(R.id.nw_value, text);
+        v.setTextColor(R.id.nw_value, color);
     }
 
     private static void renderPlaceholder(RemoteViews v, boolean medium) {
