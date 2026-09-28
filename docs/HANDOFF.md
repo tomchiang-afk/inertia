@@ -1,6 +1,6 @@
 # Inertia: engineering handoff
 
-Last updated 2026-09-28 (Asia/Taipei). Current version in the working tree is **0.4.0** (Android versionCode 5). Implemented locally, not committed.
+Last updated 2026-09-28 (Asia/Taipei). Current version is **0.4.1** (Android versionCode 6).
 Read this first, then [`PRD.md`](../PRD.md) (product rules, data model §7, smooth accrual §7b),
 [`docs/ANDROID_WIDGET.md`](ANDROID_WIDGET.md) (native widget) and the widget-v3 design specs
 listed under "Next plan".
