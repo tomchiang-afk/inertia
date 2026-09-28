@@ -159,41 +159,18 @@ function sparkPath(quietDay) {
   return { w, h, d, fill, coords: pts, last: pts[pts.length - 1] };
 }
 
-/** App Home keeps the bar metronome. Widget styles use the month-beat matrix. */
-function homeRhythmHTML(size = "full") {
-  return metroHTML(size);
-}
-
-/** Rounded/sharp bar metronome — paper & swiss */
-function metroHTML(size = "inline") {
-  const n = size === "full" ? 16 : size === "strip" ? 8 : 4;
-  const beats = Array.from({ length: n }, (_, i) =>
-    `<span class="rhythm-beat" style="--i:${i}"></span>`
-  ).join("");
-  return `<span class="rhythm-metro pace-only" data-rhythm="bars" data-size="${size}" data-testid="rhythm-metro" aria-hidden="true">${beats}</span>`;
-}
-
 function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/* —— Rhythm live counter + spark playhead —— */
+/* —— Rhythm live counter —— */
 let rhythmRaf = null;
-let playheadRaf = null;
-let sparkCoords = [];
 let lastRoute = null;
 
 function stopRhythmLive() {
   if (rhythmRaf != null) {
     cancelAnimationFrame(rhythmRaf);
     rhythmRaf = null;
-  }
-}
-
-function stopPlayhead() {
-  if (playheadRaf != null) {
-    cancelAnimationFrame(playheadRaf);
-    playheadRaf = null;
   }
 }
 
@@ -232,61 +209,22 @@ function startRhythmLive() {
   rhythmRaf = requestAnimationFrame(frame);
 }
 
-function startPlayhead() {
-  stopPlayhead();
-  const head = document.getElementById("sparkPlayhead");
-  if (!head || !sparkCoords.length) return;
-  if (prefersReducedMotion()) {
-    head.setAttribute("hidden", "");
-    return;
-  }
-  head.removeAttribute("hidden");
-  const demo = document.body.classList.contains("demo-rhythm");
-  const loopMs = demo ? 4500 : 7500;
-  const t0 = performance.now();
-  const n = sparkCoords.length;
-
-  function frame(now) {
-    if (route !== "home") {
-      playheadRaf = null;
-      return;
-    }
-    // rAF timestamps can precede t0 (performance.now()) on the first frame → keep p in [0,1).
-    const p = ((((now - t0) % loopMs) + loopMs) % loopMs) / loopMs;
-    const f = p * (n - 1);
-    const i = Math.floor(f);
-    const tFrac = f - i;
-    const a = sparkCoords[i];
-    const b = sparkCoords[Math.min(i + 1, n - 1)];
-    const x = a[0] + (b[0] - a[0]) * tFrac;
-    const y = a[1] + (b[1] - a[1]) * tFrac;
-    head.setAttribute("cx", x.toFixed(2));
-    head.setAttribute("cy", y.toFixed(2));
-    playheadRaf = requestAnimationFrame(frame);
-  }
-  playheadRaf = requestAnimationFrame(frame);
-}
-
 function animateSparkStroke() {
-  const line = document.getElementById("sparkLine");
-  if (!line) return;
-  line.classList.remove("animate");
-  void line.getBoundingClientRect();
-  if (!prefersReducedMotion()) line.classList.add("animate");
+  const svg = document.getElementById("sparkLine")?.closest("svg");
+  if (!svg) return;
+  svg.classList.remove("animate");
+  void svg.getBoundingClientRect();
+  if (!prefersReducedMotion()) svg.classList.add("animate");
 }
 
 function onLeaveRhythmViews() {
   stopRhythmLive();
-  stopPlayhead();
-  const head = document.getElementById("sparkPlayhead");
-  if (head) head.setAttribute("hidden", "");
 }
 
 function onEnterHome() {
   requestAnimationFrame(() => {
     animateSparkStroke();
     startRhythmLive();
-    startPlayhead();
   });
 }
 
@@ -799,8 +737,8 @@ function screenHome(d) {
     : "";
   const paceBlock = `<p class="rhythm-live-line" id="rhythmLiveLine">${t("rhythm.paceRunning")} <span id="rhythmLive" data-testid="rhythm-today">${fmtNT(Math.floor(todaySoFar(d.quietDay, new Date())))}</span></p>
       <div class="rhythm-hero" data-testid="rhythm-hero">
-        <div class="cap">${t("rhythm.matrixCap")}</div>
-        ${homeRhythmHTML("full")}
+        <div class="cap">${t("widget.rhythm")}</div>
+        ${monthBeatHTML("rhythm", "medium", "rhythm-metro")}
       </div>`;
   const capNote = paceCapped(state.paceAnchorAt)
     ? `<p class="fx-note" data-testid="pace-capped-note">${t("pace.cappedNote", { days: PACE_MAX_DAYS })}</p>`
@@ -853,8 +791,7 @@ function screenHome(d) {
         ${nwHtml}
         <div class="meta-row">
           ${pacePill}
-          <span class="pill accent pace-breathe" data-testid="pace-badge">${t("home.paceBadge")}</span>
-          ${homeRhythmHTML("inline")}
+          <span class="pill accent" data-testid="pace-badge">${t("home.paceBadge")}</span>
         </div>
       </div>
       ${paceBlock}
@@ -863,8 +800,8 @@ function screenHome(d) {
         <div class="cap">${t("spark.cap")}</div>
         <svg viewBox="0 0 ${spark.w} ${spark.h}" preserveAspectRatio="none" aria-hidden="true">
           <path class="fill" d="${spark.fill}" />
-          <path class="line" id="sparkLine" d="${spark.d}" />
-          <circle id="sparkPlayhead" cx="${spark.coords[0][0]}" cy="${spark.coords[0][1]}" r="4" hidden />
+          <path class="line" id="sparkLine" pathLength="1" d="${spark.d}" />
+          <circle id="sparkPlayhead" cx="${spark.last[0]}" cy="${spark.last[1]}" r="3.5" />
         </svg>
       </div>
       <div class="asset-list">
@@ -1011,7 +948,7 @@ function screenSettings() {
     </div>`;
 }
 
-function monthBeatHTML(style, size) {
+function monthBeatHTML(style, size, testId) {
   const now = new Date();
   const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const day = now.getDate();
@@ -1031,7 +968,7 @@ function monthBeatHTML(style, size) {
       const today = i === day;
       dots += `<i class="dot${today ? " today" : on ? " on" : ""}"></i>`;
     }
-    return `<div class="month-beat grid" style="--cols:${cols}" ${size === "small" ? 'data-testid="month-beat"' : ""} aria-hidden="true">${dots}</div>`;
+    return `<div class="month-beat grid" style="--cols:${cols}"${beatTestId(size, testId)} aria-hidden="true">${dots}</div>`;
   }
   let html = "";
   for (let c = 1; c <= cols; c++) {
@@ -1046,19 +983,27 @@ function monthBeatHTML(style, size) {
     }
     html += `<span class="col">${dots}</span>`;
   }
-  return `<div class="month-beat cols" ${size === "small" ? 'data-testid="month-beat"' : ""} aria-hidden="true">${html}</div>`;
+  return `<div class="month-beat cols"${beatTestId(size, testId)} aria-hidden="true">${html}</div>`;
 }
 
-function trendSVG() {
+function beatTestId(size, testId) {
+  if (testId) return ` data-testid="${testId}"`;
+  if (size === "small") return ' data-testid="month-beat"';
+  return "";
+}
+
+/** One calm rise. Drawn once; the dot stays at the end. Not a loop. */
+function trendSVG(compact) {
   const pts = [];
   for (let i = 0; i < 12; i++) {
     const t = i / 11;
     const x = (i / 11) * 120;
     const y = 52 - (10 + 34 * t);
-    pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    pts.push([x, y]);
   }
-  const line = pts.join(" ");
-  return `<svg class="w-trend" viewBox="0 0 120 56" preserveAspectRatio="none" aria-hidden="true"><polyline points="${line}" /></svg>`;
+  const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+  const end = pts[pts.length - 1];
+  return `<svg class="w-trend${compact ? " is-compact" : ""}" viewBox="0 0 120 56" preserveAspectRatio="none" aria-hidden="true"><path class="line" pathLength="1" d="${d}" /><circle class="end" cx="${end[0].toFixed(1)}" cy="${end[1].toFixed(1)}" r="2.4" /></svg>`;
 }
 
 function sedimentBuckets(d, priv) {
@@ -1100,7 +1045,12 @@ function widgetCard(d, size) {
   const pace = showPace && paceShown
     ? `<div class="w-pace"${small ? ' data-testid="lock-pace"' : ""}>${paceShown}</div>`
     : "";
-  const side = small ? "" : style === "sediment" ? sedimentBuckets(d, priv) : trendSVG();
+  const slope = trendSVG(small || style === "sediment");
+  const side = small
+    ? ""
+    : style === "sediment"
+      ? sedimentBuckets(d, priv)
+      : slope;
   return `
     <div class="wcard wstyle-${style} wsize-${size}" data-style="${style}" data-privacy-mode="${priv.displayMode}" data-testid="${small ? "lock-widget" : "home-widget"}" aria-label="${t(small ? "widget.lockAria" : "widget.homeAria")}">
       <div class="w-top">
@@ -1108,9 +1058,11 @@ function widgetCard(d, size) {
           <div class="w-kicker">${style === "rhythm" ? t("widget.rhythm") : t("netWorth")}</div>
           ${hero}
           ${pace}
+          ${!small && style === "sediment" ? slope : ""}
         </div>
         ${side ? `<div class="w-side">${side}</div>` : ""}
       </div>
+      ${small ? slope : ""}
       ${showRhythm ? monthBeatHTML(style, size) : ""}
       ${small ? widgetGoalStripHTML(d, priv) : ""}
     </div>`;
@@ -1216,8 +1168,6 @@ function render() {
   bind();
 
   if (route === "home") {
-    const spark = sparkPath(d.quietDay);
-    sparkCoords = spark.coords;
     onEnterHome();
   } else {
     onLeaveRhythmViews();

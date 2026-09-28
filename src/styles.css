@@ -428,46 +428,52 @@ select:focus-visible {
 .spark-wrap svg { display: block; width: 100%; height: 56px; }
 
 .asset-list {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .asset-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "name chev"
+    "amt amt"
+    "delta delta";
+  gap: 2px 8px;
   width: 100%;
   text-align: left;
-  border: none;
-  border-bottom: 1px solid var(--line-soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
   background: var(--surface);
-  padding: 11px 12px;
+  padding: 12px 14px 11px;
   color: inherit;
   transition: background 0.12s var(--ease);
 }
-.asset-row:last-child { border-bottom: none; }
 .asset-row:hover { background: var(--bg); }
 .asset-row:active { background: var(--line-soft); }
 .asset-row .name {
-  flex: 1;
-  font-size: 13px;
+  grid-area: name;
+  font-size: 12px;
   font-weight: 500;
+  color: var(--muted);
 }
 .asset-row .amt {
-  font-size: 13px;
+  grid-area: amt;
+  font-size: 22px;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 .asset-row .delta {
-  font-size: 11px;
+  grid-area: delta;
+  font-size: 12px;
   color: var(--muted);
-  min-width: 88px;
-  text-align: right;
+  min-width: 0;
+  text-align: left;
 }
 .asset-row .delta.down { color: var(--down); }
 .asset-row .delta.mute { color: var(--faint); }
-.asset-row .chev { color: var(--faint); font-size: 12px; }
+.asset-row .chev { grid-area: chev; align-self: center; color: var(--faint); font-size: 16px; }
 
 .detail-card {
   background: var(--surface);
@@ -950,10 +956,12 @@ select:focus-visible {
 
 .rhythm-hero {
   margin: 8px 0 4px;
-  padding: 10px 12px;
+  padding: 10px 12px 12px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
+  --w-accent: var(--accent);
+  --w-track: var(--line);
 }
 .rhythm-hero .cap {
   font-size: 11px;
@@ -1038,15 +1046,12 @@ select:focus-visible {
 }
 .spark-wrap path.fill {
   fill: var(--accent);
-  opacity: 0.08;
+  opacity: 0;
 }
 #sparkPlayhead {
   fill: var(--accent);
-  opacity: 1;
+  opacity: 0;
   pointer-events: none;
-}
-#sparkPlayhead[hidden] {
-  display: none;
 }
 
 /* Demo mode: clearer / faster for screen recordings */
@@ -1092,18 +1097,28 @@ body.demo-rhythm .rhythm-matrix[data-rhythm="dots"] .led-dot.is-on {
     animation-delay: calc(var(--i, 0) * 0.05s + var(--r, 0) * -0.03s);
   }
 
-  .lock-widget .pace.pace-breathe,
-  .pill.accent.pace-breathe {
+  .lock-widget .pace.pace-breathe {
     animation: paceBreathe 2s ease-in-out infinite;
   }
 
-  .spark-wrap path.line.animate {
-    stroke-dasharray: 520;
-    stroke-dashoffset: 520;
-    animation: drawSpark 1.2s var(--ease) forwards;
+  .spark-wrap svg.animate path.line,
+  .w-trend path.line {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: drawSlope 1.45s var(--ease) forwards;
   }
-  body.demo-rhythm .spark-wrap path.line.animate {
+  .spark-wrap svg.animate #sparkPlayhead,
+  .w-trend .end {
+    animation: fadeEnd 0.35s ease 1.2s forwards;
+  }
+  .spark-wrap svg.animate path.fill {
+    animation: fadeFill 0.45s ease 1.15s forwards;
+  }
+  body.demo-rhythm .spark-wrap svg.animate path.line {
     animation-duration: 0.7s;
+  }
+  body.demo-rhythm .spark-wrap svg.animate #sparkPlayhead {
+    animation-delay: 0.55s;
   }
 }
 
@@ -1119,8 +1134,14 @@ body.demo-rhythm .rhythm-matrix[data-rhythm="dots"] .led-dot.is-on {
   0%, 100% { opacity: 0.7; }
   50% { opacity: 1; }
 }
-@keyframes drawSpark {
+@keyframes drawSlope {
   to { stroke-dashoffset: 0; }
+}
+@keyframes fadeEnd {
+  to { opacity: 1; }
+}
+@keyframes fadeFill {
+  to { opacity: 0.08; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1128,15 +1149,18 @@ body.demo-rhythm .rhythm-matrix[data-rhythm="dots"] .led-dot.is-on {
   .led-dot,
   .lock-widget .pace.pace-breathe,
   .pill.accent.pace-breathe,
-  .spark-wrap path.line.animate {
+  .spark-wrap path.line,
+  .w-trend path.line {
     animation: none !important;
+    stroke-dashoffset: 0 !important;
   }
   .rhythm-beat { opacity: 0.4; transform: none; }
   .led-dot { opacity: 0.18; }
   .led-dot.is-on { opacity: 0.65; }
-  .lock-widget .pace.pace-breathe,
-  .pill.accent.pace-breathe { opacity: 1; }
-  #sparkPlayhead { display: none !important; }
+  .lock-widget .pace.pace-breathe { opacity: 1; }
+  #sparkPlayhead,
+  .w-trend .end { opacity: 1 !important; animation: none !important; }
+  .spark-wrap path.fill { opacity: 0.08 !important; animation: none !important; }
 }
 
 
@@ -1792,13 +1816,12 @@ body.demo-rhythm[data-template="matrix"] .lock-widget .rhythm-metro[data-rhythm=
 
 /* —— v3: user-defined category lists, item sheets, Currency & FX —— */
 .asset-row .name .sub {
-  display: block;
   font-size: 11px;
   font-weight: 400;
   color: var(--faint);
-  margin-top: 1px;
 }
-.asset-row .delta:empty { min-width: 0; }
+.asset-row .name .sub::before { content: " · "; }
+.asset-row .delta:empty { display: none; }
 
 .topbar-ccy {
   font-size: 11px;
@@ -1810,21 +1833,23 @@ body.demo-rhythm[data-template="matrix"] .lock-widget .rhythm-metro[data-rhythm=
 
 .list-screen { gap: 10px; }
 .list-summary {
-  padding: 2px 2px 4px;
-  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px 11px;
 }
 .ls-main {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
-.ls-k { font-size: 12px; color: var(--muted); }
+.ls-k { font-size: 12px; font-weight: 500; color: var(--muted); }
 .ls-v {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 .ls-sub {
   font-size: 11px;
@@ -1839,10 +1864,9 @@ body.demo-rhythm[data-template="matrix"] .lock-widget .rhythm-metro[data-rhythm=
   min-height: 28px;
 }
 .list-head h3 {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--faint);
-  letter-spacing: 0.04em;
+  color: var(--ink);
 }
 .list-head .btn[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
 
@@ -1947,7 +1971,9 @@ button.item-row:focus-visible { outline-offset: -2px; }
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px 8px 0;
+  padding: 10px 12px 10px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
 }
 .acct-title {
   flex: 1;
@@ -1963,7 +1989,9 @@ button.item-row:focus-visible { outline-offset: -2px; }
   border-radius: 0 6px 6px 0;
   font: inherit;
 }
-.acct-title .item-title { font-weight: 600; }
+.acct-title .item-title { font-size: 14px; font-weight: 600; }
+.item-list.nested .item-row { padding-left: 22px; }
+.item-list.nested .item-title { font-weight: 400; }
 .acct-title:hover:not(:disabled) .item-title { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--faint); }
 .acct-title:disabled { opacity: 1; cursor: default; }
 .btn-link {
@@ -2164,8 +2192,16 @@ button.item-row:focus-visible { outline-offset: -2px; }
 }
 .wstyle-rhythm .w-hero { font-size: 13px; font-weight: 600; }
 .w-pace { font-family: var(--font); font-size: 13px; color: var(--w-accent); font-weight: 600; font-variant-numeric: tabular-nums lining-nums; }
-.w-trend { width: 100%; height: 72px; }
-.w-trend polyline { fill: none; stroke: var(--w-accent); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.w-trend { width: 100%; height: 72px; flex: 0 0 auto; }
+.w-trend.is-compact { height: 32px; margin: 2px 0 4px; }
+.w-trend path.line {
+  fill: none;
+  stroke: var(--w-accent);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.w-trend .end { fill: var(--w-accent); opacity: 0; }
 .w-buckets { width: 100%; font-size: 11px; color: var(--w-muted); }
 .w-buckets .row { display: flex; justify-content: space-between; gap: 6px; padding: 1px 0; }
 .w-buckets .row span:last-child { color: var(--w-ink); font-variant-numeric: tabular-nums; }
