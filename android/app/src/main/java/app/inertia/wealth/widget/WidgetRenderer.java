@@ -3,6 +3,7 @@ package app.inertia.wealth.widget;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.view.View;
@@ -56,7 +57,7 @@ public final class WidgetRenderer {
         v.setTextViewText(R.id.brand, snap.optString("brand", "Inertia"));
         if ("editorial".equals(style) || "sediment".equals(style)) {
             v.setViewVisibility(R.id.grain_img, View.VISIBLE);
-            v.setImageViewBitmap(R.id.grain_img, WidgetBitmaps.grain(px(Math.max(wDp, 40), density), px(Math.max(hDp, 40), density), (int) (now / 86_400_000L)));
+            setBitmap(v, R.id.grain_img, WidgetBitmaps.grain(px(Math.max(wDp, 40), density), px(Math.max(hDp, 40), density), (int) (now / 86_400_000L)));
         } else {
             v.setViewVisibility(R.id.grain_img, View.GONE);
         }
@@ -115,6 +116,26 @@ public final class WidgetRenderer {
             v.setViewVisibility(R.id.pace_row, View.GONE);
         }
 
+        // Missing FX rates are excluded from totals; the widget carries the same warning
+        // as App Home instead of presenting an understated number as complete.
+        JSONObject fx = snap.optJSONObject("missingFx");
+        if (fx != null && fx.optBoolean("show", false)) {
+            String fxNote = fx.optString("text", "");
+            if (!fxNote.isEmpty()) {
+                if (rhythmHero) {
+                    v.setViewVisibility(R.id.rhythm_kicker, View.VISIBLE);
+                    v.setTextViewText(R.id.rhythm_kicker,
+                            (rhythm != null ? rhythm.optString("label", "") : "") + " · " + fxNote);
+                } else if (nwShow && !nwText.isEmpty()) {
+                    v.setTextViewText(R.id.nw_label, nw.optString("label", "") + " · " + fxNote);
+                } else {
+                    v.setViewVisibility(R.id.nw_label, View.VISIBLE);
+                    v.setTextViewText(R.id.nw_label, fxNote);
+                }
+                a11y.append(". ").append(fxNote);
+            }
+        }
+
         String figure = "";
         int figureColor = th.ink;
         boolean editorialFace = false;
@@ -157,7 +178,7 @@ public final class WidgetRenderer {
             }
             int rhythmHDp = rows == 1 ? 22 : (rows == 3 ? 56 : (medium ? 36 : 44));
             v.setViewVisibility(R.id.rhythm_img, View.VISIBLE);
-            v.setImageViewBitmap(R.id.rhythm_img, WidgetBitmaps.monthMatrix(
+            setBitmap(v, R.id.rhythm_img, WidgetBitmaps.monthMatrix(
                     px(contentWDp, density), px(rhythmHDp, density), cols, rows, day, dim, frac,
                     th.accent, th.track, "grain-4".equals(beat)));
         } else {
@@ -211,7 +232,7 @@ public final class WidgetRenderer {
             int goalWDp = medium && hasBuckets
                     ? Math.round((contentWDp - COL_GAP_DP) * 1.15f / 2.15f)
                     : contentWDp;
-            v.setImageViewBitmap(R.id.goal_bar, WidgetBitmaps.goalBar(px(goalWDp, density), px(3, density), pct, th));
+            setBitmap(v, R.id.goal_bar, WidgetBitmaps.goalBar(px(goalWDp, density), px(3, density), pct, th));
             a11y.append(". ").append(name).append(text.isEmpty() ? "" : " " + text);
         } else {
             v.setViewVisibility(R.id.goal_row, View.GONE);
@@ -256,7 +277,7 @@ public final class WidgetRenderer {
 
     private static void showSlope(RemoteViews v, int imageId, int wPx, int hPx, WidgetTheme th, float reach) {
         v.setViewVisibility(imageId, View.VISIBLE);
-        v.setImageViewBitmap(imageId, WidgetBitmaps.trend(wPx, hPx, th.accent, th.track, reach));
+        setBitmap(v, imageId, WidgetBitmaps.trend(wPx, hPx, th.accent, th.track, reach));
     }
 
     private static void showFigure(Context ctx, RemoteViews v, String text, int wPx, int hPx,
@@ -264,7 +285,7 @@ public final class WidgetRenderer {
         Typeface face = editorial ? WidgetFonts.newsreader(ctx) : WidgetFonts.inter(ctx);
         float tracking = editorial ? -0.02f : -0.03f;
         try {
-            v.setImageViewBitmap(R.id.hero_img, WidgetBitmaps.heroText(text, wPx, hPx, color, face, tracking, maxTextPx));
+            setBitmap(v, R.id.hero_img, WidgetBitmaps.heroText(text, wPx, hPx, color, face, tracking, maxTextPx));
             v.setViewVisibility(R.id.hero_img, View.VISIBLE);
             v.setViewVisibility(R.id.nw_value, View.GONE);
             return;
@@ -275,6 +296,16 @@ public final class WidgetRenderer {
         v.setViewVisibility(R.id.nw_value, View.VISIBLE);
         v.setTextViewText(R.id.nw_value, text);
         v.setTextColor(R.id.nw_value, color);
+    }
+
+
+    /** Binder and bitmap memory failures must never take the widget host down. */
+    private static void setBitmap(RemoteViews v, int viewId, Bitmap bmp) {
+        try {
+            v.setImageViewBitmap(viewId, bmp);
+        } catch (RuntimeException e) {
+            v.setViewVisibility(viewId, View.GONE);
+        }
     }
 
     private static void renderPlaceholder(RemoteViews v, boolean medium) {

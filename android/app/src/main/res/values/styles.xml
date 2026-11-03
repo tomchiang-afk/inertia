@@ -13,14 +13,20 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
-        <!-- Match the web page background (bg-page token) so letterboxed insets, e.g. the
+        <!-- Match the web page background (bg token) so letterboxed insets, e.g. the
              display-cutout band in landscape, don't show the default white window. -->
         <item name="android:windowBackground">@color/inertia_window_bg</item>
         <item name="android:colorBackground">@color/inertia_window_bg</item>
+        <item name="android:statusBarColor">@color/inertia_window_bg</item>
+        <item name="android:navigationBarColor">@color/inertia_window_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <item name="windowSplashScreenBackground">@color/inertia_window_bg</item>
     </style>
 </resources>

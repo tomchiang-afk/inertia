@@ -79,7 +79,7 @@ public class InertiaWidgetProvider extends AppWidgetProvider {
             if (sizes != null && !sizes.isEmpty()) {
                 Map<SizeF, RemoteViews> map = new HashMap<>();
                 for (SizeF s : sizes) {
-                    if (map.size() >= 16) break;
+                    if (map.size() >= 4) break;
                     int w = Math.round(s.getWidth());
                     int h = Math.round(s.getHeight());
                     map.put(s, WidgetRenderer.render(ctx, snap, w, h, w >= MEDIUM_MIN_WIDTH_DP, now));

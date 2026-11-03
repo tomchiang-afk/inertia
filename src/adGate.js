@@ -47,7 +47,6 @@ function showMockInterstitial(reason, onContinue) {
     <div class="ad-card">
       <div class="ad-kicker">${t("ad.kicker")}${reasonLabel ? " · " + reasonLabel : ""}</div>
       <p class="ad-body">${t("ad.body")}</p>
-      <p class="ad-hint">${t("ad.hint")}</p>
       <div class="ad-actions">
         <button type="button" class="btn btn-ghost" id="ad-skip" disabled>${t("ad.skipCountdown", { n: 1 })}</button>
         <button type="button" class="btn btn-primary" id="ad-skip-now" data-testid="ad-skip">${t("ad.skip")}</button>

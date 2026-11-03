@@ -165,6 +165,12 @@ export function buildWidgetSnapshot(state, opts = {}) {
     add("bucketPassive", "passive", t("widget.passive"), passiveText);
   }
 
+  /* Missing FX rates (excluded from totals, never guessed) ----------------- */
+  // The app flags these on every total. The widget is the primary surface, so it
+  // carries the same fact. Rhythm and masked modes show no amounts, so no flag.
+  const missingFx = Array.isArray(d.missingFx) ? [...d.missingFx] : [];
+  const fxText = missingFx.length ? `${t("fx.needsRate")} · ${missingFx.join(", ")}` : "";
+
   return {
     v: WIDGET_SNAPSHOT_VERSION,
     updatedAt: now.getTime(),
@@ -184,5 +190,11 @@ export function buildWidgetSnapshot(state, opts = {}) {
     rhythm,
     goal,
     buckets,
+    missingFx: {
+      show: missingFx.length > 0 && !noNumbers && mode !== "masked",
+      codes: missingFx,
+      text: fxText,
+      note: missingFx.length ? t("fx.missingNote", { codes: missingFx.join(", ") }) : "",
+    },
   };
 }

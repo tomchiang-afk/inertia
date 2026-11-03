@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Inertia mark: three dots, the last one dim (the month rhythm beat). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#285943"
+        android:pathData="M35,54 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0" />
+    <path android:fillColor="#285943"
+        android:pathData="M47,54 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0" />
+    <path android:fillColor="#285943" android:fillAlpha="0.55"
+        android:pathData="M59,54 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0" />
+</vector>

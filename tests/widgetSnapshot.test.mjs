@@ -189,3 +189,59 @@ test("locale: labels follow app locale, brand stays Inertia", () => {
   assert.equal(s.brand, "Inertia");
   assert.equal(s.locale, "en");
 });
+
+/* Missing FX rates: excluded from totals AND flagged on every numeric surface. */
+const NO_USD_FX = {
+  base: "TWD",
+  rates: { JPY: 0.21 },
+  updatedAt: "2026-09-27",
+  edited: false,
+};
+const USD_ONLY_ASSETS = {
+  properties: [],
+  brokerAccounts: [],
+  cashAccounts: [
+    { id: "c_usd", alias: "USD savings", currency: "USD", balance: 12_000, type: "savings" },
+  ],
+  passiveItems: [],
+};
+
+function missingFxState(mode) {
+  return {
+    assets: structuredClone(USD_ONLY_ASSETS),
+    settings: {
+      widgetStyle: "rhythm",
+      widgetPrivacy: { displayMode: mode, fields: {} },
+      fx: NO_USD_FX,
+    },
+    goals: [],
+  };
+}
+
+for (const mode of ["exact", "rounded", "relative"]) {
+  test(`missing FX: flagged in ${mode} mode`, () => {
+    const s = buildWidgetSnapshot(missingFxState(mode), { now: NOW });
+    assert.equal(s.missingFx.show, true);
+    assert.deepEqual(s.missingFx.codes, ["USD"]);
+    assert.match(s.missingFx.text, /USD/);
+    assert.match(s.missingFx.note, /USD/);
+    assert.ok(s.missingFx.text.length > 0);
+    assert.ok(s.missingFx.note.length > 0);
+  });
+}
+
+for (const mode of ["rhythm", "masked"]) {
+  test(`missing FX: not shown in ${mode} mode, codes still present`, () => {
+    const s = buildWidgetSnapshot(missingFxState(mode), { now: NOW });
+    assert.equal(s.missingFx.show, false);
+    assert.deepEqual(s.missingFx.codes, ["USD"]);
+  });
+}
+
+test("missing FX: no warning when every currency has a rate", () => {
+  const s = buildWidgetSnapshot(state(), { now: NOW });
+  assert.equal(s.missingFx.show, false);
+  assert.deepEqual(s.missingFx.codes, []);
+  assert.equal(s.missingFx.text, "");
+  assert.equal(s.missingFx.note, "");
+});

@@ -28,9 +28,12 @@ localStorage inertia.v1 ─▶ src/widgetSnapshot.js  (derive + widgetPrivacy.js
 - `updatePeriodMillis = 30 min` redraws the widget (extrapolation + calendar); the "更新 HH:mm" label
   always shows when the app last pushed a snapshot (`M/d HH:mm` if not today).
 
-## Snapshot v2 (schema 2 assets)
+## Snapshot v3 (schema 2 assets)
 
-`buildWidgetSnapshot` emits `version: 2` with a `currency: { code, symbol }` block. All amounts are
+`buildWidgetSnapshot` emits `version: 3` with a `currency: { code, symbol }` block and a
+`missingFx: { show, codes, text, note }` block. When `show` is true, the renderer appends `text` to
+the visible net-worth or rhythm label and the accessibility description. Rhythm and masked modes
+suppress the flag because they show no amounts. All amounts are
 already converted to the **base currency** chosen in Settings → Currency & FX (items whose currency
 has no rate are left out, same as the app's totals). Buckets: `housing`, `stocks` (label
 `widget.stocks`: 股票 / Stocks / 株式 / 주식 / Acciones, formerly 台股), `cash`, `passive`. The privacy
@@ -74,13 +77,12 @@ Layout picked by width: < 220dp → `widget_small.xml`, ≥ 220dp → `widget_me
 built from `OPTION_APPWIDGET_SIZES`. Older versions use portrait min-width / max-height from the
 widget options. The goal strip hides when the widget is too short (< ~130dp).
 
-## Templates
+## Styles
 
-The in-app template follows through (`WidgetTheme`, `drawable/widget_bg_*.xml`):
-paper (default, warm light), swiss (hairline border + 3dp crimson rule, square bars),
-sumi (sage paper, ink dots), glass (translucent white, dots), noir (the one dark option, LED dots),
-matrix (white with a dark 1.5dp frame, 4-block scan bar). One accent per template. Matrix keeps
-the system font (RemoteViews can't switch typefaces at runtime).
+Three styles follow through (`WidgetTheme`, `drawable/widget_bg_*.xml`): rhythm (default, warm
+paper, dot beat), editorial (vermilion, 4-beat matrix, serif numeral), and sediment (ochre, grain,
+category column). One accent per style. RemoteViews cannot switch typefaces at runtime, so the
+editorial numeral is a serif bitmap.
 
 ## Screenshots
 
@@ -91,20 +93,18 @@ picker previews `res/drawable-nodpi/widget_preview_{small,medium}.png`.
 ## Tests
 
 - `npm run test:unit`: node:test for the snapshot builder, covering every privacy mode, field toggles,
-  templates and locale.
-- `npm run test:e2e`: includes `e2e/native-widget.spec.ts`, which drives Settings → privacy mode, then
-  builds the snapshot from saved state, plus the mock layout.
+  missing FX, styles and locale (57 tests).
+- `npm run test:e2e`: includes `e2e/native-widget.spec.ts` and `e2e/honesty.spec.ts`, which drive
+  privacy mode and missing FX, plus the mock layout and 20 viewport/contrast checks (56 tests).
 - `cd android && ./gradlew :app:testDebugUnitTest`: `WidgetFormatTest` checks JS/Java formatter parity.
 
 ## Limitations
 
 - Home screen only. Stock Android phones have no lock-screen widgets (the `keyguard` category only
   works on Android 4.2–4.4 and some tablets/OEMs).
-- Emulator validation (API 34, Pixel 7 AVD) is in `validation/2026-09-27/` (v0.2) and
-  `validation/2026-09-27-v3/` (v0.3: upgrade migration, multi-currency adds, USD base on the widget,
-  picker labels, landscape).
+- Emulator validation (Pixel 7 AVD) is in `validation/2026-09-27/`, `validation/2026-09-27-v3/`,
+  and `validation/2026-09-28/`. The v0.5.0 build targets API 36.
 - The widget only changes when the app pushes a snapshot. Prices and FX are user-entered; nothing
   is fetched in the background (`src/quotes.js` is only a provider hook).
-- The 2×2 layout's empty band between header and net worth is left to the widget visual
-  redesign (`design/widget-v3/`).
-- iOS WidgetKit is not done yet.
+- The iOS WidgetKit extension compiles in the macOS workflow; its App Group wiring is documented
+  in `native/ios-widget/README.md`.

@@ -23,6 +23,12 @@ struct Snapshot {
     var livePerDay: Double = 0
     var liveAt: Date?
     var buckets: [(String, String)] = []
+    var fxShow: Bool = false
+    var fxText: String = ""
+    var goalShow: Bool = false
+    var goalName: String = ""
+    var goalText: String = ""
+    var goalBarPct: Double?
 
     static func load(now: Date) -> Snapshot {
         guard
@@ -59,6 +65,16 @@ struct Snapshot {
                 guard let label = row["label"] as? String, let text = row["text"] as? String else { return nil }
                 return (label, text)
             }
+        }
+        if let fx = json["missingFx"] as? [String: Any] {
+            s.fxShow = (fx["show"] as? Bool) ?? false
+            s.fxText = (fx["text"] as? String) ?? ""
+        }
+        if let goal = json["goal"] as? [String: Any] {
+            s.goalShow = (goal["show"] as? Bool) ?? false
+            s.goalName = (goal["name"] as? String) ?? ""
+            s.goalText = (goal["text"] as? String) ?? ""
+            s.goalBarPct = goal["barPct"] as? Double
         }
         if s.nwShow, let base = s.liveBase, let at = s.liveAt, s.mode == "exact" || s.mode == "rounded" {
             let days = min(paceCapDays, max(0, now.timeIntervalSince(at) / 86_400))
@@ -165,6 +181,26 @@ struct InertiaEntryView: View {
                         .lineLimit(1)
                 }
             }
+            if entry.snap.fxShow && !entry.snap.fxText.isEmpty {
+                Text(entry.snap.fxText)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(Color(red: 0.549, green: 0.220, blue: 0.169))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            if !small && entry.snap.goalShow {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.snap.goalText.isEmpty
+                         ? entry.snap.goalName
+                         : "\(entry.snap.goalName) · \(entry.snap.goalText)")
+                        .font(.caption2)
+                        .lineLimit(1)
+                    if let pct = entry.snap.goalBarPct {
+                        ProgressView(value: min(max(pct, 0), 100), total: 100)
+                            .tint(accent)
+                    }
+                }
+            }
             if !small {
                 if entry.snap.style == "sediment" {
                     VStack(alignment: .leading, spacing: 2) {
@@ -232,6 +268,23 @@ private struct MonthBeat: View {
                     .frame(width: style == "sediment" ? 3 : 5, height: style == "sediment" ? 3 : 5)
             }
         }
+    }
+}
+
+struct InertiaWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "InertiaWidget", provider: Provider()) { entry in
+            InertiaEntryView(entry: entry)
+        }
+        .configurationDisplayName("Inertia")
+        .description("Month rhythm")
+        .supportedFamilies([
+            .systemSmall,
+            .systemMedium,
+            .accessoryRectangular,
+            .accessoryCircular,
+            .accessoryInline,
+        ])
     }
 }
 

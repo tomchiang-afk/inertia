@@ -45,3 +45,37 @@ export function initNativeWidget(state) {
   App.addListener("resume", again).catch(() => {});
   App.addListener("pause", again).catch(() => {});
 }
+
+/** Ask the launcher to place a widget. No-op on web. */
+export async function requestPinWidget(size) {
+  if (!isNative()) return { ok: false, native: false };
+  try {
+    const res = await InertiaWidget.requestPin({ size: size === "wide" ? "wide" : "small" });
+    return { ok: true, ...(res || {}) };
+  } catch {
+    return { ok: false, native: true };
+  }
+}
+
+/** Whether Inertia has at least one widget on the home screen. */
+export async function getWidgetStatus() {
+  if (!isNative()) return { pinned: false, small: false, wide: false, native: false };
+  try {
+    const res = await InertiaWidget.getStatus();
+    return { pinned: !!res?.pinned, small: !!res?.small, wide: !!res?.wide, native: true };
+  } catch {
+    return { pinned: false, small: false, wide: false, native: true };
+  }
+}
+
+/** Android hardware Back. No-op on web. */
+export function initBackButton(handler) {
+  if (!isNative()) return;
+  App.addListener("backButton", handler).catch(() => {});
+}
+
+/** Home + Back minimizes the Android shell instead of leaving it. */
+export function minimizeApp() {
+  if (!isNative()) return;
+  App.minimizeApp?.().catch(() => {});
+}
