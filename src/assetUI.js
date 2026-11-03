@@ -255,7 +255,7 @@ export const FORM_SPECS = {
     { name: "tag", type: "text", label: "form.tag", max: 24, list: "tag-list" },
     { name: "currency", type: "currency", label: "form.currency" },
     { name: "amount", type: "number", label: "form.amount", step: "any", money: true },
-    { name: "frequency", type: "select", label: "form.frequency", options: FREQUENCIES.map((v) => [v, "passive.freq." + v]) },
+    { name: "frequency", type: "select", label: "form.frequency", money: true, options: FREQUENCIES.map((v) => [v, "passive.freq." + v]) },
   ],
 };
 
@@ -389,7 +389,13 @@ export function numbersChanged(kind, prev, next) {
     if (!(f.money || f.type === "currency")) continue;
     const a = prev[f.name] ?? null;
     const b = next[f.name] ?? null;
-    if (f.type === "currency" ? a !== b : Number(a ?? NaN) !== Number(b ?? NaN) && !(a == null && b == null)) return true;
+    // Selects (passive frequency) and currencies are identity changes, not arithmetic:
+    // monthly→yearly keeps 12,000 but changes the monthly pace twelvefold.
+    if (f.type !== "number") {
+      if (a !== b) return true;
+    } else if (Number(a ?? NaN) !== Number(b ?? NaN) && !(a == null && b == null)) {
+      return true;
+    }
   }
   return false;
 }

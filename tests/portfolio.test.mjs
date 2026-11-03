@@ -30,6 +30,8 @@ import {
 import { fmtMoney, fmtCompact, fmtRounded, fmtMasked } from "../src/format.js";
 import { derive } from "../src/math.js";
 import { goalProgress } from "../src/goals.js";
+import { numbersChanged } from "../src/assetUI.js";
+import { migrateLegacyKey, JINGCHANG_BACKUP_KEY } from "../src/store.js";
 
 // localStorage shim for store.js
 const mem = new Map();
@@ -290,4 +292,62 @@ test("FX: a rate edit after a base switch becomes the new anchor", () => {
   // anchor survives normalize (persisted state)
   const persisted = normalizeFx(JSON.parse(JSON.stringify(rebaseFx(defaultFx("TWD"), "EUR"))));
   assert.equal(rebaseFx(persisted, "TWD").rates.USD, 30.5);
+});
+
+/* Edit gate: a passive frequency change is a 12x pace change and must count. */
+test("numbersChanged: passive frequency counts as a money change", () => {
+  const base = { amount: 12_000, frequency: "monthly" };
+  assert.equal(numbersChanged("passive", base, { ...base, frequency: "yearly" }), true);
+  assert.equal(numbersChanged("passive", base, { ...base }), false);
+  assert.equal(numbersChanged("passive", base, { ...base, amount: 13_000 }), true);
+});
+
+/* jingchang.v1 migration: raw backup + both legacy payload shapes. */
+const LEGACY_V1 = {
+  housing: { marketValue: 18_000_000, mortgage: 5_200_000, monthlyPrincipal: 22_000 },
+  equities: { marketValue: 2_450_000, dayPnL: -3_200, periodPnL: 186_000 },
+  cash: { checking: 420_000, timeDeposit: 800_000, tdAnnualRate: 1.7 },
+  passive: { monthly: 28_500 },
+};
+
+function memoryStorage(initial = {}) {
+  const m = new Map(Object.entries(initial));
+  return {
+    getItem: (k) => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => m.set(k, String(v)),
+    removeItem: (k) => m.delete(k),
+  };
+}
+
+test("jingchang migration: wrapped { assets } shape is backed up and normalized", () => {
+  const raw = JSON.stringify({ assets: LEGACY_V1, settings: { locale: "en" } });
+  const storage = memoryStorage({ "jingchang.v1": raw });
+  migrateLegacyKey(storage);
+  assert.equal(storage.getItem("jingchang.v1"), null);
+  assert.equal(storage.getItem(JINGCHANG_BACKUP_KEY), raw);
+  const stored = JSON.parse(storage.getItem("inertia.v1"));
+  assert.equal(stored.assets.housing.marketValue, LEGACY_V1.housing.marketValue);
+  const state = hydrateState(stored, { now: Date.now() });
+  assert.equal(state.migratedFrom, 1);
+  assert.equal(state.assets.properties.length, 1);
+  assert.equal(state.assets.cashAccounts.length, 2);
+});
+
+test("jingchang migration: flat { housing, equities, cash, passive } is wrapped", () => {
+  const raw = JSON.stringify(LEGACY_V1);
+  const storage = memoryStorage({ "jingchang.v1": raw });
+  migrateLegacyKey(storage);
+  const stored = JSON.parse(storage.getItem("inertia.v1"));
+  assert.ok(stored.assets);
+  assert.equal(stored.housing, undefined);
+  assert.equal(stored.assets.cash.timeDeposit, LEGACY_V1.cash.timeDeposit);
+  assert.equal(storage.getItem(JINGCHANG_BACKUP_KEY), raw);
+});
+
+test("jingchang migration: never overwrites an existing inertia.v1 save", () => {
+  const raw = JSON.stringify(LEGACY_V1);
+  const storage = memoryStorage({ "jingchang.v1": raw, "inertia.v1": "KEEP" });
+  migrateLegacyKey(storage);
+  assert.equal(storage.getItem("inertia.v1"), "KEEP");
+  assert.equal(storage.getItem("jingchang.v1"), null);
 });

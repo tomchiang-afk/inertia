@@ -4,7 +4,6 @@ import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Intent;
-import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.os.Bundle;
 import app.inertia.wealth.widget.InertiaWidgetMediumProvider;
@@ -30,12 +29,12 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
-     * Debug-only: {@code adb shell am start -n app.inertia.wealth/.MainActivity --es pin small|wide}
-     * asks the launcher to place that widget. Release builds ignore the extra.
+     * {@code adb shell am start -n app.inertia.wealth/.MainActivity --es pin small|wide}
+     * asks the launcher to place that widget. The production path is the
+     * InertiaWidget.requestPin plugin method.
      */
     private void maybePinWidget(Intent intent) {
         if (intent == null) return;
-        if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) == 0) return;
         String which = intent.getStringExtra("pin");
         if (which == null) return;
         if (Build.VERSION.SDK_INT < 26) return;

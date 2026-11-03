@@ -15,6 +15,9 @@ import android.os.Build;
  */
 public final class WidgetBitmaps {
 
+    /** RemoteViews bitmap memory ceiling; any larger render is clamped. */
+    private static final int MAX_DIM = 1024;
+
     private WidgetBitmaps() {}
 
     /**
@@ -24,6 +27,8 @@ public final class WidgetBitmaps {
      * @param style bars | bars-sharp | dots | ink | scan
      */
     public static Bitmap rhythm(int w, int h, String style, int day, int daysInMonth, WidgetTheme th, float density) {
+        w = Math.min(Math.max(w, 8), MAX_DIM);
+        h = Math.min(Math.max(h, 4), MAX_DIM);
         w = Math.max(w, 8);
         h = Math.max(h, 4);
         Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
@@ -86,6 +91,8 @@ public final class WidgetBitmaps {
 
     /** Goal bar. {@code pct < 0} → track only (masked hides the ratio). */
     public static Bitmap goalBar(int w, int h, double pct, WidgetTheme th) {
+        w = Math.min(Math.max(w, 8), MAX_DIM);
+        h = Math.min(Math.max(h, 4), MAX_DIM);
         w = Math.max(w, 8);
         h = Math.max(h, 2);
         Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
@@ -110,6 +117,8 @@ public final class WidgetBitmaps {
      */
     public static Bitmap monthMatrix(int w, int h, int cols, int rows, int day, int dim,
                                      float dayFraction, int accent, int track, boolean square) {
+        w = Math.min(Math.max(w, 8), MAX_DIM);
+        h = Math.min(Math.max(h, 4), MAX_DIM);
         w = Math.max(w, 8);
         h = Math.max(h, 8);
         cols = Math.max(cols, 1);
@@ -167,6 +176,8 @@ public final class WidgetBitmaps {
      * point, a quiet track for what is left, a ring at the target.
      */
     public static Bitmap trend(int w, int h, int accent, int track, float reach) {
+        w = Math.min(Math.max(w, 8), MAX_DIM);
+        h = Math.min(Math.max(h, 4), MAX_DIM);
         w = Math.max(w, 8);
         h = Math.max(h, 8);
         reach = Math.max(0f, Math.min(1f, reach));
@@ -220,6 +231,8 @@ public final class WidgetBitmaps {
 
     /** Quiet paper grain. Capped so a 4×2 widget stays well under the RemoteViews bitmap budget. */
     public static Bitmap grain(int w, int h, int seed) {
+        w = Math.min(Math.max(w, 8), MAX_DIM);
+        h = Math.min(Math.max(h, 4), MAX_DIM);
         int maxW = 480;
         if (w > maxW) {
             h = Math.max(1, h * maxW / w);
@@ -249,6 +262,8 @@ public final class WidgetBitmaps {
      */
     public static Bitmap heroText(String text, int w, int h, int color, Typeface face,
                                   float letterSpacingEm, float maxTextPx) {
+        w = Math.min(Math.max(w, 8), MAX_DIM);
+        h = Math.min(Math.max(h, 4), MAX_DIM);
         w = Math.max(w, 8);
         h = Math.max(h, 8);
         if (text == null) text = "";

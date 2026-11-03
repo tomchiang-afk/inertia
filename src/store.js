@@ -14,6 +14,8 @@ const KEY = "inertia.v1";
 const LEGACY_KEY = "jingchang.v1";
 /** Raw pre-v2 save kept once, untouched, when the fixed-bucket model is migrated. */
 export const V1_BACKUP_KEY = "inertia.v1.backup-schema1";
+/** Raw pre-inertia save kept once when jingchang.v1 is brought across. */
+export const JINGCHANG_BACKUP_KEY = "inertia.v1.backup-jingchang";
 
 export { WIDGET_STYLES, normalizeWidgetStyle };
 
@@ -31,15 +33,49 @@ export const DEFAULT_SETTINGS = {
   // locale: set on first launch via i18n.detectLocale()
 };
 
-function migrateLegacyKey() {
+/**
+ * Normalize a legacy jingchang save into the inertia shape.
+ * Both known shapes are accepted: a wrapped `{ assets: { housing, ... } }`
+ * and the older flat `{ housing, equities, cash, passive }`.
+ * @param {unknown} parsed
+ */
+export function normalizeLegacyJingchang(parsed) {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return parsed;
+  if (parsed.assets && typeof parsed.assets === "object" && !Array.isArray(parsed.assets)) return parsed;
+  const buckets = {};
+  for (const k of ["housing", "equities", "cash", "passive"]) {
+    if (parsed[k] && typeof parsed[k] === "object") buckets[k] = parsed[k];
+  }
+  if (!Object.keys(buckets).length) return parsed;
+  const { housing, equities, cash, passive, ...rest } = parsed;
+  return { ...rest, assets: buckets };
+}
+
+/**
+ * Bring a jingchang.v1 save across. The raw payload is kept once under
+ * `inertia.v1.backup-jingchang`; the normalized copy is what the app reads next.
+ * An existing inertia.v1 save always wins and is never overwritten.
+ * @param {{ getItem: Function, setItem: Function, removeItem: Function }} [storage]
+ */
+export function migrateLegacyKey(storage = localStorage) {
   try {
-    const legacy = localStorage.getItem(LEGACY_KEY);
-    if (legacy && !localStorage.getItem(KEY)) {
-      localStorage.setItem(KEY, legacy);
-      localStorage.removeItem(LEGACY_KEY);
-    } else if (legacy && localStorage.getItem(KEY)) {
-      localStorage.removeItem(LEGACY_KEY);
+    const legacy = storage.getItem(LEGACY_KEY);
+    if (!legacy) return;
+    if (!storage.getItem(KEY)) {
+      try {
+        if (!storage.getItem(JINGCHANG_BACKUP_KEY)) storage.setItem(JINGCHANG_BACKUP_KEY, legacy);
+      } catch {
+        /* quota */
+      }
+      let next = legacy;
+      try {
+        next = JSON.stringify(normalizeLegacyJingchang(JSON.parse(legacy)));
+      } catch {
+        /* keep the raw payload; hydrateState falls back to a fresh save */
+      }
+      storage.setItem(KEY, next);
     }
+    storage.removeItem(LEGACY_KEY);
   } catch {
     /* ignore */
   }

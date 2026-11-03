@@ -1,4 +1,4 @@
-# Inertia — Web MVP
+# Inertia — v0.5.0
 
 > **New engineers: start with [`docs/HANDOFF.md`](docs/HANDOFF.md)** (product intent, architecture, build/test, status, next plan, decisions log).
 
@@ -80,8 +80,8 @@ Config: `playwright.config.ts` — `baseURL` `http://127.0.0.1:5173`, `webServer
 | Ad gate | Only on saving a new item or a changed amount / rate / currency, when not bought out |
 | Buyout | Settings “Buyout unlock (mock)” |
 | Quotes | `src/quotes.js` provider hook only (no UI button); prices are user-entered |
-| Widget pages | Static **preview** (lock + home medium); **no ads** |
-| Capacitor | Scaffold (`capacitor.config.json`); see Native steps |
+| Widget tab | Live preview, three styles, five privacy modes, native pin buttons; **no ads** |
+| Capacitor Android | API 36 shell, native 2x2/4x2 widgets, signed AAB build |
 | LLM | None |
 
 ## Screenshots (v0.3)
@@ -102,28 +102,29 @@ so the display-cutout band in landscape is no longer white. Widget details: `doc
 - If buyout is on, never show.
 - Implementation: `src/adGate.js` → mock interstitial; Skip available immediately or after 1s.
 
-## Capacitor next steps
+## Android build
 
 ```bash
-npm run build
-npx cap sync
-npx cap add android   # Linux/Mac + Android SDK
-npx cap add ios       # macOS + Xcode only
-npx cap open android  # or ios
+source scripts/android-env.sh
+npm run build && npx cap sync android
+scripts/create-upload-keystore.sh      # local upload key; keystore.properties is gitignored
+cd android && ./gradlew :app:testDebugUnitTest assembleDebug bundleRelease
 ```
 
-Details: [`docs/NATIVE_ROADMAP.md`](docs/NATIVE_ROADMAP.md) — WidgetKit, AdMob edit-only, IAP buyout, thin quote backend.
+`targetSdkVersion` is 36 (Play's 2026 requirement). The signed AAB is at
+`android/app/build/outputs/bundle/release/app-release.aab`. Details:
+[`docs/ANDROID_WIDGET.md`](docs/ANDROID_WIDGET.md) and [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 ## Mock vs future
 
 | Today (web) | Later (native / store) |
 |-------------|-------------------------|
-| Widget **preview** screens | Android App Widgets **done** ([`docs/ANDROID_WIDGET.md`](docs/ANDROID_WIDGET.md)) · iOS WidgetKit next |
+| Widget **preview** screens | Android App Widgets and iOS WidgetKit sources **done** ([`docs/ANDROID_WIDGET.md`](docs/ANDROID_WIDGET.md)) |
 | Buyout toggle in Settings | StoreKit / Play Billing one-time IAP |
 | Mock interstitial in `adGate.js` | AdMob edit interstitial only |
 | `fetchDelayedQuotes()` canned offline | Thin `GET /api/quotes?symbols=` delayed backend |
 | localStorage | Same local-first; optional soft sync |
-| Capacitor scaffold | Store builds |
+| Capacitor Android shell | Store builds (IAP and AdMob still open) |
 
 ## Key files
 

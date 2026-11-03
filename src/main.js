@@ -34,7 +34,14 @@ import {
 } from "./widgetPrivacy.js";
 import { configureAdGate, withEditAd } from "./adGate.js";
 import { withPace, paceCapped, todaySoFar, PACE_MAX_DAYS } from "./pace.js";
-import { syncNativeWidget, initNativeWidget } from "./nativeWidget.js";
+import {
+  syncNativeWidget,
+  initNativeWidget,
+  requestPinWidget,
+  getWidgetStatus,
+  initBackButton,
+  minimizeApp,
+} from "./nativeWidget.js";
 import {
   normalizeFx,
   rebaseFx,
@@ -92,12 +99,88 @@ state.settings.widgetStyle = normalizeWidgetStyle(state.settings.widgetStyle, st
 delete state.settings.widgetTemplate;
 state.settings.widgetPrivacy = normalizeWidgetPrivacy(state.settings.widgetPrivacy);
 
-let route = "home"; // home | house | stock | cash | passive | widget | settings
+const ROUTES = ["home", "house", "stock", "cash", "passive", "widget", "settings"];
+// Always open on Home; in-app history handles Back while the app is running.
+let route = "home";
 let goalEdit = null; // null | "new" | goalId
 /** Item sheet: { kind: property|account|holding|cash|passive, id: string|null (null = new), accountId? } */
 let itemEdit = null;
 let reorderKind = null; // property | account | cash | passive while arranging
 let deleteArmed = false;
+let skipPop = false;
+
+/** One history entry per open sheet, so Back closes it instead of leaving the app. */
+function pushSheetHistory() {
+  try {
+    if (!history.state?.sheet) history.pushState({ sheet: true }, "");
+  } catch {
+    /* file:// or restricted WebView */
+  }
+}
+
+function consumeSheetHistory() {
+  try {
+    if (history.state?.sheet) {
+      skipPop = true;
+      history.back();
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearSheets() {
+  itemEdit = null;
+  goalEdit = null;
+  reorderKind = null;
+  deleteArmed = false;
+}
+
+/** Android hardware Back and browser Back share these rules. */
+function backAction() {
+  if (itemEdit) {
+    closeItem();
+    return;
+  }
+  if (goalEdit) {
+    closeGoalEdit();
+    return;
+  }
+  if (reorderKind) {
+    reorderKind = null;
+    deleteArmed = false;
+    render();
+    return;
+  }
+  if (route !== "home") {
+    go("home");
+    return;
+  }
+  minimizeApp();
+}
+
+window.addEventListener("popstate", (event) => {
+  if (skipPop) {
+    skipPop = false;
+    return;
+  }
+  if (itemEdit || goalEdit || reorderKind) {
+    backAction();
+    return;
+  }
+  const next = event.state?.route;
+  if (ROUTES.includes(next) && next !== route) {
+    route = next;
+    clearSheets();
+    render();
+    return;
+  }
+  if (route !== "home") {
+    route = "home";
+    clearSheets();
+    render();
+  }
+});
 
 configureAdGate({ getBuyout: () => !!state.settings.buyout });
 
@@ -124,10 +207,14 @@ function applyStyleAttr(root) {
 }
 
 function go(name) {
+  if (!ROUTES.includes(name)) return;
   route = name;
-  itemEdit = null;
-  goalEdit = null;
-  reorderKind = null;
+  clearSheets();
+  try {
+    history.pushState({ route: name }, "", `#${name}`);
+  } catch {
+    /* ignore */
+  }
   render();
 }
 
@@ -254,10 +341,12 @@ function reanchorPace() {
 function openGoalEdit(idOrNew) {
   goalEdit = idOrNew;
   itemEdit = null;
+  pushSheetHistory();
   render();
 }
 
 function closeGoalEdit() {
+  consumeSheetHistory();
   goalEdit = null;
   render();
 }
@@ -302,6 +391,7 @@ function commitGoal(editingId, { name, target, align, onWidget }) {
   }
   state.goals = normalizeGoals(goals);
   persist();
+  consumeSheetHistory();
   goalEdit = null;
   render();
 }
@@ -309,6 +399,7 @@ function commitGoal(editingId, { name, target, align, onWidget }) {
 function deleteGoal(id) {
   state.goals = normalizeGoals(state.goals.filter((g) => g.id !== id));
   persist();
+  consumeSheetHistory();
   goalEdit = null;
   render();
 }
@@ -341,23 +432,49 @@ function formatGoalAmounts(prog, priv) {
   };
 }
 
-function goalsListHTML(d, { manage = false } = {}) {
+function goalsListHTML(d, { manage = false, priv = null } = {}) {
   const goals = normalizeGoals(state.goals);
   const primaryId = primaryGoal(goals)?.id;
   const rows = goals
     .map((g) => {
       const prog = goalProgress(g, state.assets, d);
-      const current = fmtNT(prog.current, true);
-      const target = fmtNT(prog.target, true);
-      const remaining =
-        prog.remaining > 0
+      // Home follows the widget privacy contract. Settings management stays raw.
+      const hiddenNw = !manage && priv && g.align === "netWorth" && !privacyFieldOn(priv, "netWorth");
+      const usePrivacy = !manage && priv && (priv.displayMode !== "exact" || hiddenNw);
+      const effPriv = hiddenNw ? { ...priv, displayMode: "masked" } : priv;
+      const amounts = usePrivacy ? formatGoalAmounts(prog, effPriv) : null;
+      const current = amounts ? amounts.current : fmtNT(prog.current, true);
+      const target = amounts ? amounts.target : fmtNT(prog.target, true);
+      const remaining = amounts
+        ? amounts.remaining
+          ? " · " + t("goals.remaining", { amount: amounts.remaining })
+          : ""
+        : prog.remaining > 0
           ? " · " + t("goals.remaining", { amount: fmtNT(prog.remaining, true) })
           : "";
-      const meta = `<span class="goal-meta" data-testid="goal-meta-${g.id}">${prog.pct}% · ${t("goals.currentOf", { current, target })}${remaining}</span>`;
+      const pctLabel = !usePrivacy
+        ? `${prog.pct}%`
+        : effPriv.displayMode === "masked"
+          ? "••••"
+          : effPriv.displayMode === "rhythm"
+            ? ""
+            : `${prog.pct}%`;
+      const metaText = `${pctLabel}${pctLabel ? " · " : ""}${t("goals.currentOf", { current, target })}${remaining}`;
+      const meta = metaText.trim()
+        ? `<span class="goal-meta" data-testid="goal-meta-${g.id}">${metaText}</span>`
+        : "";
       const badge = primaryId === g.id ? `<span class="goal-badge">${t("goals.primary")}</span>` : "";
       const del = manage
         ? `<button type="button" class="btn btn-ghost btn-sm" data-goal-delete="${g.id}" data-testid="goal-delete-${g.id}">${t("goals.delete")}</button>`
         : "";
+      const barHidden = !manage && priv && !showGoalBarFill(effPriv);
+      const bar = barHidden
+        ? `<div class="goal-bar" aria-hidden="true" data-testid="goal-bar-${g.id}">
+            <span class="goal-bar-fill" style="width:0%"></span>
+          </div>`
+        : `<div class="goal-bar" role="progressbar" aria-label="${escapeHtml(g.name)}" aria-valuenow="${Math.round(prog.barPct)}" aria-valuemin="0" aria-valuemax="100" data-testid="goal-bar-${g.id}">
+            <span class="goal-bar-fill" style="width:${prog.barPct}%"></span>
+          </div>`;
       return `
         <div class="goal-row" data-testid="goal-row-${g.id}" data-goal-id="${g.id}">
           <div class="goal-head">
@@ -365,9 +482,7 @@ function goalsListHTML(d, { manage = false } = {}) {
             ${badge}
             <span class="goal-align">${t("goals.align." + g.align)}</span>
           </div>
-          <div class="goal-bar" role="progressbar" aria-label="${escapeHtml(g.name)}" aria-valuenow="${Math.round(prog.barPct)}" aria-valuemin="0" aria-valuemax="100" data-testid="goal-bar-${g.id}">
-            <span class="goal-bar-fill" style="width:${prog.barPct}%"></span>
-          </div>
+          ${bar}
           <div class="goal-foot">
             ${meta}
             <div class="goal-actions">
@@ -417,7 +532,7 @@ function goalSheetHTML() {
   if (!isNew && !existing) return "";
   const g = existing || {
     name: "",
-    target: 1_000_000,
+    target: "",
     align: "netWorth",
     onWidget: normalizeGoals(state.goals).length === 0,
   };
@@ -434,7 +549,7 @@ function goalSheetHTML() {
         <div class="field"><label for="g-name">${t("goals.name")}</label>
           <input id="g-name" name="name" type="text" maxlength="48" value="${escapeHtml(g.name)}" required data-testid="goal-name" /></div>
         <div class="field"><label for="g-target">${t("goals.target", { ccy: fx().base })}</label>
-          <input id="g-target" name="target" type="number" inputmode="numeric" min="1" value="${g.target ? Math.round(g.target) : ""}" required data-testid="goal-target" /></div>
+          <input id="g-target" name="target" type="number" inputmode="numeric" min="1" value="${g.target ? Math.round(g.target) : ""}" placeholder="1000000" required data-testid="goal-target" /></div>
         <div class="field"><label for="g-align">${t("goals.align")}</label>
           <select id="g-align" name="align" data-testid="goal-align">${alignOpts}</select></div>
         <div class="toggle-row" style="margin:8px 0 4px">
@@ -521,6 +636,7 @@ function openItem(kind, id = null, accountId = null) {
   itemEdit = { kind, id, accountId };
   goalEdit = null;
   deleteArmed = false;
+  pushSheetHistory();
   render();
   // Focus the sheet title, not the first input: on phones an auto-focused input pops the soft
   // keyboard over the sheet before the user chose a field. Screen readers still land in the sheet.
@@ -528,6 +644,7 @@ function openItem(kind, id = null, accountId = null) {
 }
 
 function closeItem() {
+  consumeSheetHistory();
   itemEdit = null;
   deleteArmed = false;
   render();
@@ -562,6 +679,7 @@ function saveItemFromForm(form) {
     if (res.values.currency) state.settings.fx = ensureCurrency(fx(), res.values.currency);
     if (changed) reanchorPace();
     persist();
+    consumeSheetHistory();
     itemEdit = null;
     render();
   };
@@ -588,6 +706,7 @@ function deleteItem() {
   if (i >= 0) list.splice(i, 1);
   reanchorPace(); // totals changed by the user
   persist();
+  consumeSheetHistory();
   itemEdit = null;
   deleteArmed = false;
   render();
@@ -741,87 +860,156 @@ function bindItems() {
 
 function screenHome(d) {
   const priv = privacy();
+  const mode = priv.displayMode || "exact";
   const pl = periodLabel(state.settings.period);
   const delta = primaryPeriodDelta(d);
   const spark = sparkPath(d.quietDay);
   const showNw = privacyFieldOn(priv, "netWorth");
   const showPace = privacyFieldOn(priv, "monthPace");
+  const showRhythm = showPace || showRhythmWithoutPace(priv);
+  const showLive = showPace && mode !== "rhythm";
 
-  const nwHtml = showNw
-    ? `<div class="nw" data-testid="net-worth">${fmtNT(d.netWorth)}</div>`
-    : `<div class="nw" data-testid="net-worth" hidden></div>`;
-  const pacePill = showPace
-    ? `<span class="pill ${delta >= 0 ? "up" : "down"}">${pl} ${fmtDelta(delta)}</span>`
+  // Home follows the same privacy contract as the widget.
+  const homeAmount = (n) =>
+    mode === "exact"
+      ? fmtNT(n, true)
+      : formatWidgetMoney(n, priv, { kind: "absolute", compact: true, base: d.netWorth });
+  const homeDelta = (n) =>
+    formatWidgetMoney(n, priv, { kind: "delta", compact: true, base: d.netWorth });
+
+  const nwText = showNw
+    ? formatWidgetMoney(d.netWorth, priv, {
+        kind: "absolute",
+        asMonthProgress: mode === "relative",
+      })
     : "";
-  const paceBlock = `<p class="rhythm-live-line" id="rhythmLiveLine">${t("rhythm.paceRunning")} <span id="rhythmLive" data-testid="rhythm-today">${fmtNT(Math.floor(todaySoFar(d.quietDay, new Date())))}</span></p>
-      <div class="rhythm-hero" data-testid="rhythm-hero">
-        <div class="cap">${t("widget.rhythm")}</div>
+  const nwHtml = showNw && nwText
+    ? `<div class="nw" data-testid="net-worth">${nwText}</div>`
+    : `<div class="nw" data-testid="net-worth" hidden></div>`;
+  const deltaText =
+    mode === "exact"
+      ? fmtDelta(delta)
+      : formatWidgetPace(delta, priv, { base: d.netWorth, compact: true });
+  const pacePill =
+    showPace && mode !== "rhythm" && deltaText
+      ? `<span class="pill ${delta >= 0 ? "up" : "down"}">${pl} ${deltaText}</span>`
+      : "";
+  const liveText =
+    mode === "exact"
+      ? fmtNT(Math.floor(todaySoFar(d.quietDay, new Date())))
+      : formatWidgetMoney(todaySoFar(d.quietDay, new Date()), priv, {
+          kind: "delta",
+          compact: true,
+          base: d.netWorth,
+        });
+  const paceBlock = showRhythm
+    ? `<div class="rhythm-instrument rhythm-hero" data-testid="rhythm-hero">
+        <div class="rhythm-instrument-head">
+          <span class="cap">${t("widget.rhythm")}</span>
+          ${
+            showLive && liveText
+              ? `<span class="rhythm-live-line" id="rhythmLiveLine">${t("rhythm.paceRunning")} <span id="rhythmLive" data-testid="rhythm-today">${liveText}</span></span>`
+              : ""
+          }
+        </div>
         ${monthBeatHTML("rhythm", "medium", "rhythm-metro")}
-      </div>`;
+      </div>`
+    : "";
   const capNote = paceCapped(state.paceAnchorAt)
     ? `<p class="fx-note" data-testid="pace-capped-note">${t("pace.cappedNote", { days: PACE_MAX_DAYS })}</p>`
     : "";
 
   const c = d.counts;
+  const housingDelta =
+    mode === "exact"
+      ? t("delta.principalMo", { amount: fmtNT(d.monthlyPrincipal, true) })
+      : mode === "rhythm"
+        ? ""
+        : t("delta.principalMo", { amount: homeDelta(d.monthlyPrincipal) });
+  const cashDelta =
+    mode === "exact"
+      ? d.dailyTdInterest > 0
+        ? t("home.tdPerDay", { amount: fmtNT(Math.round(d.dailyTdInterest)) })
+        : ""
+      : mode === "rhythm" || d.dailyTdInterest <= 0
+        ? ""
+        : t("home.tdPerDay", { amount: homeDelta(d.dailyTdInterest) });
   const housingRow = privacyFieldOn(priv, "bucketHousing")
     ? `<button type="button" class="asset-row" data-go="house" data-testid="bucket-housing">
           <span class="name">${t("asset.housingEquity")}<span class="sub">${t("home.housingMeta", { n: c.properties })}</span></span>
-          <span class="amt">${fmtNT(d.netEquity, true)}</span>
-          <span class="delta">${t("delta.principalMo", { amount: fmtNT(d.monthlyPrincipal, true) })}</span>
+          <span class="amt">${homeAmount(d.netEquity)}</span>
+          <span class="delta">${housingDelta}</span>
           <span class="chev">›</span>
         </button>`
     : "";
   const stocksRow = privacyFieldOn(priv, "bucketTwse")
     ? `<button type="button" class="asset-row" data-go="stock" data-testid="bucket-stocks">
           <span class="name">${t("asset.stocks")}<span class="sub">${t("home.stocksMeta", { a: c.accounts, h: c.holdings })}</span></span>
-          <span class="amt">${fmtNT(d.stocks, true)}</span>
-          <span class="delta mute">${t("home.stocksNotInPace")}</span>
+          <span class="amt">${homeAmount(d.stocks)}</span>
+          <span class="delta mute">${mode === "rhythm" ? "" : t("home.stocksNotInPace")}</span>
           <span class="chev">›</span>
         </button>`
     : "";
   const cashRow = privacyFieldOn(priv, "bucketCash")
     ? `<button type="button" class="asset-row" data-go="cash" data-testid="bucket-cash">
           <span class="name">${t("asset.cash")}<span class="sub">${t("home.cashMeta", { n: c.cash, c: c.cashCurrencies })}</span></span>
-          <span class="amt">${fmtNT(d.cashTotal, true)}</span>
-          <span class="delta mute">${d.dailyTdInterest > 0 ? t("home.tdPerDay", { amount: fmtNT(Math.round(d.dailyTdInterest)) }) : ""}</span>
+          <span class="amt">${homeAmount(d.cashTotal)}</span>
+          <span class="delta mute">${cashDelta}</span>
           <span class="chev">›</span>
         </button>`
     : "";
   const passiveRow = privacyFieldOn(priv, "bucketPassive")
     ? `<button type="button" class="asset-row" data-go="passive" data-testid="bucket-passive">
           <span class="name">${t("asset.passive")}<span class="sub">${t("home.passiveMeta", { n: c.passive })}</span></span>
-          <span class="amt">${fmtNT(d.passiveMonthly, true)}${t("perMo")}</span>
-          <span class="delta mute">${t("delta.monthlyPace")}</span>
+          <span class="amt">${homeAmount(d.passiveMonthly)}${mode === "rhythm" ? "" : t("perMo")}</span>
+          <span class="delta mute">${mode === "rhythm" ? "" : t("delta.monthlyPace")}</span>
           <span class="chev">›</span>
         </button>`
     : "";
   const fxNote = d.missingFx.length
     ? `<p class="fx-note" data-testid="fx-missing-note">${t("fx.missingNote", { codes: d.missingFx.join(", ") })}</p>`
     : "";
+  const goalsBlock = privacyFieldOn(priv, "goalProgress")
+    ? goalsListHTML(d, { manage: false, priv })
+    : "";
+  const banner = !state.settings.widgetBannerDismissed && state.settings.widgetPinned !== true
+    ? `<div class="widget-banner" data-testid="widget-banner">
+        <span>${t("widget.banner")}</span>
+        <button type="button" class="btn btn-ghost btn-sm" data-go="widget">${t("widget.bannerCta")}</button>
+        <button type="button" class="icon-btn" id="widget-banner-dismiss" aria-label="${t("dismiss")}">×</button>
+      </div>`
+    : "";
 
   return `
-    <div class="topbar"><div class="title">${t("brand")}</div>
-      <button type="button" class="back" data-go="settings">${t("settings")}</button>
-    </div>
+    <div class="topbar"><div class="title" data-testid="app-title">${t("brand")}</div></div>
     <div class="screen active" data-screen="home">
-      <div class="hero">
+      <div class="hero" data-style-hero="${mode}">
         <div class="label">${t("netWorth")}</div>
         ${nwHtml}
         <div class="meta-row">
           ${pacePill}
-          <span class="pill accent" data-testid="pace-badge">${t("home.paceBadge")}</span>
+          ${
+            showPace && mode !== "rhythm"
+              ? `<span class="pill accent" data-testid="pace-badge">${t("home.paceBadge")}</span>`
+              : ""
+          }
         </div>
       </div>
+      ${banner}
       ${paceBlock}
       ${capNote}
-      <div class="spark-wrap spark-secondary">
+      ${
+        showRhythm
+          ? `<div class="spark-wrap spark-secondary">
         <div class="cap">${t("spark.cap")}</div>
         <svg viewBox="0 0 ${spark.w} ${spark.h}" preserveAspectRatio="none" aria-hidden="true">
           <path class="fill" d="${spark.fill}" />
           <path class="line" id="sparkLine" pathLength="1" d="${spark.d}" />
           <circle id="sparkPlayhead" cx="${spark.last[0]}" cy="${spark.last[1]}" r="3.5" />
         </svg>
-      </div>
+      </div>`
+          : ""
+      }
       <div class="asset-list">
         ${housingRow}
         ${stocksRow}
@@ -829,7 +1017,7 @@ function screenHome(d) {
         ${passiveRow}
       </div>
       ${fxNote}
-      ${goalsListHTML(d, { manage: false })}
+      ${goalsBlock}
     </div>`;
 }
 
@@ -1151,8 +1339,13 @@ function widgetCard(d, size) {
       ? sedimentBuckets(d, priv)
       : trendSVG(false, reach);
   const goalStrip = widgetGoalStripHTML(d, priv, small);
+  const fxFlag =
+    d.missingFx?.length > 0 && priv.displayMode !== "rhythm" && priv.displayMode !== "masked"
+      ? `<div class="w-fx-flag" data-testid="${small ? "lock-fx-flag" : "home-fx-flag"}">${escapeHtml(d.missingFx.join(", "))} · ${t("fx.needsRate")}</div>`
+      : "";
   return `
     <div class="wcard wstyle-${style} wsize-${size}" data-style="${style}" data-privacy-mode="${priv.displayMode}" data-testid="${small ? "lock-widget" : "home-widget"}" aria-label="${t(small ? "widget.lockAria" : "widget.homeAria")}">
+      ${fxFlag}
       <div class="w-top">
         <div class="w-copy">
           <div class="w-kicker">${style === "rhythm" ? t("widget.rhythm") : t("netWorth")}</div>
@@ -1181,6 +1374,15 @@ function screenWidget(d) {
         ${widgetCard(d, "small")}
         ${widgetCard(d, "medium")}
       </div>
+      ${
+        d.missingFx.length
+          ? `<p class="fx-note" data-testid="widget-fx-missing-note">${t("fx.missingNote", { codes: d.missingFx.join(", ") })}</p>`
+          : ""
+      }
+      <div class="pin-actions">
+        <button type="button" class="btn btn-primary" data-pin-widget="small" data-testid="pin-widget-small">${t("widget.pinSmall")}</button>
+        <button type="button" class="btn" data-pin-widget="wide" data-testid="pin-widget-wide">${t("widget.pinWide")}</button>
+      </div>
       <div class="settings-block">
         <div class="template-picker style-picker" id="style-picker" data-testid="style-picker" role="listbox" aria-label="${t("nav.widget")}">
           ${WIDGET_STYLES.map((id) => `
@@ -1194,11 +1396,9 @@ function screenWidget(d) {
               <span class="swatch-name">${t("style." + id)}</span>
             </button>`).join("")}
         </div>
-        <p class="template-desc" data-testid="style-desc">${t("style." + style + ".line")}</p>
       </div>
       <div class="settings-block" data-testid="widget-privacy">
         <h3>${t("settings.widgetPrivacy")}</h3>
-        <p class="template-desc" data-testid="privacy-note">${t("settings.widgetPrivacyNote")}</p>
         <h4 class="settings-sub">${t("settings.privacyDisplayMode")}</h4>
         <div class="seg seg-wrap" id="privacy-mode-seg" data-testid="privacy-mode-seg" role="listbox" aria-label="${t("settings.privacyDisplayMode")}">
           ${DISPLAY_MODES.map((mode) => `
@@ -1209,7 +1409,6 @@ function screenWidget(d) {
               role="option"
               aria-selected="${priv.displayMode === mode ? "true" : "false"}">${t("privacy.mode." + mode)}</button>`).join("")}
         </div>
-        <p class="template-desc" data-testid="privacy-mode-desc">${t("privacy.mode." + priv.displayMode + ".desc")}</p>
         <h4 class="settings-sub">${t("settings.privacyFields")}</h4>
         <div class="privacy-fields" data-testid="privacy-fields">
           ${PRIVACY_FIELDS.map((key) => `
@@ -1249,19 +1448,22 @@ function render() {
   if (leavingHome) onLeaveRhythmViews();
 
   app.innerHTML = `
-    <header class="app-chrome">
-      <h1 data-testid="app-title">${t("brand")}<em>${t("tagline")}</em></h1>
-    </header>
-    <nav class="nav-seg" aria-label="${t("nav.screens")}">
-      <button type="button" data-go="home" class="${route === "home" ? "active" : ""}">${t("nav.home")}</button>
-      <button type="button" data-go="house" class="${route === "house" ? "active" : ""}">${t("nav.housing")}</button>
-      <button type="button" data-go="stock" class="${route === "stock" ? "active" : ""}">${t("nav.stocks")}</button>
-      <button type="button" data-go="cash" class="${route === "cash" ? "active" : ""}">${t("nav.cash")}</button>
-      <button type="button" data-go="passive" class="${route === "passive" ? "active" : ""}">${t("nav.passive")}</button>
-      <button type="button" data-go="widget" class="${route === "widget" ? "active" : ""}">${t("nav.widget")}</button>
-      <button type="button" data-go="settings" class="${route === "settings" ? "active" : ""}">${t("nav.settings")}</button>
+    <div class="app-frame" data-style="${currentStyle()}">
+      <main class="shell">${body}</main>
+    </div>
+    <nav class="nav-shell" aria-label="${t("nav.screens")}">
+      <div class="cat-strip">
+        <button type="button" data-go="house" class="${route === "house" ? "active" : ""}">${t("nav.housing")}</button>
+        <button type="button" data-go="stock" class="${route === "stock" ? "active" : ""}">${t("nav.stocks")}</button>
+        <button type="button" data-go="cash" class="${route === "cash" ? "active" : ""}">${t("nav.cash")}</button>
+        <button type="button" data-go="passive" class="${route === "passive" ? "active" : ""}">${t("nav.passive")}</button>
+      </div>
+      <div class="nav-bottom">
+        <button type="button" data-go="home" class="${route === "home" ? "active" : ""}">${t("nav.home")}</button>
+        <button type="button" data-go="widget" class="${route === "widget" ? "active" : ""}">${t("nav.widget")}</button>
+        <button type="button" data-go="settings" class="${route === "settings" ? "active" : ""}">${t("nav.settings")}</button>
+      </div>
     </nav>
-    <div class="shell" data-style="${currentStyle()}">${body}</div>
     ${sheet}
   `;
 
@@ -1343,6 +1545,20 @@ function bind() {
     });
   });
 
+  app.querySelectorAll("[data-pin-widget]").forEach((el) => {
+    el.addEventListener("click", async () => {
+      const size = el.getAttribute("data-pin-widget");
+      const res = await requestPinWidget(size);
+      el.classList.toggle("is-pinned", !!res?.ok);
+    });
+  });
+
+  document.getElementById("widget-banner-dismiss")?.addEventListener("click", () => {
+    state.settings.widgetBannerDismissed = true;
+    persist();
+    render();
+  });
+
   app.querySelectorAll("[data-goal-edit]").forEach((el) => {
     el.addEventListener("click", () => {
       const id = el.getAttribute("data-goal-edit");
@@ -1380,3 +1596,10 @@ render();
 
 /* Native home-screen widget: snapshot on start + on resume/pause (no-op on web). */
 initNativeWidget(state);
+initBackButton(backAction);
+getWidgetStatus().then((status) => {
+  if (status.native && status.pinned && state.settings.widgetPinned !== true) {
+    state.settings.widgetPinned = true;
+    if (route === "home") render();
+  }
+});

@@ -1,6 +1,6 @@
 # Inertia: engineering handoff
 
-Last updated 2026-09-28 (Asia/Taipei). Current version is **0.4.1** (Android versionCode 6).
+Last updated 2026-11-03 (Asia/Taipei). Current version is **0.5.0** (Android versionCode 7, targetSdk 36).
 Read this first, then [`PRD.md`](../PRD.md) (product rules, data model §7, smooth accrual §7b),
 [`docs/ANDROID_WIDGET.md`](ANDROID_WIDGET.md) (native widget) and the widget-v3 design specs
 listed under "Next plan".
@@ -41,7 +41,7 @@ listed under "Next plan".
 | Month rhythm only（v0.3.1） | Net worth between edits = entered + quietDay × days since the last numeric edit, capped at 45 days, after which Home shows a note asking for an update. Home counters tick live. The 30-day line is a smooth trend. The "today actual" switch and the `todayActual` privacy field were removed and migrated. |
 | Goals | Up to 3. Each aligns to net worth, housing, cash or monthly passive. One goal can be pinned to the widget. |
 | Widget privacy | 5 display modes: exact / rounded（萬 for TWD, k/M otherwise）/ relative / rhythm / masked. Field toggles: net worth, month pace, the 4 category rows, goal. |
-| In-app widget templates (legacy) | 6: paper, swiss, sumi, glass, noir, matrix. They drive the in-app previews and the Android widget theme. The widget-v3 styles below will replace them. |
+| Widget styles | 3: rhythm (default), editorial, sediment. They drive the in-app previews, the Android widget, and the iOS WidgetKit sources. |
 | Native Android widget | 2×2 "Inertia · Small" and 4×2 "Inertia · Wide", resizable. Uses the privacy-formatted snapshot and extrapolates growth from the same anchor as the app. |
 | i18n | zh-TW, en, es, ja, ko: 257 keys each, all in sync. |
 | iOS | Not started (no Capacitor iOS platform yet). |
@@ -51,7 +51,7 @@ listed under "Next plan".
 - **Web app:** Vite 5 + vanilla JS (no framework), `src/main.js` renders HTML strings per route.
   Node 20.
 - **Native shell:** Capacitor 6 (`capacitor.config.json`, appId `app.inertia.wealth`, webDir
-  `dist`). Android only. minSdk 22, target/compile 34, Gradle 8.2.1.
+  `dist`). Android only. minSdk 24, target/compile 36, Gradle 8.2.1 (compileSdk 36 with the AGP 8.2 suppression flag).
 - **Persistence:** `localStorage["inertia.v1"]`, `schemaVersion: 2`, plus a top-level `paceAnchorAt`.
   - Schema 1 (fixed buckets) → 2 (lists) migrates on load; the raw copy is kept once in
     `inertia.v1.backup-schema1`.
@@ -129,14 +129,14 @@ npm run android:widget-shots  # HTML mock of the RemoteViews layouts → docs/sh
 - `run-as app.inertia.wealth` can read `app_webview/Default/Local Storage/leveldb/*.log` to check
   saved state.
 
-## 6. Test status (2026-09-27, v0.3.1)
+## 6. Test status (2026-11-03, v0.5.0)
 
 | Suite | Result |
 |---|---|
-| Unit (`npm run test:unit`) | **43 / 43**: snapshot builder, multi-currency snapshots, portfolio/migration/FX, pace/settings migration |
-| E2E (`npm run test:e2e`) | **33 / 33**: user flows, native widget, asset categories, month rhythm (5, using the Playwright clock) |
+| Unit (`npm run test:unit`) | **57 / 57**: snapshot builder incl. missing-FX, portfolio/migration/FX, pace, widget styles |
+| E2E (`npm run test:e2e`) | **56 / 56**: user flows, native widget, asset categories, month rhythm, honesty, and 20 layout/contrast checks across 5 locales x 4 widths |
 | Gradle (`:app:testDebugUnitTest`) | **8 / 8**: `WidgetFormatTest` 7 (JS parity, anchored extrapolation), `ExampleUnitTest` 1 |
-| Build | `npm run build` and `assembleDebug` pass; debug APK is ≈3.9 MB |
+| Build | Vite, `assembleDebug`, and signed `bundleRelease` pass at targetSdk 36 |
 
 ## 7. Validation reports (emulator)
 
@@ -149,10 +149,10 @@ npm run android:widget-shots  # HTML mock of the RemoteViews layouts → docs/sh
 
 ## 8. Known issues and open items
 
-- The in-app widget previews and the Android widget still use the **legacy 6 templates**. The 2×2
-  layout has an empty band under the header; this is left to the widget-v3 implementation (P0).
-- Ads, IAP buyout, icon/splash and release signing are **mocks or placeholders**. Only a debug APK
-  exists.
+- Ads and IAP buyout remain mocks. A store release still needs Play Billing, AdMob, and a privacy
+  policy.
+- iOS WidgetKit sources compile in the macOS workflow, but the Capacitor iOS shell and TestFlight
+  are not set up.
 - `DAYS_IN_MONTH` is a constant 30 for pace math. It is simple and smooth by design; document it if
   it changes.
 - Re-anchoring on a numeric edit resets accrued growth to the typed values. This is intended, since
@@ -169,6 +169,24 @@ npm run android:widget-shots  # HTML mock of the RemoteViews layouts → docs/sh
 - Native `<select>` dialogs aren't automated in emulator runs.
 
 ## 9. Next plan (priority order)
+
+### v0.5.0 shipped (2026-11-03)
+
+Web: full-bleed Tactile Archival Ledger shell, two-tier bottom navigation, 44-48dp targets, WCAG AA
+`--faint`, fused month-rhythm card, ledger rows, Widget pin CTAs, and hardware Back.
+
+Honesty: missing FX is flagged on App Home, category lists, the Widget tab, Android, and iOS.
+App Home honors `monthPace`, `goalProgress`, and `displayMode`. A passive frequency change counts as
+a money change, shows the edit ad, and re-anchors the pace.
+
+Android: compileSdk/targetSdk 36, minSdk 24, adaptive 3-dot icon with monochrome layer, splash,
+status/navigation bar theme, `allowBackup=false`, `localeConfig`, signed AAB from a local upload
+key, widget pin/getStatus, FX warning, and bitmap/size caps.
+
+iOS: `struct InertiaWidget: Widget` with goal and missingFx rendering, compiled by the macOS
+workflow.
+
+Tests: unit 57/57, Playwright 56/56, Gradle 8/8.
 
 ### P0: v0.4.0, implemented in the working tree (2026-09-28)
 
@@ -275,6 +293,7 @@ TestFlight internal testing, and a pass on the web UI inside WKWebView (safe are
 | 2026-09-27 | New bottom tab「小工具」holds the live preview, style picker and privacy settings inline on one page. Widget settings move out of Settings, and the separate preview window is removed. |
 | 2026-09-27 | Copy cleanup: only essential information on every screen, in all 5 languages, with no chatter（碎碎念）. |
 | 2026-09-27 | Android widget layouts must fill the cell (no empty band), with responsive layouts on API 31+ and bitmaps for the matrix, trend, grain and serif numeral. iOS WidgetKit sources plus a macOS CI compile workflow. Version 0.4.0. |
+| 2026-11-03 | **v0.5.0:** Tactile Archival Ledger redesign (full-bleed mobile canvas, two-tier bottom navigation, 44-48dp targets, WCAG AA contrast). Missing FX flagged on every total. App Home privacy parity including `displayMode` and goal masking. Passive frequency is a money change. Android API 36, signed AAB, adaptive 3-dot icon and monochrome layer, widget pinning and bitmap caps. iOS WidgetKit struct compiles. |
 
 ## 11. Links
 
