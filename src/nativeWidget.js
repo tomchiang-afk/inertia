@@ -51,7 +51,7 @@ export async function requestPinWidget(size) {
   if (!isNative()) return { ok: false, native: false };
   try {
     const res = await InertiaWidget.requestPin({ size: size === "wide" ? "wide" : "small" });
-    return { ok: true, ...(res || {}) };
+    return { ok: !!res?.ok, supported: res?.supported !== false, native: true };
   } catch {
     return { ok: false, native: true };
   }
