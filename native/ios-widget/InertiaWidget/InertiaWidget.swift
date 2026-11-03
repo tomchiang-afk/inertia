@@ -188,7 +188,7 @@ struct InertiaEntryView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
-            if !small && entry.snap.goalShow {
+            if entry.snap.goalShow {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(entry.snap.goalText.isEmpty
                          ? entry.snap.goalName

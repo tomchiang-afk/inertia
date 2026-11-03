@@ -903,16 +903,16 @@ function screenHome(d) {
           base: d.netWorth,
         });
   const paceBlock = showRhythm
-    ? `<div class="rhythm-instrument" data-testid="rhythm-instrument">
-        ${
-          showLive && liveText
-            ? `<p class="rhythm-live-line" id="rhythmLiveLine">${t("rhythm.paceRunning")} <span id="rhythmLive" data-testid="rhythm-today">${liveText}</span></p>`
-            : ""
-        }
-        <div class="rhythm-hero" data-testid="rhythm-hero">
-          <div class="cap">${t("widget.rhythm")}</div>
-          ${monthBeatHTML("rhythm", "medium", "rhythm-metro")}
+    ? `<div class="rhythm-instrument rhythm-hero" data-testid="rhythm-hero">
+        <div class="rhythm-instrument-head">
+          <span class="cap">${t("widget.rhythm")}</span>
+          ${
+            showLive && liveText
+              ? `<span class="rhythm-live-line" id="rhythmLiveLine">${t("rhythm.paceRunning")} <span id="rhythmLive" data-testid="rhythm-today">${liveText}</span></span>`
+              : ""
+          }
         </div>
+        ${monthBeatHTML("rhythm", "medium", "rhythm-metro")}
       </div>`
     : "";
   const capNote = paceCapped(state.paceAnchorAt)
